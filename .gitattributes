@@ -1,0 +1,13 @@
+* text=auto eol=lf
+
+# Must stay LF — it is a shell script and CRLF breaks it outright.
+gradlew text eol=lf
+
+# Binary: never normalise.
+*.ttf binary
+*.otf binary
+*.jar binary
+*.apk binary
+*.keystore binary
+*.jks binary
+*.png binary
