@@ -124,18 +124,37 @@ Inter's file is ~877 KB because it ships every script it supports. Not worth
 subsetting for a single-user sideloaded app; revisit only if APK size ever
 becomes a real complaint.
 
-## 6. Not yet verified on device
+## 6. Device verification
 
-Phase A's gate is "app runs, both tabs navigate, dark/light both correct". The
-first is unverified: `joy` has no attached device, no AVD and no system image.
-Everything else in phase A is verified by the build and the unit tests.
+Target device is attached and phase A is verified on it:
 
-The things that specifically need a screen rather than a compiler:
+```
+SM-S918B (Galaxy S23 Ultra) · Android 16 · API 36 · adb RFCW20Z4AND
+```
 
-- Gradient banding. §6.3 predicts visible stepping on an OLED panel, worst in
-  dark mode. The offscreen layer and the noise dither are both implemented, but
-  whether the noise is at the right alpha is an eyeball judgement.
-- Dark theme values. §6.2 says to tune both themes by eye on the actual device,
-  not in a preview.
-- `cancelled` vs `incomplete` distinguishability (acceptance item 6). The status
-  specimen strip on the Tasks tab exists to make this a five-second check.
+Install and drive it from the shell:
+
+```bash
+JAVA_HOME="/c/Program Files/Android/Android Studio/jbr" ./gradlew :app:installDebug
+adb shell am start -n com.ar13x.jarvis.debug/com.ar13x.jarvis.MainActivity
+adb shell cmd uimode night yes    # or: no
+adb exec-out screencap -p > shot.png
+```
+
+Note the debug build installs as `com.ar13x.jarvis.debug` — `applicationIdSuffix`
+keeps it side-by-side with a release build rather than replacing it.
+
+Three defects were found this way and could not have been found any other way:
+
+1. The `awaiting` indicator drew `rowFill` rather than the accent, so the one
+   status meant to draw attention had a near-invisible dot in both themes.
+2. Cards vanished into the ground in dark. A drop shadow needs something darker
+   to cast onto; on a near-black ground it does nothing. Dark now uses a
+   hairline, light keeps the shadow.
+3. The noise dither was clipped to the wash, leaving a visible horizontal seam
+   where the texture stopped against flat ground.
+
+Still worth an eye on a real panel as the app grows: gradient banding in dark
+(the wash now carries more dither than light for exactly this reason), and
+whether `BrandTintDark` stays readable as the awaiting wash once real rows sit
+in it.
