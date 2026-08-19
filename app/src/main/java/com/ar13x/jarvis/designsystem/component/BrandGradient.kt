@@ -58,6 +58,8 @@ fun Modifier.brandWash(washHeight: Dp = 340.dp): Modifier {
     // Dark is not an inversion: a bright crimson wash on a dark ground vibrates,
     // so the bloom is weaker and the gradient reaches the ground sooner (§6.2).
     val bloomAlpha = if (colors.isDark) 0.38f else 0.55f
+    // OLED bands hardest in the dark wash, so it gets more dither.
+    val noiseAlpha = if (colors.isDark) NOISE_ALPHA_DARK else NOISE_ALPHA
     val midAlpha = if (colors.isDark) 0.28f else 0.35f
 
     return this
@@ -86,13 +88,18 @@ fun Modifier.brandWash(washHeight: Dp = 340.dp): Modifier {
                 drawRect(colors.ground)
                 drawRect(vertical, size = Size(size.width, wash))
                 drawRect(bloom, size = Size(size.width, wash))
-                drawRect(noise, size = Size(size.width, wash), alpha = NOISE_ALPHA)
+                // Full height, not just the wash. Clipping the dither to the
+                // gradient leaves a faint horizontal seam exactly where it
+                // stops — the texture ends abruptly against flat ground and the
+                // eye finds the edge immediately.
+                drawRect(noise, alpha = noiseAlpha)
             }
         }
 }
 
 /** Enough to break the banding, far too little to read as texture. */
 private const val NOISE_ALPHA = 0.028f
+private const val NOISE_ALPHA_DARK = 0.045f
 private const val NOISE_TILE = 128
 
 @Composable

@@ -105,12 +105,17 @@ private fun StatusSpecimenRow(
     val style = statusStyle(status)
     val colors = JarvisTheme.colors
 
-    JarvisCard(modifier = modifier.fillMaxWidth().alpha(style.rowAlpha), onClick = onClick) {
+    JarvisCard(
+        modifier = modifier.fillMaxWidth().alpha(style.rowAlpha),
+        onClick = onClick,
+        // `awaiting` is the one status allowed to borrow the brand, as a row
+        // wash (plan §6.2). Everything else sits on plain surface.
+        containerColor = if (style.rowFill == Color.Transparent) colors.surface else style.rowFill,
+    ) {
         Row(verticalAlignment = Alignment.CenterVertically) {
             StatusDot(
                 color = style.accent,
                 outlined = style.indicatorOutlined,
-                fill = style.rowFill,
             )
             Spacer(Modifier.size(Space.x3))
             Column(Modifier.weight(1f)) {
@@ -140,7 +145,6 @@ private fun StatusSpecimenRow(
 private fun StatusDot(
     color: Color,
     outlined: Boolean,
-    fill: Color,
     modifier: Modifier = Modifier,
 ) {
     Box(
@@ -151,7 +155,7 @@ private fun StatusDot(
                 if (outlined) {
                     Modifier.border(2.dp, color, CircleShape)
                 } else {
-                    Modifier.background(if (fill != Color.Transparent) fill else color, CircleShape)
+                    Modifier.background(color, CircleShape)
                 },
             ),
     )

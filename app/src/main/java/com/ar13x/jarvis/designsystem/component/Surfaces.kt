@@ -1,6 +1,7 @@
 package com.ar13x.jarvis.designsystem.component
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Box
@@ -55,13 +56,20 @@ fun JarvisCard(
     shape: Shape = Corner.Md,
     onClick: (() -> Unit)? = null,
     contentPadding: Dp = Space.x4,
+    containerColor: Color = JarvisTheme.colors.surface,
     content: @Composable ColumnScope.() -> Unit,
 ) {
     val colors = JarvisTheme.colors
+
+    // On a dark ground a drop shadow is invisible — there is nothing darker to
+    // cast onto — so the card would float on nothing and read as a flat patch.
+    // A hairline does the separating instead. In light the shadow does the work
+    // and a border would only muddy it.
     val base = modifier
-        .softShadow(shape, tint = colors.shadowTint)
+        .then(if (colors.isDark) Modifier else Modifier.softShadow(shape, tint = colors.shadowTint))
         .clip(shape)
-        .background(colors.surface, shape)
+        .background(containerColor, shape)
+        .then(if (colors.isDark) Modifier.border(1.dp, colors.hairline, shape) else Modifier)
 
     val clickable = if (onClick == null) base else base.clickable(onClick = onClick)
 
