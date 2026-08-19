@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Mirrors designsystem/theme/Palette.kt Ground (light). -->
+    <color name="ground">#FFFAF7F8</color>
+</resources>
