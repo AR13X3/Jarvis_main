@@ -37,7 +37,7 @@ fun SessionScreen(
 ) {
     val colors = JarvisTheme.colors
 
-    BrandBackdrop(modifier = modifier.fillMaxSize(), washHeight = 280.dp) {
+    BrandBackdrop(modifier = modifier.fillMaxSize()) {
         androidx.compose.foundation.layout.Column(
             Modifier.fillMaxSize().verticalScroll(rememberScrollState()),
         ) {

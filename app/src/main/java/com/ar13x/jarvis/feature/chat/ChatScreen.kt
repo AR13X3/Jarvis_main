@@ -37,7 +37,7 @@ fun ChatScreen(
 ) {
     val colors = JarvisTheme.colors
 
-    BrandBackdrop(modifier = modifier.fillMaxSize(), washHeight = 340.dp) {
+    BrandBackdrop(modifier = modifier.fillMaxSize()) {
         Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState())) {
             ScreenHeader(
                 eyebrow = "Hi there,",

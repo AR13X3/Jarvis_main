@@ -1,5 +1,6 @@
 package com.ar13x.jarvis.core.data
 
+import com.ar13x.jarvis.core.model.CancelScope
 import com.ar13x.jarvis.core.model.PagedTasks
 import com.ar13x.jarvis.core.model.SectionsResponse
 import com.ar13x.jarvis.core.model.Task
@@ -40,8 +41,14 @@ interface TaskRepository {
      */
     suspend fun setPriority(taskId: Long, isPriority: Boolean): Task
 
-    /** Cancel is confirmed from either path; it is not cheaply reversible. */
-    suspend fun cancel(taskId: Long): Task
+    /**
+     * Cancel is confirmed from either path; it is not cheaply reversible.
+     *
+     * [scope] only means something for a recurring task — skipping this firing
+     * and calling off the rule are different intentions (see [CancelScope]).
+     * For a one-shot task both scopes do the same thing.
+     */
+    suspend fun cancel(taskId: Long, scope: CancelScope = CancelScope.Series): Task
 
     suspend fun task(taskId: Long): Task
 

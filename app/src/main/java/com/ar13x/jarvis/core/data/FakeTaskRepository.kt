@@ -1,5 +1,6 @@
 package com.ar13x.jarvis.core.data
 
+import com.ar13x.jarvis.core.model.CancelScope
 import com.ar13x.jarvis.core.model.PagedTasks
 import com.ar13x.jarvis.core.model.SectionsResponse
 import com.ar13x.jarvis.core.model.Task
@@ -74,9 +75,9 @@ class FakeTaskRepository @Inject constructor(
         return backend.setPriority(taskId, isPriority)
     }
 
-    override suspend fun cancel(taskId: Long): Task {
+    override suspend fun cancel(taskId: Long, scope: CancelScope): Task {
         delay(FakeBackend.WRITE_LATENCY_MS)
-        return backend.cancel(taskId)
+        return backend.cancel(taskId, scope)
     }
 
     override suspend fun task(taskId: Long): Task {

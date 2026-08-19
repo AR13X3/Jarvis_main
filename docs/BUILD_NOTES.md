@@ -92,6 +92,32 @@ looks like. The app assumes:
 the same array `AgentResponse` carries, and it is what makes scrolling back show
 the cards rather than bare text.
 
+### 3.4 `cancel` needs a scope for recurring tasks
+
+§4.4 defines `POST /tasks/{id}/cancel {confirm:true}`. For a recurring task that
+is ambiguous, and destructively so: "skip this Friday" and "stop doing this
+every Friday" are different intentions and the endpoint cannot tell them apart.
+
+The parent plan already models the distinction — `tasks.occurrences` exists
+precisely so a firing can resolve without closing the rule (§2.5). The API is
+the only place it went missing.
+
+```jsonc
+POST /tasks/{id}/cancel  { "confirm": true, "scope": "occurrence" | "series" }
+```
+
+`occurrence` resolves the current occurrence and advances `next_fire_at`;
+`series` sets the task to `cancelled` as today. Defaulting an absent `scope` to
+`series` keeps existing behaviour, though the app always sends one.
+
+Resolving it server-side rather than passing an occurrence id is deliberate: the
+app has no occurrence id for a row (`/tasks` does not carry one), and giving it
+one would mean the client tracking which firing is current — a scheduling
+concern it has no business holding.
+
+The app already asks the question. A one-shot task gets a single confirm; a
+recurring task gets two labelled choices.
+
 ### 3.3 Still open from §13
 
 - `GET /occurrences/upcoming` does not exist in the parent plan's API list. No
@@ -158,3 +184,57 @@ Still worth an eye on a real panel as the app grows: gradient banding in dark
 (the wash now carries more dither than light for exactly this reason), and
 whether `BrandTintDark` stays readable as the awaiting wash once real rows sit
 in it.
+
+## 7. Judgement calls the plan does not make
+
+Recorded because they are decisions, not details, and the next person reading
+§5.2 will wonder why the code does not match it literally.
+
+### 7.1 No Paging 3 for the All-tasks list
+
+§2's stack table specifies Paging 3 with a network-only `PagingSource`. The list
+uses plain state-held pagination instead.
+
+The reason is `/tasks/sections`. That endpoint exists so the whole tab's first
+paint is **one** round trip, and it returns page 1 of All alongside the other two
+sections. A `PagingSource` insists on owning page 1, so combining them means
+either fetching page 1 twice on every cold start or bypassing the endpoint built
+for this. Neither is worth Paging 3's benefits at 20 rows a page in a list that
+also carries two non-paged sections and section headers.
+
+What was actually needed — append on scroll, an append spinner, a retryable
+append failure — is about forty lines in the ViewModel and composes with
+`animateItem()` without fighting it.
+
+Revisit if the All list ever needs placeholders or a Room-backed cache. It does
+not, and per §0 it must not.
+
+### 7.2 Filters collapse the sections
+
+§5.2 describes three sections and a filter chip row without saying how they
+interact. Showing both produces a self-contradicting screen: filter to
+"Completed" and the Priority section still shows active tasks, because Priority
+*is* a filter (`is_priority && status in (active, awaiting)`).
+
+So an active filter hides Priority and Recurring and leaves one result list.
+Clearing the filters brings them back.
+
+### 7.3 Priority + recurring still duplicates
+
+Per §5.2's instruction: built duplicated, visible on the device now. "Weekly
+review" appears in both Priority and Recurring. It is on screen and can be
+judged rather than argued about.
+
+### 7.4 Row composition
+
+§5.2 lists the row's contents but not their arrangement. Three separate controls
+(overflow, cancel, expand) placed independently read as clutter, so they are
+grouped: overflow and cancel are one cluster overlaid at the top-right, the
+expand chevron is centred on the bottom edge. The actions change the task; the
+chevron only changes what you can see of it, and keeping them apart is what stops
+a mis-tap on "show details" from landing on "cancel".
+
+The actions are *overlaid* rather than laid out beside the content so only the
+title yields width to them — otherwise every metadata line is silently 68dp
+narrower than the card, which is what clipped "Every Monday, Wednesday and
+Friday" to "…and…".

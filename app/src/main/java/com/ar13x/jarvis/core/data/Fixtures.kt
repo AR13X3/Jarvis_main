@@ -76,6 +76,8 @@ internal object Fixtures {
             task(
                 id = 2,
                 title = "Renew the car registration before it lapses",
+                description = "Rego expires at the end of the month. The pink slip is done, " +
+                    "so this is just the payment.",
                 dueDate = today,
                 dueTime = LocalTime.of(17, 30),
                 isPriority = true,
@@ -95,6 +97,8 @@ internal object Fixtures {
             task(
                 id = 4,
                 title = "Gym",
+                description = "Upper body Monday and Friday, legs Wednesday. Front desk needs " +
+                    "the membership card, not the app.",
                 dueDate = today.plusDays(1),
                 dueTime = LocalTime.of(6, 30),
                 recurrence = "FREQ=WEEKLY;BYDAY=MO,WE,FR",
@@ -112,6 +116,8 @@ internal object Fixtures {
             task(
                 id = 6,
                 title = "Send the insurance paperwork",
+                description = "Scanned copies are in the shared drive under 2026/insurance. " +
+                    "They need the signed page 4, not the whole document.",
                 dueDate = today.minusDays(3),
                 status = TaskStatus.Incomplete,
                 createdDaysAgo = 9,
@@ -131,12 +137,20 @@ internal object Fixtures {
                 status = TaskStatus.Completed,
                 createdDaysAgo = 6,
             ),
-            // Long enough to wrap and stress the row layout.
+            // Deliberately absurd. A title this long is what proves the row
+            // clamps rather than pushing the controls off screen, and that the
+            // expand affordance appears only because something is actually
+            // hidden.
             task(
                 id = 9,
-                title = "Ask the strata manager about the water damage in the basement car park",
+                title = "Ask the strata manager about the water damage in the basement car park " +
+                    "and whether the insurance claim from the storm in March was ever lodged, " +
+                    "because the committee minutes say one thing and the invoice says another",
                 dueDate = today.plusDays(4),
                 dueTime = LocalTime.of(11, 15),
+                description = "Minutes from 14 March say the claim was lodged the same week. " +
+                    "The invoice from the plumber is dated three weeks later and references a " +
+                    "different job number. Ask which one the insurer actually has.",
             ),
             // Three same-titled tasks on different dates — the disambiguation
             // fixture for acceptance item 7 (§12).

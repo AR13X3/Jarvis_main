@@ -1,6 +1,7 @@
 package com.ar13x.jarvis.core.data
 
 import com.ar13x.jarvis.core.model.AgentComponent
+import com.ar13x.jarvis.core.model.CancelScope
 import com.ar13x.jarvis.core.model.AgentResponse
 import com.ar13x.jarvis.core.model.Message
 import com.ar13x.jarvis.core.model.MessageRole
@@ -16,6 +17,7 @@ import kotlinx.coroutines.sync.withLock
 import java.time.Instant
 import java.time.LocalDate
 import java.time.ZoneId
+import java.time.temporal.ChronoUnit
 import java.util.UUID
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -78,15 +80,29 @@ class FakeBackend @Inject constructor() {
         updated
     }
 
-    suspend fun cancel(id: Long): Task = mutex.withLock {
+    suspend fun cancel(id: Long, scope: CancelScope): Task = mutex.withLock {
         val existing = requireNotNull(tasks[id]) { "No task " + id }
-        // Rows are never deleted — cancelling sets status and cancelled_at.
-        val updated = existing.copy(
-            status = TaskStatus.Cancelled,
-            cancelledAt = Instant.now(),
-            updatedAt = Instant.now(),
-            dueToday = false,
-        )
+        val now = Instant.now()
+
+        // Skipping one firing of a recurring task leaves the rule alone: the
+        // parent stays active and simply moves on to its next occurrence. Only
+        // the series scope resolves the task itself.
+        val skipOnly = scope == CancelScope.Occurrence && existing.recurrence != null
+        val updated = if (skipOnly) {
+            // The real scheduler computes the next occurrence from the RRULE.
+            // The app must never do this (plan §3.1) — the fake may, because it
+            // is standing in for the server.
+            val advanced = (existing.nextFireAt ?: existing.dueAt).plus(7, ChronoUnit.DAYS)
+            existing.copy(nextFireAt = advanced, updatedAt = now, dueToday = false)
+        } else {
+            // Rows are never deleted — cancelling sets status and cancelled_at.
+            existing.copy(
+                status = TaskStatus.Cancelled,
+                cancelledAt = now,
+                updatedAt = now,
+                dueToday = false,
+            )
+        }
         tasks[id] = updated
         updated
     }
