@@ -64,4 +64,32 @@ object DueDateFormat {
         }
         return day + ", " + timeFormat.format(zoned.toLocalTime())
     }
+
+    /**
+     * The proposal summary's date, for the confirmation card.
+     *
+     * Same rule as a task row: the **day** comes from the server's bare
+     * `due_date` and the **time** is read off the instant. A proposal is the one
+     * place a wrong day is cheapest to catch and most expensive to miss, since
+     * confirming it is what writes the task.
+     */
+    fun forProposal(
+        dueDate: LocalDate?,
+        dueAt: Instant?,
+        zone: ZoneId = ZoneId.systemDefault(),
+    ): String? {
+        if (dueDate == null && dueAt == null) return null
+        val today = LocalDate.now(zone)
+        val date = dueDate ?: dueAt!!.atZone(zone).toLocalDate()
+        val day = when (date) {
+            today -> "Today"
+            today.plusDays(1) -> "Tomorrow"
+            else -> {
+                val format = if (date.year == today.year) dayThisYear else dayOtherYear
+                format.format(date)
+            }
+        }
+        val time = dueAt?.let { timeFormat.format(it.atZone(zone).toLocalTime()) }
+        return if (time == null) day else day + ", " + time
+    }
 }

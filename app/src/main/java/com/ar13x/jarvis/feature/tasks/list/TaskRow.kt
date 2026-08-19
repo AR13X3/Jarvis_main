@@ -51,6 +51,7 @@ import com.ar13x.jarvis.designsystem.component.JarvisCard
 import com.ar13x.jarvis.designsystem.motion.Motion
 import com.ar13x.jarvis.designsystem.motion.motionFloat
 import com.ar13x.jarvis.designsystem.motion.motionSize
+import com.ar13x.jarvis.designsystem.motion.sharedTaskTitle
 import com.ar13x.jarvis.designsystem.theme.Corner
 import com.ar13x.jarvis.designsystem.theme.JarvisTheme
 import com.ar13x.jarvis.designsystem.theme.Space
@@ -138,7 +139,11 @@ fun TaskRow(
                         },
                         modifier = Modifier
                             .weight(1f)
-                            .padding(end = ACTIONS_RESERVE),
+                            .padding(end = ACTIONS_RESERVE)
+                            // The other end of the row -> session morph (§6.5).
+                            // Both ends key off the task id, so the title tracks
+                            // between screens instead of cross-fading.
+                            .sharedTaskTitle(task.id),
                     )
                 }
 

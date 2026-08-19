@@ -132,6 +132,14 @@ recurring task gets two labelled choices.
 - `core/model` — the wire types. They are shared by `data` and `network` and
   belong to neither.
 - `core/ui` — `LoadState` only. It is UI vocabulary, not data.
+- `feature/conversation` — the message list, composer, confirmation card and
+  `ConversationViewModel`. The plan lists `feature/tasks/session` and
+  `feature/chat` as separate leaves, but §5.3 and §5.4 describe the *same*
+  screen with different framing: same stream, same composer, same cards. Two
+  copies would drift, and putting the shared half under `feature/tasks` would
+  make the Chat tab depend on the Tasks package for its own body. The two
+  feature packages survive as thin wrappers that supply a header, an empty
+  state and a target.
 
 `core/time` exists and is empty until phase E needs it.
 

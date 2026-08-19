@@ -150,12 +150,17 @@ private fun JarvisNavHost(
                             SessionScreen(
                                 taskId = entry.toRoute<TaskSession>().taskId,
                                 onBack = navController::popBackStack,
+                                onOpenTask = { id -> navController.navigate(TaskSession(id)) },
                             )
                         }
                     }
                     composable<NewSession> {
                         WithNavScope {
-                            SessionScreen(taskId = null, onBack = navController::popBackStack)
+                            SessionScreen(
+                                taskId = null,
+                                onBack = navController::popBackStack,
+                                onOpenTask = { id -> navController.navigate(TaskSession(id)) },
+                            )
                         }
                     }
                 }
