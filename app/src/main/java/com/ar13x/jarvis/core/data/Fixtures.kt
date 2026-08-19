@@ -152,6 +152,20 @@ internal object Fixtures {
                     "The invoice from the plumber is dated three weeks later and references a " +
                     "different job number. Ask which one the insurer actually has.",
             ),
+            // Priority AND recurring AND awaiting. Recurring only shows
+            // `active`, so this one has to fall back to Priority — without it
+            // the de-duplication in sections() silently drops a task that is
+            // both starred and waiting on you.
+            task(
+                id = 47,
+                title = "Take the bins out",
+                dueDate = today,
+                dueTime = LocalTime.of(19, 0),
+                isPriority = true,
+                recurrence = "FREQ=WEEKLY;BYDAY=SU",
+                recurrenceText = "Every Sunday",
+                status = TaskStatus.Awaiting,
+            ),
             // Three same-titled tasks on different dates — the disambiguation
             // fixture for acceptance item 7 (§12).
             task(id = 10, title = "Dinner with Sam", dueDate = today.plusDays(1), dueTime = LocalTime.of(19, 0)),

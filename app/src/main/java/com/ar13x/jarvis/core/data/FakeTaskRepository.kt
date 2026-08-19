@@ -33,16 +33,27 @@ class FakeTaskRepository @Inject constructor(
         val all = backend.allTasks()
 
         // These are views over one table, not task types (parent plan §2.7).
-        // A task that is both priority and recurring therefore appears in both —
-        // built duplicated on purpose so §5.2's open question can be judged on
-        // the device rather than argued about beforehand.
-        val priority = all
-            .filter { it.isPriority && (it.status == TaskStatus.Active || it.status == TaskStatus.Awaiting) }
-            .sortedBy { it.dueAt }
-
+        //
+        // §5.2's open question — a task that is both priority and recurring —
+        // is **resolved: it appears once, under Recurring**, carrying its star so
+        // the priority is still visible. Showing it twice was defensible (both
+        // statements are true) but read as a bug.
+        //
+        // The de-duplication is against *what Recurring actually shows*, not
+        // against the recurrence flag. Recurring is `status == active` only, so
+        // excluding every recurring task from Priority would drop a priority
+        // recurring task in `awaiting` out of both sections — and that is
+        // precisely the one that wants attention.
         val recurring = all
             .filter { it.isRecurring && it.status == TaskStatus.Active }
             .sortedBy { it.nextFireAt ?: it.dueAt }
+
+        val shownInRecurring = recurring.mapTo(mutableSetOf()) { it.id }
+
+        val priority = all
+            .filter { it.isPriority && (it.status == TaskStatus.Active || it.status == TaskStatus.Awaiting) }
+            .filterNot { it.id in shownInRecurring }
+            .sortedBy { it.dueAt }
 
         return SectionsResponse(
             priority = priority,

@@ -219,11 +219,29 @@ interact. Showing both produces a self-contradicting screen: filter to
 So an active filter hides Priority and Recurring and leaves one result list.
 Clearing the filters brings them back.
 
-### 7.3 Priority + recurring still duplicates
+### 7.3 Priority + recurring — **resolved**
 
-Per §5.2's instruction: built duplicated, visible on the device now. "Weekly
-review" appears in both Priority and Recurring. It is on screen and can be
-judged rather than argued about.
+§5.2 asked for it to be built duplicated and judged on the device. Decided
+2026-08-20: a task that is both appears **once, under Recurring**, carrying its
+star so the priority is still legible. Showing it twice was defensible — both
+statements are true — but read as a bug.
+
+The de-duplication is against **what Recurring actually shows**, not against the
+`recurrence` flag. Recurring is `recurrence != null && status == 'active'`, so
+excluding every recurring task from Priority would drop a priority recurring task
+in `awaiting` out of *both* sections — and that is exactly the task that wants
+attention. `TaskSectionsTest` covers the case, and there is a fixture ("Take the
+bins out") that sits in it.
+
+**This is a gateway change too.** `/tasks/sections` computes these queries
+server-side, so the same rule belongs there:
+
+```sql
+-- priority: starred, live, and not already shown under recurring
+is_priority
+  and status in ('active','awaiting')
+  and not (recurrence is not null and status = 'active')
+```
 
 ### 7.4 Row composition
 
