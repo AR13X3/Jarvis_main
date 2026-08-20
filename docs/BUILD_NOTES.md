@@ -118,6 +118,52 @@ concern it has no business holding.
 The app already asks the question. A one-shot task gets a single confirm; a
 recurring task gets two labelled choices.
 
+### 3.5 `GET /tasks` — param names and single status
+
+Two differences from plan §4.4, both taken from `gateway-openapi.json` and now
+matched by the app:
+
+- The date params are **`date_from` / `date_to`**, not `from` / `to`.
+- **`status` takes one value, not a list.** The filter chip row was multi-select
+  and is now single-select, because a chip row that offers "Active + Missed"
+  while the server can only answer one of them is a filter that silently means
+  something other than it shows.
+
+If repeated `status` params are cheap on your side (`status: list[str] | None`),
+the chips would go back to multi-select. Not blocking.
+
+### 3.6 Mutation responses are untyped in the schema
+
+`PATCH /tasks/{id}`, `POST /tasks/{id}/cancel` and
+`POST /proposals/{id}/confirm` are declared as bare objects with no schema —
+FastAPI has no return annotation on them — while §4.4 says they return `{task}`.
+
+The app reads either an envelope or a bare task so a later annotation cannot
+break it, but that is a guess wearing a seatbelt. **Annotating the return types
+would settle it**, and would also let the app stop carrying the tolerant decoder.
+
+### 3.7 There is no `GET /tasks/{id}`
+
+Opening a task session needs that one task, to know whether it is terminal and
+therefore whether the composer appears. With no single-task route the app pages
+`GET /tasks` until it finds the id — twenty rows fetched to read one, and worse
+for a task deep in the list.
+
+A plain `GET /tasks/{id}` would remove it entirely.
+
+### 3.8 No endpoint redeems a `task_options` cursor — blocks "Show more"
+
+`task_options` carries `more_cursor`, and §5.4 specifies buttons three at a time
+with "Show more" paging the rest. **No route accepts that cursor.** There is no
+`GET /sessions/{id}/options`, and redeeming it through `POST /messages` would
+mean inventing a fake user turn — it would appear in the transcript as something
+the user said, and spend a model call to page a list the gateway already has.
+
+The app currently fails that tap with "Showing more matches needs a gateway
+update." The disambiguation flow works up to three candidates; beyond that it is
+blocked on you. This is the only §5.4 behaviour not working against the live
+gateway.
+
 ### 3.3 Still open from §13
 
 - `GET /occurrences/upcoming` does not exist in the parent plan's API list. No

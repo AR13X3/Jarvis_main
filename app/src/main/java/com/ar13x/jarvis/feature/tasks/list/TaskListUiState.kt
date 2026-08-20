@@ -63,10 +63,15 @@ data class TaskListContent(
 
 @Immutable
 data class TaskFilters(
-    val statuses: Set<TaskStatus> = emptySet(),
+    /**
+     * One status at a time. `GET /tasks` accepts a single `status`, so a
+     * multi-select chip row would offer a combination the gateway cannot
+     * answer — the filter would silently mean something other than it showed.
+     */
+    val status: TaskStatus? = null,
     val range: DateRange = DateRange.Any,
 ) {
-    val isEmpty: Boolean get() = statuses.isEmpty() && range == DateRange.Any
+    val isEmpty: Boolean get() = status == null && range == DateRange.Any
 
     /**
      * Resolves the range to the bare calendar days the API takes.

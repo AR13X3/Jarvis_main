@@ -27,8 +27,13 @@ interface TaskRepository {
     /** One round trip for the whole Tasks tab first paint. */
     suspend fun sections(): SectionsResponse
 
+    /**
+     * [status] is a single value, not a set: `GET /tasks` takes one
+     * `status` query parameter. Modelling it as a set here would let the UI
+     * promise a filter the gateway cannot serve — see BUILD_NOTES §3.5.
+     */
     suspend fun tasks(
-        statuses: Set<TaskStatus> = emptySet(),
+        status: TaskStatus? = null,
         from: LocalDate? = null,
         to: LocalDate? = null,
         page: Int = 1,

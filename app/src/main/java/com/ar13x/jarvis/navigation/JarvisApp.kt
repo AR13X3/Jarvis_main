@@ -7,6 +7,7 @@ import androidx.compose.animation.SharedTransitionLayout
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.navigationBarsPadding
@@ -14,6 +15,8 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.getValue
+import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.navigation.NavDestination.Companion.hasRoute
@@ -30,12 +33,33 @@ import com.ar13x.jarvis.designsystem.motion.LocalNavAnimatedVisibilityScope
 import com.ar13x.jarvis.designsystem.motion.LocalReducedMotion
 import com.ar13x.jarvis.designsystem.motion.LocalSharedTransitionScope
 import com.ar13x.jarvis.designsystem.motion.Motion
+import com.ar13x.jarvis.designsystem.theme.JarvisTheme
+import com.ar13x.jarvis.feature.onboarding.AppGateViewModel
+import com.ar13x.jarvis.feature.onboarding.TokenScreen
 import com.ar13x.jarvis.feature.chat.ChatScreen
 import com.ar13x.jarvis.feature.tasks.list.TaskListScreen
 import com.ar13x.jarvis.feature.tasks.session.SessionScreen
 
+/**
+ * The app gate: onboarding until a token exists, the tabs afterwards.
+ *
+ * `null` means the token store has not answered yet, and renders nothing —
+ * defaulting to "no token" would flash the pairing screen at an already-paired
+ * user on every cold start.
+ */
 @Composable
-fun JarvisApp() {
+fun JarvisApp(gate: AppGateViewModel = hiltViewModel()) {
+    val hasToken by gate.hasToken.collectAsStateWithLifecycle()
+
+    when (hasToken) {
+        null -> Box(Modifier.fillMaxSize().background(JarvisTheme.colors.ground))
+        false -> TokenScreen(onConnected = { /* the flow re-emits and swaps this out */ })
+        true -> JarvisTabs()
+    }
+}
+
+@Composable
+private fun JarvisTabs() {
     val navController = rememberNavController()
     val backStackEntry by navController.currentBackStackEntryAsState()
 

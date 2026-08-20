@@ -13,6 +13,11 @@ import kotlinx.serialization.json.Json
  */
 val JarvisJson: Json = Json {
     ignoreUnknownKeys = true
+    // The gateway declares title, description and is_priority as nullable on
+    // ProposalSummary, while the app models them as non-null with defaults. An
+    // explicit `null` would otherwise throw mid-stream and blank a message that
+    // was otherwise fine; this coerces it to the default instead.
+    coerceInputValues = true
     classDiscriminator = "type"
     explicitNulls = false
     encodeDefaults = true

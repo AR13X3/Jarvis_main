@@ -47,12 +47,10 @@ class TaskListViewModel @Inject constructor(
 
             is TaskListEvent.ToggleStatusFilter -> {
                 val current = _state.value.filters
-                val next = if (event.status in current.statuses) {
-                    current.statuses - event.status
-                } else {
-                    current.statuses + event.status
-                }
-                applyFilters(current.copy(statuses = next))
+                // Tapping the selected chip clears it, so the row still behaves
+                // like a toggle even though only one can be on.
+                val next = if (current.status == event.status) null else event.status
+                applyFilters(current.copy(status = next))
             }
             is TaskListEvent.SetRange -> applyFilters(_state.value.filters.copy(range = event.range))
             TaskListEvent.ClearFilters -> applyFilters(TaskFilters())
@@ -99,7 +97,7 @@ class TaskListViewModel @Inject constructor(
                     )
                 } else {
                     val (from, to) = filters.bounds()
-                    val page = tasks.tasks(filters.statuses, from, to, page = 1)
+                    val page = tasks.tasks(filters.status, from, to, page = 1)
                     TaskListContent(all = page.tasks, page = page.page, hasMore = page.hasMore)
                 }
             }.onSuccess { content ->
@@ -122,7 +120,7 @@ class TaskListViewModel @Inject constructor(
             _state.update { it.copy(appending = true, appendFailure = null) }
             val filters = current.filters
             val (from, to) = filters.bounds()
-            runCatching { tasks.tasks(filters.statuses, from, to, page = content.page + 1) }
+            runCatching { tasks.tasks(filters.status, from, to, page = content.page + 1) }
                 .onSuccess { page ->
                     _state.update { state ->
                         val existing = state.content.dataOrNull ?: return@update state
@@ -253,7 +251,7 @@ class TaskListViewModel @Inject constructor(
                 var page = 0
                 var hasMore = true
                 while (page < pagesLoaded && hasMore) {
-                    val next = tasks.tasks(filters.statuses, from, to, page = page + 1)
+                    val next = tasks.tasks(filters.status, from, to, page = page + 1)
                     all = all + next.tasks
                     page = next.page
                     hasMore = next.hasMore

@@ -63,7 +63,7 @@ class FakeTaskRepository @Inject constructor(
     }
 
     override suspend fun tasks(
-        statuses: Set<TaskStatus>,
+        status: TaskStatus?,
         from: LocalDate?,
         to: LocalDate?,
         page: Int,
@@ -71,7 +71,7 @@ class FakeTaskRepository @Inject constructor(
         delay(FakeBackend.READ_LATENCY_MS)
         val filtered = backend.allTasks()
             .asSequence()
-            .filter { statuses.isEmpty() || it.status in statuses }
+            .filter { status == null || it.status == status }
             // Filtered on the LOCAL calendar day the server sent, never on the
             // instant — the whole point of `due_date` existing (plan §3.2).
             .filter { from == null || !it.dueDate.isBefore(from) }
