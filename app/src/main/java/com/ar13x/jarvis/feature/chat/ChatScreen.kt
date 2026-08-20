@@ -79,20 +79,22 @@ fun ChatScreen(
 }
 
 /**
- * Phrased to match what the general session's tools can actually do.
+ * These are the real use cases, and they stay even though the gateway cannot
+ * answer them yet.
  *
- * `find_tasks` searches **titles by keyword**; there is no list-everything or
- * filter-by-date tool (parent plan §2.3). "What's due today?" reads naturally
- * and the agent has to refuse it — asked live, it replied that it could not list
- * or filter by due date and offered to search keywords instead. A suggestion
- * chip that reliably produces an apology is worse than no chip: it teaches the
- * user the assistant is broken when it is doing exactly what it was scoped to.
+ * `find_tasks` currently searches titles by keyword only, so asked today the
+ * agent explains it cannot filter by due date. The earlier version of this list
+ * quietly avoided date questions to dodge that — which was backwards: it hid a
+ * missing capability instead of surfacing it, and made the app's ambitions
+ * smaller than the user's.
  *
- * The Tasks tab already answers "what's due today" better than any chat turn
- * could, which is the other half of why this does not belong here.
+ * Chat earns its place here precisely because these ranges are open-ended.
+ * The filter chips offer Today / Next 7 days / Overdue; "the next three days"
+ * is not among them and never will be, because a chip row cannot enumerate
+ * every window somebody might want. Blocked on BUILD_NOTES §3.10.
  */
 private val SUGGESTIONS = listOf(
-    "Find my dentist appointment",
-    "Look up the gym reminder",
-    "What is the rates notice set to?",
+    "What's due today?",
+    "What's due this week?",
+    "What's due in the next 3 days?",
 )

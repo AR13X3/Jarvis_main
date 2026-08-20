@@ -153,6 +153,46 @@ rule for what "the" general session is — most recent, or a singleton row.
 A `GET /sessions?kind=&task_id=` lookup would work equally well; the app is happy
 with either.
 
+### 3.10 `find_tasks` needs date ranges — a stated requirement, not a nicety
+
+The general session's tools are `find_tasks` and `get_task`, and `find_tasks`
+matches **titles by keyword**. Asked "what's due today?" live, the agent replied
+that it has no way to list tasks or filter by due date, and offered a keyword
+search instead.
+
+These are confirmed real use cases, in the user's words:
+
+- *"What's due today?"*
+- *"What's due this week?"*
+- *"What's due in the next 3 days?"*
+
+**The query already exists.** `GET /tasks?date_from=&date_to=&status=` is what
+the Tasks tab pages through. Nothing new is needed in the schema or the data —
+the same predicate just needs exposing as a tool the model can call in a general
+session:
+
+```
+find_tasks(query?, date_from?, date_to?, status?)
+```
+
+Note this is not something a filter chip can replace. The Tasks tab offers
+Today / Next 7 days / Overdue; "the next three days" is not on that list and
+cannot be, because a chip row cannot enumerate every window somebody might ask
+for. Open-ended ranges are exactly what chat is *for*.
+
+#### One trap worth stating explicitly
+
+**The model must not compute the dates itself.** "Today" is the user's local
+calendar day, the server runs UTC, and a model asked to work out "the next three
+days" will produce whatever it thinks the date is — reintroducing §3.2's bug
+through the side door, in the one place there is no `due_date` field to fall
+back on.
+
+Either resolve the relative range server-side inside the tool, or inject the
+user's local `today` into the prompt so the model has a true anchor to offset
+from. The app deliberately has no say here: it never computes a task's day, and
+it should not start doing so for chat either.
+
 ### 3.5 `GET /tasks` — param names and single status
 
 Two differences from plan §4.4, both taken from `gateway-openapi.json` and now
