@@ -56,9 +56,10 @@ import java.time.Instant
  * The Chat tab (plan §5.4): the general session, task lookup, and history.
  *
  * Unlike a task session — one thread bound to one task forever — this is a
- * series of conversations. It opens the most recent one rather than starting
- * blank, because the value of asking "which dinner did I mean" is largely in
- * being able to look at the answer again.
+ * series of conversations. It opens a **fresh** one every time rather than
+ * resuming the most recent: arriving at the tab almost always means having a new
+ * question, and landing in a finished conversation makes the tab feel like a
+ * place to be dug out of. Going back is what the history button is for.
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
