@@ -6,6 +6,7 @@ import com.ar13x.jarvis.core.model.Message
 import com.ar13x.jarvis.core.model.MessageRole
 import com.ar13x.jarvis.core.model.Task
 import com.ar13x.jarvis.core.model.TaskOption
+import com.ar13x.jarvis.core.model.TaskStatus
 import com.ar13x.jarvis.core.ui.LoadState
 
 /**
@@ -74,6 +75,15 @@ data class ConversationUiState(
     /** Proposal id currently being confirmed or rejected. */
     val resolving: String? = null,
     val options: Map<OptionsKey, OptionsState> = emptyMap(),
+    /**
+     * Status looked up per task, for options the gateway sent without one.
+     *
+     * Interim: `TaskOption.status` is requested as BUILD_NOTES §3.13, and the
+     * moment it arrives this map stops being filled, because nothing is fetched
+     * for an option that already knows its own status. Self-retiring rather than
+     * dead code waiting to be deleted.
+     */
+    val optionStatus: Map<Long, TaskStatus> = emptyMap(),
     val transientFailure: FailureReason? = null,
 ) {
     /**

@@ -31,6 +31,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.ar13x.jarvis.core.model.AgentComponent
 import com.ar13x.jarvis.core.model.TaskOption
+import com.ar13x.jarvis.core.model.TaskStatus
 import com.ar13x.jarvis.core.ui.DueDateFormat
 import com.ar13x.jarvis.designsystem.motion.Motion
 import com.ar13x.jarvis.designsystem.motion.motionFloat
@@ -58,6 +59,7 @@ fun TaskOptionsCard(
     extra: List<TaskOption>,
     cursor: String?,
     loadingMore: Boolean,
+    statusFor: (Long) -> TaskStatus? = { null },
     onPick: (Long) -> Unit,
     onShowMore: (String) -> Unit,
     modifier: Modifier = Modifier,
@@ -76,7 +78,11 @@ fun TaskOptionsCard(
                 enter = expandVertically(motionSize(Motion.GentleSize)) +
                     fadeIn(motionFloat(Motion.Standard)),
             ) {
-                OptionButton(option = option, onClick = { onPick(option.taskId) })
+                OptionButton(
+                    option = option,
+                    status = option.status ?: statusFor(option.taskId),
+                    onClick = { onPick(option.taskId) },
+                )
             }
         }
 
@@ -111,6 +117,7 @@ fun TaskOptionsCard(
 @Composable
 private fun OptionButton(
     option: TaskOption,
+    status: TaskStatus?,
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
@@ -118,7 +125,7 @@ private fun OptionButton(
     // Same treatment as a task row: a done task is muted, a cancelled one is
     // struck through, a missed one is an outlined ring. One visual language
     // across the app means a status learned in the list reads the same here.
-    val style = option.status?.let { statusStyle(it) }
+    val style = status?.let { statusStyle(it) }
 
     Row(
         modifier = modifier

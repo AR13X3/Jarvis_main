@@ -219,6 +219,7 @@ private fun MessageItem(
                         extra = options?.extra.orEmpty(),
                         cursor = options?.cursor,
                         loadingMore = options?.loading == true,
+                        statusFor = state.optionStatus::get,
                         onPick = onOpenTask,
                         onShowMore = { cursor ->
                             onEvent(ConversationEvent.ShowMoreOptions(key, cursor))

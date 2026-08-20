@@ -143,6 +143,41 @@ class ConversationViewModel @Inject constructor(
         }
     }
 
+    /**
+     * Fills in the status of any option the gateway sent without one.
+     *
+     * "What's due today" lists everything due today, and a task already done
+     * must not look identical to one still outstanding — but `TaskOption` does
+     * not carry a status yet (BUILD_NOTES §3.13). Until it does, the app asks.
+     *
+     * Bounded and self-retiring: at most three options are on screen per page,
+     * each already-seen id is skipped, and an option that arrives *with* a
+     * status is never fetched at all — so this stops doing anything the day the
+     * field lands, without a line changing.
+     */
+    private fun enrichOptionStatuses() {
+        val state = _state.value
+        val missing = state.stream
+            .flatMap { it.components }
+            .filterIsInstance<AgentComponent.TaskOptions>()
+            .flatMap { it.options }
+            .filter { it.status == null }
+            .map { it.taskId }
+            .distinct()
+            .filterNot { it in state.optionStatus }
+        if (missing.isEmpty()) return
+
+        viewModelScope.launch {
+            val found = missing.mapNotNull { id ->
+                // A failure here is cosmetic: the button simply shows no status,
+                // which is exactly where it was before. Not worth surfacing.
+                runCatching { tasks.task(id) }.getOrNull()?.let { id to it.status }
+            }
+            if (found.isEmpty()) return@launch
+            _state.update { it.copy(optionStatus = it.optionStatus + found) }
+        }
+    }
+
     private suspend fun refreshHistory(sessionId: String, clearOptimistic: Boolean) {
         runCatching { agent.messages(sessionId, before = null, limit = HISTORY_PAGE) }
             .onSuccess { page ->
@@ -154,6 +189,7 @@ class ConversationViewModel @Inject constructor(
                         thinking = false,
                     )
                 }
+                enrichOptionStatuses()
             }
             .onFailure { error ->
                 _state.update {
@@ -246,6 +282,7 @@ class ConversationViewModel @Inject constructor(
                                 ),
                         )
                     }
+                    enrichOptionStatuses()
                 }
                 .onFailure { error ->
                     _state.update { state ->
