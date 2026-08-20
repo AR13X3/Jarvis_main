@@ -11,7 +11,6 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.imePadding
-import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
@@ -78,7 +77,11 @@ fun ConversationScreen(
 
     Box(modifier.fillMaxSize()) {
         BrandBackdrop {
-            Column(Modifier.fillMaxSize().imePadding().navigationBarsPadding()) {
+            // No navigationBarsPadding here: the host already reserves the bar
+            // plus that inset when the keyboard is down, and imePadding subsumes
+            // it when the keyboard is up. Adding it again double-counted the
+            // inset and left dead space under the composer.
+            Column(Modifier.fillMaxSize().imePadding()) {
                 header()
 
                 Box(Modifier.weight(1f).fillMaxWidth()) {

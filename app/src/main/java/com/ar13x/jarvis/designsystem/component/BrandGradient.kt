@@ -71,12 +71,13 @@ fun BrandBackdrop(
         // top of it, so a scrolling list was composited through an offscreen
         // buffer on every frame — paying the banding fix's cost once per frame
         // for the whole screen rather than once for a static gradient.
-        Box(
-            Modifier
-                .fillMaxWidth()
-                .height(washHeight)
-                .brandWash(washHeight),
-        )
+        //
+        // It still fills the screen. Sizing it to the gradient instead put the
+        // dither's edge back: the noise is what stops the wash banding, and
+        // where it stops against flat ground the eye finds the line. Full size
+        // costs nothing here — the layer is static, so it is rasterised once and
+        // reused, unlike when it enclosed a moving list.
+        Box(Modifier.fillMaxSize().brandWash(washHeight))
         content()
     }
 }

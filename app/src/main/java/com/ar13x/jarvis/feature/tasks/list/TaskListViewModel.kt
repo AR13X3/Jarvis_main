@@ -70,7 +70,9 @@ class TaskListViewModel @Inject constructor(
 
     private fun applyFilters(filters: TaskFilters) {
         _state.update { it.copy(filters = filters) }
-        load()
+        // A filter change genuinely invalidates what is on screen, so this one
+        // does show the loading state rather than leaving the old answer up.
+        load(showLoading = true)
     }
 
     /**
@@ -79,11 +81,23 @@ class TaskListViewModel @Inject constructor(
      * Once a filter is on, the sections no longer apply and the screen becomes
      * one query against `/tasks`.
      */
-    private fun load() {
+    /**
+     * @param showLoading blank the list while fetching. False for a plain
+     *   refresh: switching tabs re-reads on resume, and dropping to a spinner
+     *   every time made returning to Tasks look like the app was reloading
+     *   itself. The old rows stay up and are replaced when the new ones land —
+     *   they were correct a moment ago, and almost always still are.
+     */
+    private fun load(showLoading: Boolean = _state.value.content !is LoadState.Ready) {
         loadJob?.cancel()
         appendJob?.cancel()
         loadJob = viewModelScope.launch {
-            _state.update { it.copy(content = LoadState.Loading, appendFailure = null) }
+            _state.update {
+                it.copy(
+                    content = if (showLoading) LoadState.Loading else it.content,
+                    appendFailure = null,
+                )
+            }
             val filters = _state.value.filters
             runCatching {
                 if (filters.isEmpty) {
@@ -103,7 +117,16 @@ class TaskListViewModel @Inject constructor(
             }.onSuccess { content ->
                 _state.update { it.copy(content = LoadState.Ready(content)) }
             }.onFailure { error ->
-                _state.update { it.copy(content = LoadState.Failed(error.toFailureReason())) }
+                _state.update { state ->
+                    // A failed background refresh keeps the rows it already had.
+                    // Replacing a working list with an error because one poll
+                    // failed is worse than showing slightly old data.
+                    if (state.content is LoadState.Ready) {
+                        state.copy(transientFailure = error.toFailureReason())
+                    } else {
+                        state.copy(content = LoadState.Failed(error.toFailureReason()))
+                    }
+                }
             }
         }
     }
