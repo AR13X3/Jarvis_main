@@ -247,7 +247,7 @@ class FakeAgentRepository @Inject constructor(
     }
 
     private fun toOption(task: Task) =
-        TaskOption(taskId = task.id, title = task.title, dueAt = task.dueAt)
+        TaskOption(taskId = task.id, title = task.title, dueAt = task.dueAt, status = task.status)
 
     // --- Prose -------------------------------------------------------------------
 

@@ -286,6 +286,30 @@ the confirmation. Until the gateway emits this, the component simply never
 arrives and the forward-compatibility fallback ignores it, so shipping it is
 safe on your schedule.
 
+### 3.13 `TaskOption` needs `status`
+
+Found in use: asking *"what's due today"* lists everything due today, with no way
+to tell what is already done from what is left.
+
+```jsonc
+{ "task_id": 12, "title": "Go to the gym",
+  "due_at": "2026-08-21T13:30:00Z",
+  "status": "active" }          // <- please add
+```
+
+The app renders it in the same visual language as a task row — muted and ticked
+for done, struck through for cancelled, an outlined ring for missed — so a status
+learned in the list reads identically in a chat result. **Already built and
+tested; the field is nullable, so nothing breaks until you send it.**
+
+Absent is treated as unknown rather than defaulting to `active`: guessing
+"outstanding" for a task that might be finished is exactly the error being fixed.
+
+Worth considering on your side too: the model's prose should distinguish them
+even when it does not render buttons. `overdue` already means *past and still
+open* — "due today" arguably wants the same care, either by saying which are
+done or by separating the two in the answer.
+
 ### 3.5 `GET /tasks` — param names and single status
 
 Two differences from plan §4.4, both taken from `gateway-openapi.json` and now

@@ -8,6 +8,7 @@ import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -24,6 +25,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -36,6 +38,7 @@ import com.ar13x.jarvis.designsystem.motion.motionSize
 import com.ar13x.jarvis.designsystem.theme.Corner
 import com.ar13x.jarvis.designsystem.theme.JarvisTheme
 import com.ar13x.jarvis.designsystem.theme.Space
+import com.ar13x.jarvis.designsystem.theme.statusStyle
 import com.ar13x.jarvis.designsystem.theme.tabularNums
 
 /**
@@ -112,9 +115,15 @@ private fun OptionButton(
     modifier: Modifier = Modifier,
 ) {
     val colors = JarvisTheme.colors
+    // Same treatment as a task row: a done task is muted, a cancelled one is
+    // struck through, a missed one is an outlined ring. One visual language
+    // across the app means a status learned in the list reads the same here.
+    val style = option.status?.let { statusStyle(it) }
+
     Row(
         modifier = modifier
             .fillMaxWidth()
+            .alpha(style?.rowAlpha ?: 1f)
             .clip(Corner.Md)
             .background(colors.surface, Corner.Md)
             .border(1.dp, colors.hairline, Corner.Md)
@@ -122,19 +131,39 @@ private fun OptionButton(
             .padding(horizontal = Space.x4, vertical = Space.x3),
         verticalAlignment = Alignment.CenterVertically,
     ) {
+        if (style != null) {
+            Box(
+                Modifier
+                    .size(9.dp)
+                    .clip(CircleShape)
+                    .then(
+                        if (style.indicatorOutlined) {
+                            Modifier.border(2.dp, style.accent, CircleShape)
+                        } else {
+                            Modifier.background(style.accent, CircleShape)
+                        },
+                    ),
+            )
+            Spacer(Modifier.width(Space.x3))
+        }
         Column(Modifier.weight(1f)) {
             Text(
                 text = option.title,
                 style = JarvisTheme.typography.titleMedium,
-                color = colors.ink,
+                color = style?.titleColor ?: colors.ink,
+                textDecoration = style?.titleDecoration,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
             )
             val whenText = option.dueAt?.let { DueDateFormat.nextFire(it) }
-            if (whenText != null) {
+            if (whenText != null || style != null) {
                 Spacer(Modifier.height(2.dp))
                 Text(
-                    text = whenText,
+                    // The status label sits with the date rather than in a
+                    // separate chip: "Completed · Today, 9:00 am" is one fact
+                    // about the task, and splitting it makes the button busier
+                    // without making it clearer.
+                    text = listOfNotNull(style?.label, whenText).joinToString(" · "),
                     style = JarvisTheme.typography.bodySmall.tabularNums(),
                     color = colors.inkMuted,
                 )

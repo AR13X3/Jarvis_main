@@ -136,6 +136,29 @@ class AgentComponentSerializationTest {
         assertEquals("walk the dog", handoff.seed)
     }
 
+    /**
+     * Status on an option (BUILD_NOTES §3.13). Asking "what's due today" returns
+     * everything due today, and a task already done must not look identical to
+     * one still outstanding.
+     */
+    @Test
+    fun `a task option carries its status when the gateway sends one`() {
+        val options = JarvisJson.decodeFromString(
+            AgentResponse.serializer(),
+            """
+            { "text": "", "components": [ { "type": "task_options", "options": [
+                { "task_id": 1, "title": "Gym", "due_at": "2026-08-21T09:00:00Z",
+                  "status": "completed" },
+                { "task_id": 2, "title": "Dentist", "due_at": "2026-08-21T11:00:00Z" } ] } ] }
+            """.trimIndent(),
+        ).components.single() as AgentComponent.TaskOptions
+
+        assertEquals(TaskStatus.Completed, options.options[0].status)
+        // Absent stays null rather than defaulting to active — guessing
+        // "outstanding" for a task that might be done is the error that matters.
+        assertNull(options.options[1].status)
+    }
+
     @Test
     fun `every component type round-trips`() {
         val original = AgentResponse(

@@ -145,6 +145,16 @@ data class TaskOption(
     val title: String,
     @Serializable(InstantSerializer::class)
     @SerialName("due_at") val dueAt: Instant? = null,
+    /**
+     * Nullable only because the gateway does not send it yet — see
+     * BUILD_NOTES §3.13.
+     *
+     * Asking "what's due today" returns everything due today, and without this
+     * a task already done looks exactly like one still outstanding. The list is
+     * meant to answer "what is left", and a button that cannot say "done"
+     * answers a different question.
+     */
+    val status: TaskStatus? = null,
 )
 
 /**
