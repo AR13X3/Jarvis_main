@@ -62,6 +62,29 @@ sealed interface AgentComponent {
     ) : AgentComponent
 
     /**
+     * A handoff out of the general session into a new task session.
+     *
+     * The general session is offered `find_tasks` and `get_task` and no create
+     * tool (parent plan §2.3), because a general session can never become bound
+     * and one that created tasks would accumulate them — breaking the
+     * one-session-per-task invariant §2.2 is built on.
+     *
+     * That is the right rule and the wrong dead end: asked to create something,
+     * the agent could only decline. This component lets it decline *and* hand
+     * over — the app opens a new unbound session and sends [seed] straight
+     * away, so the user never retypes what they already said.
+     *
+     * Contract addition — see BUILD_NOTES §3.11.
+     */
+    @Serializable
+    data class NewTask(
+        /** Button text. Server-supplied so the wording stays the agent's. */
+        val label: String = "Set this up",
+        /** What to send in the new session. Usually a tidied version of the ask. */
+        val seed: String,
+    ) : AgentComponent
+
+    /**
      * Forward-compatibility branch. The gateway *will* grow component types
      * (attachments, task cards), and an app that throws on an unknown `type`
      * cannot be forward-compatible — it would blank the whole message list over
@@ -139,6 +162,7 @@ object AgentComponentSerializer : KSerializer<AgentComponent> {
     private const val TYPE = "type"
     private const val CONFIRM = "confirm"
     private const val TASK_OPTIONS = "task_options"
+    private const val NEW_TASK = "new_task"
 
     @OptIn(ExperimentalSerializationApi::class)
     override val descriptor: SerialDescriptor = SerialDescriptor(
@@ -155,6 +179,7 @@ object AgentComponentSerializer : KSerializer<AgentComponent> {
         return when (val type = obj[TYPE]?.jsonPrimitive?.contentOrNull) {
             CONFIRM -> input.json.decodeFromJsonElement(AgentComponent.Confirm.serializer(), obj)
             TASK_OPTIONS -> input.json.decodeFromJsonElement(AgentComponent.TaskOptions.serializer(), obj)
+            NEW_TASK -> input.json.decodeFromJsonElement(AgentComponent.NewTask.serializer(), obj)
             else -> AgentComponent.Unknown(type, obj)
         }
     }
@@ -168,6 +193,8 @@ object AgentComponentSerializer : KSerializer<AgentComponent> {
                 output.json.encodeToJsonElement(AgentComponent.Confirm.serializer(), value).withType(CONFIRM)
             is AgentComponent.TaskOptions ->
                 output.json.encodeToJsonElement(AgentComponent.TaskOptions.serializer(), value).withType(TASK_OPTIONS)
+            is AgentComponent.NewTask ->
+                output.json.encodeToJsonElement(AgentComponent.NewTask.serializer(), value).withType(NEW_TASK)
             is AgentComponent.Unknown -> value.raw
         }
         output.encodeJsonElement(element)

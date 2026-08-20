@@ -28,6 +28,15 @@ sealed interface Route
  * owns. It stays unbound until a create proposal is confirmed, at which point
  * the gateway binds it — one session per task, forever after.
  */
-@Serializable data object NewSession : Route
+@Serializable data class NewSession(
+    /**
+     * Text to send the moment the session exists.
+     *
+     * Set when the general session hands a create request over (§5.4): the user
+     * already said what they wanted, and making them retype it because the
+     * server scopes tools per session is the app's problem to hide, not theirs.
+     */
+    val seed: String? = null,
+) : Route
 
 @Serializable data object Chat : Route

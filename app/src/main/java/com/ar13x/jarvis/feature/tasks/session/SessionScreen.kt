@@ -56,11 +56,13 @@ fun SessionScreen(
     taskId: Long?,
     onBack: () -> Unit,
     onOpenTask: (Long) -> Unit,
+    onCreateTask: (String) -> Unit,
     modifier: Modifier = Modifier,
+    seed: String? = null,
     viewModel: ConversationViewModel = hiltViewModel(),
 ) {
-    val target = remember(taskId) {
-        if (taskId == null) SessionTarget.NewTask else SessionTarget.Bound(taskId)
+    val target = remember(taskId, seed) {
+        if (taskId == null) SessionTarget.NewTask(seed) else SessionTarget.Bound(taskId)
     }
     LaunchedEffect(target) { viewModel.start(target) }
 
@@ -71,6 +73,7 @@ fun SessionScreen(
         state = state,
         onEvent = viewModel::onEvent,
         onOpenTask = onOpenTask,
+        onCreateTask = onCreateTask,
         placeholder = if (task == null) "What should I remind you about?" else "Ask or change something…",
         modifier = modifier,
         header = {

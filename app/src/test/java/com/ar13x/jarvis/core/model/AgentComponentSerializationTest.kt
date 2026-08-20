@@ -103,6 +103,39 @@ class AgentComponentSerializationTest {
         assertEquals("orphan", unknown.text)
     }
 
+    /**
+     * The handoff out of general chat (BUILD_NOTES §3.11). Until the gateway
+     * ships it this parses nothing real — but it is the shape the app is built
+     * against, so it is the shape the contract test asserts.
+     */
+    @Test
+    fun `parses the new_task handoff component`() {
+        val json = """
+            { "text": "I can't create tasks here, but I can set this one up.",
+              "components": [
+                { "type": "new_task",
+                  "label": "Set this up",
+                  "seed": "remind me to go to the gym tomorrow at 11pm" } ] }
+        """.trimIndent()
+
+        val handoff = JarvisJson.decodeFromString(AgentResponse.serializer(), json)
+            .components.single() as AgentComponent.NewTask
+
+        assertEquals("Set this up", handoff.label)
+        assertEquals("remind me to go to the gym tomorrow at 11pm", handoff.seed)
+    }
+
+    @Test
+    fun `a new_task without a label falls back rather than failing`() {
+        val handoff = JarvisJson.decodeFromString(
+            AgentResponse.serializer(),
+            """{ "text": "", "components": [ { "type": "new_task", "seed": "walk the dog" } ] }""",
+        ).components.single() as AgentComponent.NewTask
+
+        assertEquals("Set this up", handoff.label)
+        assertEquals("walk the dog", handoff.seed)
+    }
+
     @Test
     fun `every component type round-trips`() {
         val original = AgentResponse(

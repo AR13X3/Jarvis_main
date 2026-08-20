@@ -60,7 +60,7 @@ class ConversationViewModelTest {
     @Test
     fun `a vague request asks a question instead of guessing a date`() = runTest {
         val (viewModel, backend, _) = fixture()
-        viewModel.start(SessionTarget.NewTask)
+        viewModel.start(SessionTarget.NewTask())
         advanceUntilIdle()
 
         val before = backend.allTasks().size
@@ -78,7 +78,7 @@ class ConversationViewModelTest {
     @Test
     fun `supplying the date produces a proposal, and still writes nothing`() = runTest {
         val (viewModel, backend, _) = fixture()
-        viewModel.start(SessionTarget.NewTask)
+        viewModel.start(SessionTarget.NewTask())
         advanceUntilIdle()
         val before = backend.allTasks().size
 
@@ -100,7 +100,7 @@ class ConversationViewModelTest {
     @Test
     fun `rejecting a proposal creates no task and leaves the card resolved`() = runTest {
         val (viewModel, backend, _) = fixture()
-        viewModel.start(SessionTarget.NewTask)
+        viewModel.start(SessionTarget.NewTask())
         advanceUntilIdle()
         val before = backend.allTasks().size
 
@@ -123,7 +123,7 @@ class ConversationViewModelTest {
     @Test
     fun `confirming a proposal writes exactly one task and binds the session`() = runTest {
         val (viewModel, backend, _) = fixture()
-        viewModel.start(SessionTarget.NewTask)
+        viewModel.start(SessionTarget.NewTask())
         advanceUntilIdle()
         val before = backend.allTasks().size
 
@@ -142,6 +142,48 @@ class ConversationViewModelTest {
         // §12.1's app-side half: the session now has a task, so the UI can never
         // offer a second create — the server simply stops offering the tool.
         assertTrue("session should be bound after a create", state.task != null)
+    }
+
+    // --- the general-chat handoff --------------------------------------------
+
+    /**
+     * A seeded session sends on open. The user already said what they wanted in
+     * general chat; making them retype it because the server scopes tools per
+     * session would be the app leaking its own architecture at them.
+     */
+    @Test
+    fun `a seeded new task session sends the seed without being asked`() = runTest {
+        val (viewModel, backend, _) = fixture()
+        val before = backend.allTasks().size
+
+        viewModel.start(SessionTarget.NewTask(seed = "remind me to go to the gym tomorrow at 11pm"))
+        advanceUntilIdle()
+
+        val state = viewModel.state.value
+        assertTrue(
+            "the seed should already be in the transcript",
+            state.stream.any { it.text.contains("gym") },
+        )
+        assertEquals("the composer must not still hold it", "", state.composerText)
+        // It went far enough to produce a proposal, which is the whole point of
+        // handing over to a session that can create.
+        assertTrue(state.confirmCards().isNotEmpty())
+        // Seeding skips the typing, not the confirmation. A handoff that wrote
+        // straight through would be the one place in the app where something
+        // reached the database without the user agreeing to it.
+        assertEquals("still nothing written until confirmed", before, backend.allTasks().size)
+    }
+
+    @Test
+    fun `an unseeded new task session sends nothing`() = runTest {
+        val (viewModel, _, _) = fixture()
+
+        viewModel.start(SessionTarget.NewTask())
+        advanceUntilIdle()
+
+        val state = viewModel.state.value
+        assertTrue("nothing should have been sent", state.stream.isEmpty())
+        assertFalse(state.thinking)
     }
 
     // --- §12.2 — a terminal task's session shows no composer ------------------

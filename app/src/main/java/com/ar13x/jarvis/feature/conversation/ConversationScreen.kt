@@ -1,7 +1,10 @@
 package com.ar13x.jarvis.feature.conversation
 
+import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
@@ -14,7 +17,10 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.rounded.Add
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.Icon
 import androidx.compose.material3.Snackbar
 import androidx.compose.material3.SnackbarDuration
 import androidx.compose.material3.SnackbarHost
@@ -27,6 +33,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import com.ar13x.jarvis.core.data.message
@@ -50,6 +57,7 @@ fun ConversationScreen(
     state: ConversationUiState,
     onEvent: (ConversationEvent) -> Unit,
     onOpenTask: (Long) -> Unit,
+    onCreateTask: (String) -> Unit,
     placeholder: String,
     header: @Composable () -> Unit,
     empty: @Composable () -> Unit,
@@ -88,6 +96,7 @@ fun ConversationScreen(
                                     listState = listState,
                                     onEvent = onEvent,
                                     onOpenTask = onOpenTask,
+                                    onCreateTask = onCreateTask,
                                 )
                             }
                     }
@@ -130,6 +139,7 @@ private fun MessageStream(
     listState: LazyListState,
     onEvent: (ConversationEvent) -> Unit,
     onOpenTask: (Long) -> Unit,
+    onCreateTask: (String) -> Unit,
 ) {
     LazyColumn(
         state = listState,
@@ -152,6 +162,7 @@ private fun MessageStream(
                 state = state,
                 onEvent = onEvent,
                 onOpenTask = onOpenTask,
+                onCreateTask = onCreateTask,
                 modifier = Modifier.animateItem(),
             )
         }
@@ -178,6 +189,7 @@ private fun MessageItem(
     state: ConversationUiState,
     onEvent: (ConversationEvent) -> Unit,
     onOpenTask: (Long) -> Unit,
+    onCreateTask: (String) -> Unit,
     modifier: Modifier = Modifier,
 ) {
     Column(
@@ -211,6 +223,13 @@ private fun MessageItem(
                         onShowMore = { cursor ->
                             onEvent(ConversationEvent.ShowMoreOptions(key, cursor))
                         },
+                    )
+                }
+
+                is AgentComponent.NewTask -> Arrival(key = "new-task-" + message.id) {
+                    HandoffButton(
+                        label = component.label,
+                        onClick = { onCreateTask(component.seed) },
                     )
                 }
 
@@ -270,5 +289,38 @@ private fun LoadOlderEffect(
         }.collect { nearTop ->
             if (nearTop) onEvent(ConversationEvent.LoadOlder)
         }
+    }
+}
+
+/**
+ * The handoff out of general chat into a new task session (plan §5.4).
+ *
+ * A general session has no create tool, so asked to make something the agent can
+ * only decline. This turns that decline into a door: one tap opens the session
+ * that *can* create, already carrying what the user said.
+ */
+@Composable
+private fun HandoffButton(
+    label: String,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    val colors = JarvisTheme.colors
+    Row(
+        modifier = modifier
+            .clip(Corner.Pill)
+            .background(colors.brandCore, Corner.Pill)
+            .clickable(onClick = onClick)
+            .padding(horizontal = Space.x4, vertical = Space.x3),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(Space.x2),
+    ) {
+        Icon(
+            Icons.Rounded.Add,
+            contentDescription = null,
+            tint = colors.onBrand,
+            modifier = Modifier.size(16.dp),
+        )
+        Text(text = label, style = JarvisTheme.typography.labelLarge, color = colors.onBrand)
     }
 }

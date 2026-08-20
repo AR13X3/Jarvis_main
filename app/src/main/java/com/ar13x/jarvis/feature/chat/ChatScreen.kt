@@ -31,6 +31,7 @@ import com.ar13x.jarvis.feature.tasks.session.EmptyPrompt
 @Composable
 fun ChatScreen(
     onOpenTask: (Long) -> Unit,
+    onCreateTask: (String) -> Unit,
     modifier: Modifier = Modifier,
     viewModel: ConversationViewModel = hiltViewModel(),
 ) {
@@ -42,6 +43,7 @@ fun ChatScreen(
         state = state,
         onEvent = viewModel::onEvent,
         onOpenTask = onOpenTask,
+        onCreateTask = onCreateTask,
         placeholder = "Ask anything…",
         modifier = modifier,
         header = {

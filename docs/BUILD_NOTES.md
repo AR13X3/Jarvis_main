@@ -193,6 +193,40 @@ user's local `today` into the prompt so the model has a true anchor to offset
 from. The app deliberately has no say here: it never computes a task's day, and
 it should not start doing so for chat either.
 
+### 3.11 `new_task` component — the general-chat handoff
+
+Asked to create a reminder in the Chat tab, the agent correctly declines: a
+general session is offered `find_tasks` and `get_task` and no create tool
+(parent plan §2.3), because a general session can never become bound and one
+that created tasks would accumulate them, breaking the one-session-per-task
+invariant §2.2 rests on.
+
+That rule is right. The dead end is not — the user asked for something ordinary
+and got a refusal with nowhere to go.
+
+**Proposed component**, so the decline can hand over instead:
+
+```jsonc
+{ "type": "new_task",
+  "label": "Set this up",
+  "seed": "remind me to go to the gym tomorrow at 11pm" }
+```
+
+The app renders it as a button. Tapping opens a new **unbound** session — the
+only kind that can `propose_create` — and sends `seed` immediately, so the user
+never retypes what they already said. The invariant is untouched: the general
+session still creates nothing, and the new session binds to the task the moment
+the proposal is confirmed.
+
+`label` defaults to "Set this up" if omitted, and `seed` should be a tidied
+version of the request rather than the raw turn where that reads better.
+
+**Already built and tested app-side**, including a test that the seeded session
+still writes nothing until the card is confirmed — seeding skips the typing, not
+the confirmation. Until the gateway emits this, the component simply never
+arrives and the forward-compatibility fallback ignores it, so shipping it is
+safe on your schedule.
+
 ### 3.5 `GET /tasks` — param names and single status
 
 Two differences from plan §4.4, both taken from `gateway-openapi.json` and now

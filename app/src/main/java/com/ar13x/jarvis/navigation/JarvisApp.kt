@@ -165,7 +165,7 @@ private fun JarvisNavHost(
                         WithNavScope {
                             TaskListScreen(
                                 onOpenTask = { taskId -> navController.navigate(TaskSession(taskId)) },
-                                onNewSession = { navController.navigate(NewSession) },
+                                onNewSession = { navController.navigate(NewSession()) },
                             )
                         }
                     }
@@ -175,15 +175,18 @@ private fun JarvisNavHost(
                                 taskId = entry.toRoute<TaskSession>().taskId,
                                 onBack = navController::popBackStack,
                                 onOpenTask = { id -> navController.navigate(TaskSession(id)) },
+                                onCreateTask = { seed -> navController.navigate(NewSession(seed)) },
                             )
                         }
                     }
-                    composable<NewSession> {
+                    composable<NewSession> { entry ->
                         WithNavScope {
                             SessionScreen(
                                 taskId = null,
+                                seed = entry.toRoute<NewSession>().seed,
                                 onBack = navController::popBackStack,
                                 onOpenTask = { id -> navController.navigate(TaskSession(id)) },
+                                onCreateTask = { seed -> navController.navigate(NewSession(seed)) },
                             )
                         }
                     }
@@ -197,6 +200,9 @@ private fun JarvisNavHost(
                                 // that task's session — cross-tab, into the Tasks
                                 // stack (plan §5.4).
                                 onOpenTask = { taskId -> navController.navigate(TaskSession(taskId)) },
+                                // The general session cannot create, so it hands
+                                // over to one that can, carrying what was said.
+                                onCreateTask = { seed -> navController.navigate(NewSession(seed)) },
                             )
                         }
                     }

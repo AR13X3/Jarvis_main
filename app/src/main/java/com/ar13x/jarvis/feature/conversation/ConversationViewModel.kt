@@ -69,7 +69,7 @@ class ConversationViewModel @Inject constructor(
         runCatching {
             val session: Session = when (target) {
                 is SessionTarget.Bound -> agent.sessionForTask(target.taskId)
-                SessionTarget.NewTask -> agent.createSession(SessionKind.Task, taskId = null)
+                is SessionTarget.NewTask -> agent.createSession(SessionKind.Task, taskId = null)
                 SessionTarget.General -> agent.generalSession()
             }
             // A bound session's task is fetched separately: the session says
@@ -86,6 +86,13 @@ class ConversationViewModel @Inject constructor(
                     history = LoadState.Ready(page.messages),
                     hasMoreHistory = page.hasMore,
                 )
+            }
+            // A seeded session sends straight away rather than waiting for the
+            // user to press send on text they have already written once.
+            val seed = (target as? SessionTarget.NewTask)?.seed
+            if (!seed.isNullOrBlank()) {
+                _state.update { it.copy(composerText = seed) }
+                send()
             }
         }.onFailure { error ->
             _state.update { it.copy(history = LoadState.Failed(error.toFailureReason())) }

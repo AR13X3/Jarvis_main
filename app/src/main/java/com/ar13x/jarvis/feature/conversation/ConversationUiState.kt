@@ -20,8 +20,13 @@ sealed interface SessionTarget {
     /** That task's persistent session, with its full history (plan §5.3). */
     data class Bound(val taskId: Long) : SessionTarget
 
-    /** The `+` — a new unbound session, which can only propose a create (§5.2). */
-    data object NewTask : SessionTarget
+    /**
+     * The `+`, or a handoff from general chat — a new unbound session, which is
+     * the only kind that can propose a create (§5.2, parent plan §2.3).
+     *
+     * [seed] is sent automatically once the session exists.
+     */
+    data class NewTask(val seed: String? = null) : SessionTarget
 
     /** The Chat tab's general session (§5.4). */
     data object General : SessionTarget
