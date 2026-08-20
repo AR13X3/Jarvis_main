@@ -47,6 +47,8 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.compose.LifecycleEventEffect
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.ar13x.jarvis.core.data.message
 import com.ar13x.jarvis.core.data.offersTailscale
@@ -100,6 +102,14 @@ fun TaskListScreen(
     val colors = JarvisTheme.colors
     val listState = rememberLazyListState()
     val snackbars = remember { SnackbarHostState() }
+
+    // The gateway owns all state (parent plan §2.1), so the list is only ever a
+    // view of it — and it goes stale the moment anything else writes. Confirming
+    // a proposal in a session creates a task the list has never heard of, and
+    // the scheduler flips tasks to `awaiting` or `incomplete` with no client
+    // involved at all. Re-reading on resume is what makes coming back from a
+    // session, or from the home screen, show what is actually there.
+    LifecycleEventEffect(Lifecycle.Event.ON_RESUME) { onEvent(TaskListEvent.Refresh) }
 
     UndoSnackbarEffect(state, onEvent, snackbars)
     FailureSnackbarEffect(state.transientFailure, onEvent, snackbars)
