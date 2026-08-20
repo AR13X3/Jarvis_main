@@ -12,6 +12,10 @@
     <uses-permission android:name="android.permission.SCHEDULE_EXACT_ALARM" />
     <uses-permission android:name="android.permission.USE_EXACT_ALARM" />
     <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
+    <!-- Lights the screen and shows over the keyguard. A reminder app is the
+         category this exists for, but it is revocable on 34+ and the
+         notification degrades to a heads-up without it. -->
+    <uses-permission android:name="android.permission.USE_FULL_SCREEN_INTENT" />
     <!-- Samsung defers periodic work hard. Sideloaded via Obtainium, so the Play
          policy on this permission does not apply (plan §7.3). -->
     <uses-permission android:name="android.permission.REQUEST_IGNORE_BATTERY_OPTIMIZATIONS" />
@@ -35,6 +39,16 @@
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
+
+        <activity
+            android:name=".reminders.notification.ReminderActivity"
+            android:exported="false"
+            android:launchMode="singleTask"
+            android:excludeFromRecents="true"
+            android:showOnLockScreen="true"
+            android:turnScreenOn="true"
+            android:taskAffinity=".reminder"
+            android:theme="@style/Theme.Jarvis" />
 
         <receiver
             android:name=".reminders.alarm.AlarmReceiver"

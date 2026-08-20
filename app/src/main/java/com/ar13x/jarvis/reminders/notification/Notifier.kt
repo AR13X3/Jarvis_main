@@ -46,6 +46,14 @@ class Notifier @Inject constructor(
         Manifest.permission.POST_NOTIFICATIONS,
     ) == PackageManager.PERMISSION_GRANTED
 
+    /**
+     * True on API 34+ only when the user has allowed it. A reminder app is
+     * exactly the category the permission exists for, but it is still revocable
+     * and the notification must degrade to an ordinary heads-up without it.
+     */
+    fun canUseFullScreen(): Boolean =
+        context.getSystemService(NotificationManager::class.java).canUseFullScreenIntent()
+
     fun show(occurrence: OccurrenceEntity) {
         if (!canPost()) return
         ensureChannel()
@@ -60,6 +68,22 @@ class Notifier @Inject constructor(
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
         )
 
+        val notificationId =
+            AlarmScheduler.notificationId(occurrence.taskId, occurrence.scheduledForMillis)
+
+        val fullScreen = PendingIntent.getActivity(
+            context,
+            notificationId,
+            ReminderActivity.intent(
+                context = context,
+                title = occurrence.title,
+                whenMillis = occurrence.scheduledForMillis,
+                taskId = occurrence.taskId,
+                notificationId = notificationId,
+            ),
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
+        )
+
         val notification = NotificationCompat.Builder(context, CHANNEL_ID)
             .setSmallIcon(R.drawable.ic_notification)
             .setContentTitle(occurrence.title)
@@ -68,14 +92,20 @@ class Notifier @Inject constructor(
             .setPriority(NotificationCompat.PRIORITY_HIGH)
             .setAutoCancel(true)
             .setContentIntent(open)
+            // An ordinary notification never lights a dark screen, so a reminder
+            // nobody happens to look at did not happen. `true` means it takes
+            // over even when the screen is on, which is the right call for a
+            // moment the user explicitly asked to be interrupted at.
+            //
+            // Android decides: with the permission it launches the activity;
+            // without it, this degrades to a heads-up and the contentIntent
+            // still works. Nothing here has to branch on that.
+            .setFullScreenIntent(fullScreen, true)
             .build()
 
         // The dedup id (plan §7.2): a push and a local alarm for the same
         // occurrence collapse into one notification rather than two.
-        NotificationManagerCompat.from(context).notify(
-            AlarmScheduler.notificationId(occurrence.taskId, occurrence.scheduledForMillis),
-            notification,
-        )
+        NotificationManagerCompat.from(context).notify(notificationId, notification)
     }
 
     companion object {

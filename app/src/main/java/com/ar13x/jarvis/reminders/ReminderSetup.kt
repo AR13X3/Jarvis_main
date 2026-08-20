@@ -53,11 +53,15 @@ import com.ar13x.jarvis.designsystem.theme.Space
 data class ReminderReadiness(
     val canNotify: Boolean,
     val canScheduleExact: Boolean,
+    val canFullScreen: Boolean,
     val batteryUnrestricted: Boolean,
 ) {
     val ready: Boolean get() = canNotify && canScheduleExact
-    /** Battery is advisory: reminders work without it, just less reliably. */
-    val allGood: Boolean get() = ready && batteryUnrestricted
+    /**
+     * Full screen and battery are both advisory — reminders still arrive without
+     * them, just quieter and less reliably. They come last for that reason.
+     */
+    val allGood: Boolean get() = ready && canFullScreen && batteryUnrestricted
 }
 
 @Composable
@@ -83,6 +87,8 @@ private fun Context.readReminderReadiness(): ReminderReadiness {
         ) == PackageManager.PERMISSION_GRANTED,
         // Revocable, so it is checked rather than assumed (plan §7.3).
         canScheduleExact = alarms.canScheduleExactAlarms(),
+        canFullScreen = getSystemService(android.app.NotificationManager::class.java)
+            .canUseFullScreenIntent(),
         batteryUnrestricted = power.isIgnoringBatteryOptimizations(packageName),
     )
 }
@@ -120,6 +126,17 @@ fun ReminderSetupCard(
             {
                 context.startActivity(
                     Intent(Settings.ACTION_REQUEST_SCHEDULE_EXACT_ALARM)
+                        .setData(Uri.parse("package:" + context.packageName))
+                        .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK),
+                )
+            },
+        )
+        !readiness.canFullScreen -> Triple(
+            "Let reminders wake the screen",
+            "Otherwise a reminder arrives silently in the shade, and a phone face-down on a table never shows it.",
+            {
+                context.startActivity(
+                    Intent(Settings.ACTION_MANAGE_APP_USE_FULL_SCREEN_INTENT)
                         .setData(Uri.parse("package:" + context.packageName))
                         .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK),
                 )
@@ -173,7 +190,7 @@ fun ReminderSetupCard(
                     .padding(horizontal = Space.x4, vertical = Space.x2),
             ) {
                 Text(
-                    text = if (readiness.canNotify && readiness.canScheduleExact) "Open settings" else "Allow",
+                    text = if (readiness.ready) "Open settings" else "Allow",
                     style = JarvisTheme.typography.labelLarge,
                     color = colors.onBrand,
                 )
