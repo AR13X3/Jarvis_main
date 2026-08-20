@@ -180,8 +180,10 @@ what was asked for. **The route was never wired**, so `GET /sessions` 404s.
 
 The whole app half is now built against that shape and tested on the fake:
 
-- The Chat tab opens the **most recent non-empty conversation** rather than
-  starting blank.
+- The Chat tab opens **empty** — a fresh conversation is the default entry, and
+  the history button is how you go back. It reuses an existing *empty* session
+  rather than creating one per visit, so glancing at the tab does not litter the
+  server with rows nobody wrote in.
 - A history sheet lists past conversations by title, relative time and message
   count, and opening one restores it — including its option buttons, because
   persisted assistant turns carry `components`.

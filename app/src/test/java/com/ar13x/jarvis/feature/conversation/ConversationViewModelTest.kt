@@ -224,12 +224,11 @@ class ConversationViewModelTest {
     // --- chat history (§3.12) -------------------------------------------------
 
     /**
-     * The Chat tab resumes rather than starting blank. Opening it, saying
-     * something, then opening it again must land in the same conversation —
-     * that is the whole feature.
+     * The Chat tab opens **empty**. Going back to an old conversation is what
+     * the history button is for, and resuming the last one made it redundant.
      */
     @Test
-    fun `the chat tab reopens the most recent conversation`() = runTest {
+    fun `the chat tab opens a fresh conversation, not the last one`() = runTest {
         val backend = FakeBackend()
         val agent = FakeAgentRepository(backend)
         val tasks = FakeTaskRepository(backend)
@@ -240,15 +239,37 @@ class ConversationViewModelTest {
         first.onEvent(ConversationEvent.ComposerChanged("find my dentist appointment"))
         first.onEvent(ConversationEvent.Send)
         advanceUntilIdle()
-        val sessionId = first.state.value.sessionId
+        val used = first.state.value.sessionId
 
         // A fresh ViewModel is what a cold start looks like.
         val second = ConversationViewModel(agent, tasks)
         second.start(SessionTarget.General())
         advanceUntilIdle()
 
-        assertEquals("should resume, not start blank", sessionId, second.state.value.sessionId)
-        assertTrue(second.state.value.stream.any { it.text.contains("dentist") })
+        assertNotEquals("should not resume the used conversation", used, second.state.value.sessionId)
+        assertTrue("and should start empty", second.state.value.stream.isEmpty())
+    }
+
+    /**
+     * Opening empty must not mean creating a session every time. Otherwise
+     * every glance at the Chat tab litters the server with rows nobody wrote in.
+     */
+    @Test
+    fun `opening the chat tab twice without saying anything reuses one session`() = runTest {
+        val backend = FakeBackend()
+        val agent = FakeAgentRepository(backend)
+        val tasks = FakeTaskRepository(backend)
+
+        val first = ConversationViewModel(agent, tasks)
+        first.start(SessionTarget.General())
+        advanceUntilIdle()
+        val opened = first.state.value.sessionId
+
+        val second = ConversationViewModel(agent, tasks)
+        second.start(SessionTarget.General())
+        advanceUntilIdle()
+
+        assertEquals("an untouched conversation is reused, not duplicated", opened, second.state.value.sessionId)
     }
 
     @Test

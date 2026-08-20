@@ -86,11 +86,16 @@ class ConversationViewModel @Inject constructor(
     /**
      * Resolves which general conversation to show.
      *
-     * Explicit id wins; otherwise the most recent one that actually has
-     * messages, and only a genuinely new conversation if there are none. That
-     * last condition matters — every `+` and every abandoned launch leaves an
-     * empty session behind, and resuming into one of those would look exactly
-     * like the history being lost.
+     * An explicit id wins — that is the history sheet. Otherwise the Chat tab
+     * opens **empty**: a fresh conversation is the default entry, and going back
+     * is what the history button is for. Resuming the last one made that button
+     * redundant.
+     *
+     * "Empty" reuses an existing empty session rather than creating one every
+     * time. Otherwise every glance at the Chat tab would leave a session row
+     * behind — the same abandoned-session litter already flagged to gw03, except
+     * generated far faster. Nothing is lost by reusing one: an empty
+     * conversation has no content to distinguish it from another empty one.
      */
     private suspend fun openGeneral(sessionId: String?): Session {
         if (sessionId != null) {
@@ -101,15 +106,15 @@ class ConversationViewModel @Inject constructor(
                 updatedAt = Instant.now(),
             )
         }
-        val recent = runCatching { agent.generalSessions() }.getOrNull()
+        val reusable = runCatching { agent.generalSessions() }.getOrNull()
             ?.sessions
-            ?.firstOrNull { !it.isEmpty }
-        return if (recent != null) {
+            ?.firstOrNull { it.isEmpty }
+        return if (reusable != null) {
             Session(
-                id = recent.id,
+                id = reusable.id,
                 kind = SessionKind.General,
-                createdAt = recent.updatedAt,
-                updatedAt = recent.updatedAt,
+                createdAt = reusable.updatedAt,
+                updatedAt = reusable.updatedAt,
             )
         } else {
             agent.newGeneralSession()
