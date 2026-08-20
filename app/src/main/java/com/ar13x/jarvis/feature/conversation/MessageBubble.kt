@@ -31,6 +31,7 @@ import androidx.compose.ui.unit.dp
 import com.ar13x.jarvis.core.model.Message
 import com.ar13x.jarvis.core.model.MessageRole
 import com.ar13x.jarvis.designsystem.component.softShadow
+import com.ar13x.jarvis.designsystem.component.toInlineMarkdown
 import com.ar13x.jarvis.designsystem.motion.LocalReducedMotion
 import com.ar13x.jarvis.designsystem.motion.Motion
 import com.ar13x.jarvis.designsystem.theme.JarvisTheme
@@ -77,11 +78,23 @@ fun MessageBubble(
                 .clip(shape)
                 .padding(horizontal = Space.x4, vertical = Space.x3),
         ) {
-            Text(
-                text = message.text,
-                style = JarvisTheme.typography.bodyLarge,
-                color = if (fromUser) colors.onBrand else colors.ink,
-            )
+            // Only the agent's prose is parsed. The user's own text is
+            // rendered exactly as typed — nobody writing "2 * 3 * 4" means
+            // emphasis, and silently restyling what someone wrote is worse
+            // than showing an asterisk.
+            if (fromUser) {
+                Text(
+                    text = message.text,
+                    style = JarvisTheme.typography.bodyLarge,
+                    color = colors.onBrand,
+                )
+            } else {
+                Text(
+                    text = message.text.toInlineMarkdown(codeColor = colors.brandDeep),
+                    style = JarvisTheme.typography.bodyLarge,
+                    color = colors.ink,
+                )
+            }
         }
     }
 }
