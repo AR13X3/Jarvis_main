@@ -4,31 +4,31 @@ import com.ar13x.jarvis.BuildConfig
 import com.ar13x.jarvis.core.data.TokenStore
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.launchIn
-import kotlinx.coroutines.flow.onEach
 import okhttp3.Interceptor
 import okhttp3.Response
-import java.util.concurrent.atomic.AtomicReference
 import javax.inject.Inject
 import javax.inject.Singleton
 
 /**
  * Attaches the shared bearer token (plan §4.1) and the build identity (§10.1).
  *
- * The token is held in an [AtomicReference] kept current by collecting the
- * store, rather than read per request: an interceptor is not a coroutine, and
- * blocking on DataStore inside OkHttp's chain would put a disk read on every
- * call and risk deadlocking the dispatcher under load.
+ * Reads [TokenStore.current] rather than blocking on DataStore: an interceptor
+ * is not a coroutine, and a disk read inside OkHttp's chain would land on every
+ * request and risk deadlocking the dispatcher under load.
+ *
+ * The store keeps that value written *before* `save()` returns, which is what
+ * makes pairing work — the first authenticated request happens immediately
+ * after saving, and anything derived from a flow emission would not be there yet.
  */
 @Singleton
 class AuthInterceptor @Inject constructor(
-    tokenStore: TokenStore,
+    private val tokenStore: TokenStore,
     scope: CoroutineScope,
 ) : Interceptor {
 
-    private val token = AtomicReference<String?>(null)
-
     init {
-        tokenStore.token.onEach(token::set).launchIn(scope)
+        // Primes `current` at cold start, when nothing has saved this process.
+        tokenStore.token.launchIn(scope)
     }
 
     override fun intercept(chain: Interceptor.Chain): Response {
@@ -40,7 +40,7 @@ class AuthInterceptor @Inject constructor(
                 BuildConfig.VERSION_NAME + " (" + BuildConfig.VERSION_CODE + ")",
             )
             .apply {
-                token.get()?.let { header("Authorization", "Bearer " + it) }
+                tokenStore.current?.let { header("Authorization", "Bearer " + it) }
             }
             .build()
         return chain.proceed(request)

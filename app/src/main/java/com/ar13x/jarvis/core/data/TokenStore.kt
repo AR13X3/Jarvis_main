@@ -13,6 +13,7 @@ import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.onEach
 import java.security.KeyStore
 import javax.crypto.Cipher
 import javax.crypto.KeyGenerator
@@ -49,10 +50,29 @@ class TokenStore @Inject constructor(
         val GATEWAY_URL = stringPreferencesKey("gateway_url")
     }
 
+    /**
+     * The token as of right now, readable without suspending.
+     *
+     * `AuthInterceptor` is not a coroutine and cannot wait for a flow. Feeding it
+     * only from [token] left a race: `save()` returns as soon as DataStore has
+     * written, but the flow emission and the interceptor's update happen on
+     * another coroutine — so a request made immediately after saving could go
+     * out with no Authorization header and come back 401, which reads as "that
+     * token was refused" when the token was in fact fine.
+     *
+     * Written before `save()` returns, so a request made on the next line
+     * carries it.
+     */
+    @Volatile
+    var current: String? = null
+        private set
+
     /** Null until first run completes. Emits again the moment it changes. */
-    val token: Flow<String?> = context.credentials.data.map { prefs ->
-        prefs[TOKEN]?.let(::decrypt)
-    }
+    val token: Flow<String?> = context.credentials.data
+        .map { prefs -> prefs[TOKEN]?.let(::decrypt) }
+        // Keeps [current] true after a change this process did not make — a
+        // restore, or the store being cleared from elsewhere.
+        .onEach { current = it }
 
     val gatewayUrl: Flow<String?> = context.credentials.data.map { it[GATEWAY_URL] }
 
@@ -65,6 +85,9 @@ class TokenStore @Inject constructor(
     suspend fun currentToken(): String? = token.first()
 
     suspend fun save(token: String, gatewayUrl: String) {
+        // Set first, so the very next request is authenticated even though the
+        // flow has not emitted yet.
+        current = token
         context.credentials.edit { prefs ->
             prefs[TOKEN] = encrypt(token)
             prefs[GATEWAY_URL] = gatewayUrl
@@ -73,6 +96,7 @@ class TokenStore @Inject constructor(
 
     /** A 401 means the token is no longer valid, so it is not worth keeping. */
     suspend fun clear() {
+        current = null
         context.credentials.edit { it.remove(TOKEN) }
     }
 
