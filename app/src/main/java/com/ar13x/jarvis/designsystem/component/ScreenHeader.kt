@@ -29,6 +29,8 @@ fun ScreenHeader(
     headline: String,
     modifier: Modifier = Modifier,
     eyebrow: String? = null,
+    /** Replaces [eyebrow] when the line needs more than a sentence. */
+    eyebrowContent: @Composable (() -> Unit)? = null,
     centred: Boolean = true,
     leading: @Composable (() -> Unit)? = null,
     trailing: @Composable (() -> Unit)? = null,
@@ -54,7 +56,16 @@ fun ScreenHeader(
 
         Spacer(Modifier.height(Space.x8))
 
-        if (eyebrow != null) {
+        if (eyebrowContent != null) {
+            Row(
+                Modifier.fillMaxWidth(),
+                horizontalArrangement = if (centred) Arrangement.Center else Arrangement.Start,
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                eyebrowContent()
+            }
+            Spacer(Modifier.height(Space.x2))
+        } else if (eyebrow != null) {
             Text(
                 text = eyebrow,
                 style = JarvisTheme.typography.titleMedium,

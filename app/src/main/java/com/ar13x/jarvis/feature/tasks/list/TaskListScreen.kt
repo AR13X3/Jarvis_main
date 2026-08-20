@@ -3,6 +3,7 @@ package com.ar13x.jarvis.feature.tasks.list
 import android.content.Intent
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
@@ -20,6 +21,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.Add
@@ -63,11 +65,13 @@ import com.ar13x.jarvis.designsystem.component.JarvisCard
 import com.ar13x.jarvis.designsystem.component.JarvisChip
 import com.ar13x.jarvis.designsystem.component.ScreenHeader
 import com.ar13x.jarvis.designsystem.component.SectionHeader
+import com.ar13x.jarvis.designsystem.component.softShadow
 import com.ar13x.jarvis.designsystem.motion.Motion
 import com.ar13x.jarvis.designsystem.motion.motionFloat
 import com.ar13x.jarvis.designsystem.theme.Corner
 import com.ar13x.jarvis.designsystem.theme.JarvisTheme
 import com.ar13x.jarvis.designsystem.theme.Space
+import com.ar13x.jarvis.designsystem.theme.tabularNums
 import com.ar13x.jarvis.reminders.ReminderReadiness
 import com.ar13x.jarvis.reminders.ReminderSetupCard
 import com.ar13x.jarvis.reminders.rememberReminderReadiness
@@ -300,10 +304,20 @@ private fun TasksHeader(
 
     Column {
         ScreenHeader(
-            eyebrow = when (dueToday) {
-                0 -> "Nothing due today"
-                1 -> "1 thing due today"
-                else -> dueToday.toString() + " things due today"
+            // A count is the one number on this screen worth reading before the
+            // words around it, so it gets its own shape. Zero has no number to
+            // show and stays a sentence — a circled 0 would draw the eye to the
+            // absence of work, which is the opposite of useful.
+            eyebrow = if (dueToday == 0) "Nothing due today" else null,
+            eyebrowContent = if (dueToday == 0) {
+                null
+            } else {
+                {
+                    DueTodayCount(
+                        count = dueToday,
+                        label = if (dueToday == 1) "thing due today" else "things due today",
+                    )
+                }
             },
             headline = "What needs\ndoing today?",
             centred = true,
@@ -685,5 +699,55 @@ private fun LoadMoreEffect(
         }.collect { nearEnd ->
             if (nearEnd) onEvent(TaskListEvent.LoadMore)
         }
+    }
+}
+
+/**
+ * The due-today count, given its own shape.
+ *
+ * Deliberately **not** brand-filled: §6.7 reserves that for the `+`, which is
+ * meant to be the only saturated element in the list. A surface disc reads as
+ * raised against the wash without competing with it, and keeps the eye's first
+ * stop on the action rather than the tally.
+ */
+@Composable
+private fun DueTodayCount(
+    count: Int,
+    label: String,
+    modifier: Modifier = Modifier,
+) {
+    val colors = JarvisTheme.colors
+    Row(
+        modifier = modifier,
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(Space.x2),
+    ) {
+        Box(
+            Modifier
+                .size(30.dp)
+                .then(
+                    if (colors.isDark) {
+                        Modifier.border(1.dp, colors.hairline, CircleShape)
+                    } else {
+                        Modifier.softShadow(CircleShape, tight = 1.dp, wide = 10.dp, tint = colors.shadowTint)
+                    },
+                )
+                .clip(CircleShape)
+                .background(colors.surface, CircleShape),
+            contentAlignment = Alignment.Center,
+        ) {
+            Text(
+                text = count.toString(),
+                // Tabular so a jump from 9 to 10 does not shift the label beside
+                // it, and the disc keeps its optical centre.
+                style = JarvisTheme.typography.titleMedium.tabularNums(),
+                color = colors.ink,
+            )
+        }
+        Text(
+            text = label,
+            style = JarvisTheme.typography.titleMedium,
+            color = colors.ink.copy(alpha = 0.72f),
+        )
     }
 }
