@@ -118,6 +118,41 @@ concern it has no business holding.
 The app already asks the question. A one-shot task gets a single confirm; a
 recurring task gets two labelled choices.
 
+### 3.9 `POST /sessions` cannot reopen a session — **blocks the core loop**
+
+Found by running phase D against the live gateway. This is the most important
+item on the list; everything else here is a nuisance by comparison.
+
+`POST /sessions` is create-only, and nothing reads an existing session back. The
+two session kinds therefore fail in opposite directions:
+
+| | what happens | consequence |
+|---|---|---|
+| **Task session** | `409` — *"that task already has a session"* | Tapping a task row **cannot open its session at all**. §5.3's core loop is dead. |
+| **General session** | `200`, but a **new** session every time | The Chat tab loses its entire history on every app restart. Verified: two launches, two ids, second one empty. |
+
+Both break acceptance item §12.8 — "kill the app mid-refinement; reopen; session
+resumes with history intact."
+
+The app cannot work around either. There is no `GET /sessions`, no
+`GET /tasks/{id}/session`, and the 409 body carries no session id, so once a
+session exists the app has no way to name it again.
+
+**Simplest fix — make `POST /sessions` idempotent**, which is what
+"one session per task" already implies:
+
+```
+POST /sessions {kind:"task", task_id:12}   -> 200 + the existing session, not 409
+POST /sessions {kind:"general"}            -> 200 + the one general session
+```
+
+`agent.sessions.task_id` is already unique, so for task sessions this is an
+upsert-and-return rather than an insert-or-conflict. The general session needs a
+rule for what "the" general session is — most recent, or a singleton row.
+
+A `GET /sessions?kind=&task_id=` lookup would work equally well; the app is happy
+with either.
+
 ### 3.5 `GET /tasks` — param names and single status
 
 Two differences from plan §4.4, both taken from `gateway-openapi.json` and now

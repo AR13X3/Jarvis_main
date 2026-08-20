@@ -79,13 +79,20 @@ fun ChatScreen(
 }
 
 /**
- * Deliberately phrased as the lookup flow rather than as commands: the Chat tab
- * cannot create a task — a general session is offered `find_tasks` and
- * `get_task` and nothing else (parent plan §2.3) — so suggesting "remind me
- * to…" here would advertise something the server will refuse.
+ * Phrased to match what the general session's tools can actually do.
+ *
+ * `find_tasks` searches **titles by keyword**; there is no list-everything or
+ * filter-by-date tool (parent plan §2.3). "What's due today?" reads naturally
+ * and the agent has to refuse it — asked live, it replied that it could not list
+ * or filter by due date and offered to search keywords instead. A suggestion
+ * chip that reliably produces an apology is worse than no chip: it teaches the
+ * user the assistant is broken when it is doing exactly what it was scoped to.
+ *
+ * The Tasks tab already answers "what's due today" better than any chat turn
+ * could, which is the other half of why this does not belong here.
  */
 private val SUGGESTIONS = listOf(
-    "What's due today?",
     "Find my dentist appointment",
-    "What's waiting on me?",
+    "Look up the gym reminder",
+    "What is the rates notice set to?",
 )
