@@ -1,4 +1,5 @@
 import java.time.Instant
+import java.util.Properties
 import org.jetbrains.kotlin.gradle.dsl.JvmTarget
 
 plugins {
@@ -25,6 +26,26 @@ val gitSha: String = runCatching {
     }.standardOutput.asText.get().trim().ifEmpty { "nogit" }
 }.getOrDefault("nogit")
 
+/**
+ * Signing (plan §10). The keystore and its passwords live outside the repo and
+ * are gitignored — `keystore.properties` at the project root.
+ *
+ * **The same key must sign every release, forever.** Obtainium installs updates
+ * in place and a signature change fails the install outright, which breaks the
+ * update channel permanently rather than just once. Back the keystore up
+ * off-machine before the first GitHub release; losing it cannot be undone.
+ *
+ * A missing properties file is not an error — debug builds must still work on a
+ * machine that has never seen the key. Only the release variant needs it.
+ */
+// `java.util.Properties` fully qualified would resolve against Gradle's own
+// `java` extension, not the package — hence the import above.
+val keystoreProperties = Properties().apply {
+    val file = rootProject.file("keystore.properties")
+    if (file.exists()) file.inputStream().use(::load)
+}
+val hasSigningKey = keystoreProperties.getProperty("storeFile") != null
+
 android {
     namespace = "com.ar13x.jarvis"
     compileSdk = 37
@@ -47,12 +68,28 @@ android {
         buildConfigField("String", "DEFAULT_GATEWAY_URL", "\"https://gw03.tail9662e3.ts.net/api\"")
     }
 
+    signingConfigs {
+        if (hasSigningKey) {
+            create("release") {
+                storeFile = rootProject.file(keystoreProperties.getProperty("storeFile"))
+                storePassword = keystoreProperties.getProperty("storePassword")
+                keyAlias = keystoreProperties.getProperty("keyAlias")
+                keyPassword = keystoreProperties.getProperty("keyPassword")
+                // v2 gives fast verification; v3 lets the key be rotated later
+                // without the in-place update breaking.
+                enableV2Signing = true
+                enableV3Signing = true
+            }
+        }
+    }
+
     buildTypes {
         debug {
             applicationIdSuffix = ".debug"
             versionNameSuffix = "-debug"
         }
         release {
+            if (hasSigningKey) signingConfig = signingConfigs.getByName("release")
             isMinifyEnabled = true
             isShrinkResources = true
             proguardFiles(
