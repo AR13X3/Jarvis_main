@@ -128,7 +128,12 @@ dependencies {
     implementation(libs.retrofit)
     implementation(libs.retrofit.serialization)
     implementation(libs.okhttp)
-    debugImplementation(libs.okhttp.logging)
+    // Not debugImplementation: NetworkModule references the type, so a
+    // debug-only dependency makes the release variant fail to compile — which
+    // is exactly how this was found, one phase later than it should have been.
+    // The interceptor is behind `if (BuildConfig.DEBUG)`, which R8 folds to
+    // false and strips, so release carries the dependency but never the code.
+    implementation(libs.okhttp.logging)
     implementation(libs.androidx.datastore.preferences)
 
     // Reminders (phase E)

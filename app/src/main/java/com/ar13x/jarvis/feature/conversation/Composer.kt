@@ -12,6 +12,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
@@ -48,9 +49,11 @@ import com.ar13x.jarvis.designsystem.theme.Space
  * (plan §6.4). That single choice is most of the difference between this and a
  * stock messaging app.
  *
- * The control row below the field is deliberately a row, not a lone button:
- * attachments arrive in phase G and must be able to join it without the
- * composer being redesigned (§9).
+ * One row, not a field with a control row beneath it. Empty, it should look
+ * like one line of text, because that is all it is — reserving a whole second
+ * row for a single button made an empty composer twice the height it earned.
+ * Phase G's attachment control joins this row on the leading side (§9), so
+ * there is still somewhere to grow.
  */
 @Composable
 fun Composer(
@@ -63,7 +66,7 @@ fun Composer(
 ) {
     val colors = JarvisTheme.colors
 
-    Column(
+    Row(
         modifier = modifier
             .fillMaxWidth()
             .padding(horizontal = Space.Gutter, vertical = Space.x3)
@@ -71,7 +74,10 @@ fun Composer(
             .clip(Corner.Lg)
             .background(colors.surface, Corner.Lg)
             .then(if (colors.isDark) Modifier.border(1.dp, colors.hairline, Corner.Lg) else Modifier)
-            .padding(horizontal = Space.x4, vertical = Space.x3),
+            .padding(start = Space.x4, end = Space.x2, top = Space.x2, bottom = Space.x2),
+        // Bottom-aligned so the button stays beside the last line as the field
+        // grows, rather than drifting to the middle of a four-line message.
+        verticalAlignment = Alignment.Bottom,
     ) {
         BasicTextField(
             value = text,
@@ -83,10 +89,14 @@ fun Composer(
             keyboardOptions = KeyboardOptions(imeAction = ImeAction.Send),
             keyboardActions = KeyboardActions(onSend = { if (canSend) onSend() }),
             modifier = Modifier
-                .fillMaxWidth()
-                .heightIn(min = 28.dp, max = 140.dp),
+                .weight(1f)
+                // Height follows the text. A single line should look like a
+                // single line — the composer only earns more room once there is
+                // more to show.
+                .heightIn(min = 40.dp, max = 132.dp)
+                .padding(vertical = Space.x2),
             decorationBox = { field ->
-                Box {
+                Box(contentAlignment = Alignment.CenterStart) {
                     if (text.isEmpty()) {
                         Text(
                             text = placeholder,
@@ -99,15 +109,11 @@ fun Composer(
             },
         )
 
-        Spacer(Modifier.padding(top = Space.x2))
-
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.End,
-        ) {
-            SendButton(enabled = canSend, onClick = onSend)
-        }
+        Spacer(Modifier.width(Space.x2))
+        // Inline rather than on a row of its own. Phase G's attachment control
+        // joins this row on the leading side (§9), so the composer still has
+        // somewhere to grow without being tall while empty.
+        SendButton(enabled = canSend, onClick = onSend)
     }
 }
 

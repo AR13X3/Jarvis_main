@@ -68,6 +68,7 @@ import com.ar13x.jarvis.designsystem.motion.motionFloat
 import com.ar13x.jarvis.designsystem.theme.Corner
 import com.ar13x.jarvis.designsystem.theme.JarvisTheme
 import com.ar13x.jarvis.designsystem.theme.Space
+import com.ar13x.jarvis.reminders.ReminderReadiness
 import com.ar13x.jarvis.reminders.ReminderSetupCard
 import com.ar13x.jarvis.reminders.rememberReminderReadiness
 import com.ar13x.jarvis.reminders.work.OccurrenceRefreshWorker
@@ -105,6 +106,7 @@ fun TaskListScreen(
     val colors = JarvisTheme.colors
     val listState = rememberLazyListState()
     val snackbars = remember { SnackbarHostState() }
+    val readiness = rememberReminderReadiness()
 
     // The gateway owns all state (parent plan §2.1), so the list is only ever a
     // view of it — and it goes stale the moment anything else writes. Confirming
@@ -135,6 +137,7 @@ fun TaskListScreen(
                     content = content.data,
                     state = state,
                     listState = listState,
+                    readiness = readiness,
                     onEvent = onEvent,
                     onOpenTask = onOpenTask,
                     onNewSession = onNewSession,
@@ -173,6 +176,7 @@ private fun TaskList(
     content: TaskListContent,
     state: TaskListUiState,
     listState: LazyListState,
+    readiness: ReminderReadiness,
     onEvent: (TaskListEvent) -> Unit,
     onOpenTask: (Long) -> Unit,
     onNewSession: () -> Unit,
@@ -193,8 +197,13 @@ private fun TaskList(
             // Only renders when something is actually missing, and vanishes once
             // it is fixed — asked in context rather than as a launch-time wall
             // of dialogs (plan §5.5).
+            //
+            // The readiness itself is read above the list, not here: it queries
+            // three system services over binder, and doing that inside a lazy
+            // item means re-querying on the main thread every time the card
+            // scrolls back into view.
             ReminderSetupCard(
-                readiness = rememberReminderReadiness(),
+                readiness = readiness,
                 modifier = Modifier.padding(horizontal = Space.Gutter),
             )
         }

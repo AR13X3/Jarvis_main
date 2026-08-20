@@ -3,7 +3,10 @@ package com.ar13x.jarvis.designsystem.component
 import android.graphics.Bitmap
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxScope
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
@@ -60,7 +63,22 @@ fun BrandBackdrop(
     washHeight: Dp = DefaultWashHeight,
     content: @Composable BoxScope.() -> Unit,
 ) {
-    Box(modifier.fillMaxSize().brandWash(washHeight), content = content)
+    val colors = JarvisTheme.colors
+    Box(modifier.fillMaxSize().background(colors.ground)) {
+        // The wash is a **sibling** of the content, not a wrapper around it.
+        //
+        // Wrapping meant the offscreen layer below enclosed everything drawn on
+        // top of it, so a scrolling list was composited through an offscreen
+        // buffer on every frame — paying the banding fix's cost once per frame
+        // for the whole screen rather than once for a static gradient.
+        Box(
+            Modifier
+                .fillMaxWidth()
+                .height(washHeight)
+                .brandWash(washHeight),
+        )
+        content()
+    }
 }
 
 /**
@@ -89,7 +107,8 @@ fun Modifier.brandWash(washHeight: Dp = DefaultWashHeight): Modifier {
 
     return this
         // Composites the wash as one layer, which is half of the banding fix —
-        // without it the stops are quantised per draw.
+        // without it the stops are quantised per draw. Cheap now that this sits
+        // on a fixed-height box of its own instead of enclosing the whole screen.
         .graphicsLayer { compositingStrategy = CompositingStrategy.Offscreen }
         .drawWithCache {
             val wash = washPx.coerceAtMost(size.height)
@@ -126,9 +145,9 @@ fun Modifier.brandWash(washHeight: Dp = DefaultWashHeight): Modifier {
                 drawRect(colors.ground)
                 drawRect(fade, size = Size(size.width, wash))
                 drawRect(bloom, size = Size(size.width, wash))
-                // Full height, not just the wash. Clipping the dither to the
-                // gradient leaves a faint horizontal seam exactly where the
-                // texture stops against flat ground.
+                // Covers this whole box, which now ends exactly where the
+                // gradient has faded to nothing — so there is no seam between
+                // dithered and flat ground to find.
                 drawRect(noise, alpha = noiseAlpha)
             }
         }

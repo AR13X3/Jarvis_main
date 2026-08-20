@@ -10,7 +10,10 @@ import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.navigationBarsPadding
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.asPaddingValues
+import androidx.compose.foundation.layout.ime
+import androidx.compose.foundation.layout.navigationBars
 import androidx.compose.foundation.layout.padding
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
@@ -19,6 +22,8 @@ import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.unit.dp
 import androidx.navigation.NavDestination.Companion.hasRoute
 import androidx.navigation.NavDestination.Companion.hierarchy
 import androidx.navigation.NavGraph.Companion.findStartDestination
@@ -68,18 +73,26 @@ private fun JarvisTabs() {
         else -> JarvisTab.Tasks
     }
 
+    // While the keyboard is up the bottom bar is behind it, so reserving its
+    // height leaves a band of dead space between the keyboard and the composer.
+    // The bar is also useless mid-sentence, so it goes away rather than hiding.
+    val imeVisible = WindowInsets.ime.getBottom(LocalDensity.current) > 0
+    val navBarInset = WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding()
+
     Box(Modifier.fillMaxSize()) {
         JarvisNavHost(
             navController = navController,
-            modifier = Modifier
-                .navigationBarsPadding()
-                .padding(bottom = JarvisBottomBarHeight),
+            modifier = Modifier.padding(
+                bottom = if (imeVisible) 0.dp else JarvisBottomBarHeight + navBarInset,
+            ),
         )
-        JarvisBottomBar(
-            current = currentTab,
-            onSelect = navController::switchTab,
-            modifier = Modifier.align(Alignment.BottomCenter),
-        )
+        if (!imeVisible) {
+            JarvisBottomBar(
+                current = currentTab,
+                onSelect = navController::switchTab,
+                modifier = Modifier.align(Alignment.BottomCenter),
+            )
+        }
     }
 }
 
