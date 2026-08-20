@@ -138,20 +138,62 @@ The app cannot work around either. There is no `GET /sessions`, no
 `GET /tasks/{id}/session`, and the 409 body carries no session id, so once a
 session exists the app has no way to name it again.
 
-**Simplest fix — make `POST /sessions` idempotent**, which is what
-"one session per task" already implies:
+**Fix for task sessions — make `POST /sessions` idempotent:**
 
 ```
 POST /sessions {kind:"task", task_id:12}   -> 200 + the existing session, not 409
-POST /sessions {kind:"general"}            -> 200 + the one general session
 ```
 
-`agent.sessions.task_id` is already unique, so for task sessions this is an
-upsert-and-return rather than an insert-or-conflict. The general session needs a
-rule for what "the" general session is — most recent, or a singleton row.
+`agent.sessions.task_id` is already unique, so this is upsert-and-return rather
+than insert-or-conflict. A `GET /tasks/{id}/session` lookup would serve equally
+well.
 
-A `GET /sessions?kind=&task_id=` lookup would work equally well; the app is happy
-with either.
+> **Correction to the version of this sent on 2026-08-20.** That draft also asked
+> for `POST /sessions {kind:"general"}` to return *the one* general session.
+> **Disregard that half** — see §3.12. Collapsing general sessions to a singleton
+> would foreclose browsable chat history, which is now a requirement. The
+> gateway's current behaviour for general sessions is **correct**; what is
+> missing is a way to list and reopen them.
+
+### 3.12 General chat needs history — list and reopen past conversations
+
+Requested after using the app: *"we need chat history for general chat… it shows
+us previous chats where we inquired about stuff and how it redirected us to the
+correct session. Currently we can't look back at any general tasks."*
+
+This is not the same as a task session. A task session is **one** thread bound
+to one task forever. General chat is a series of **conversations** — you ask
+about something, get pointed at a task, and that exchange is worth keeping.
+
+**So the gateway's current behaviour is right, not a bug.** A new general session
+per `POST` is exactly what a "new conversation" is. What is missing is a way to
+see the old ones:
+
+```
+GET /sessions?kind=general&page=1
+
+{ "sessions": [
+    { "id": "2cd5dd0f-…",
+      "title": "Dinner with Sam",              // derived from the first user turn
+      "updated_at": "2026-08-20T21:12:00Z",
+      "message_count": 4 } ],
+  "page": 1, "has_more": false }
+```
+
+`title` is the field worth discussing. The app can fall back to the first user
+message if you would rather not derive one, but it would need the message text in
+this payload to do it — one line per session either way, and better computed once
+server-side than by the app fetching every session's first page.
+
+**What the app will do with it:** open the most recent conversation on launch, so
+returning to Chat resumes where you were rather than starting blank; a list to
+browse the rest; and an explicit "new chat" action that calls `POST /sessions`
+as it does today.
+
+Reopening an old conversation needs nothing new — `GET /sessions/{id}/messages`
+already works, and because persisted assistant turns carry `components`, a past
+disambiguation renders with its option buttons intact. That is precisely the
+"how it redirected us" the request asks for.
 
 ### 3.10 `find_tasks` needs date ranges — a stated requirement, not a nicety
 
