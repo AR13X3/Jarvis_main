@@ -68,6 +68,9 @@ import com.ar13x.jarvis.designsystem.motion.motionFloat
 import com.ar13x.jarvis.designsystem.theme.Corner
 import com.ar13x.jarvis.designsystem.theme.JarvisTheme
 import com.ar13x.jarvis.designsystem.theme.Space
+import com.ar13x.jarvis.reminders.ReminderSetupCard
+import com.ar13x.jarvis.reminders.rememberReminderReadiness
+import com.ar13x.jarvis.reminders.work.OccurrenceRefreshWorker
 
 private const val TAILSCALE_PACKAGE = "com.tailscale.ipn"
 
@@ -110,6 +113,14 @@ fun TaskListScreen(
     // involved at all. Re-reading on resume is what makes coming back from a
     // session, or from the home screen, show what is actually there.
     LifecycleEventEffect(Lifecycle.Event.ON_RESUME) { onEvent(TaskListEvent.Refresh) }
+
+    // Foreground refresh of the alarm window (plan §7.1), alongside the daily
+    // WorkManager run. Cheap — one request — and it is the path that actually
+    // fires on a Samsung, where periodic work gets deferred.
+    val appContext = LocalContext.current.applicationContext
+    LifecycleEventEffect(Lifecycle.Event.ON_RESUME) {
+        OccurrenceRefreshWorker.enqueueNow(appContext)
+    }
 
     UndoSnackbarEffect(state, onEvent, snackbars)
     FailureSnackbarEffect(state.transientFailure, onEvent, snackbars)
@@ -176,6 +187,16 @@ private fun TaskList(
     ) {
         item(key = "header") {
             TasksHeader(content = content, onNewSession = onNewSession)
+        }
+
+        item(key = "reminder-setup") {
+            // Only renders when something is actually missing, and vanishes once
+            // it is fixed — asked in context rather than as a launch-time wall
+            // of dialogs (plan §5.5).
+            ReminderSetupCard(
+                readiness = rememberReminderReadiness(),
+                modifier = Modifier.padding(horizontal = Space.Gutter),
+            )
         }
 
         item(key = "filters") {

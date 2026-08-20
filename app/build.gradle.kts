@@ -62,6 +62,10 @@ android {
         }
     }
 
+    // Room's generated schema, checked in so a migration is reviewable in a diff
+    // rather than discovered at runtime.
+    ksp { arg("room.schemaLocation", "$projectDir/schemas") }
+
     buildFeatures {
         compose = true
         buildConfig = true
@@ -126,6 +130,14 @@ dependencies {
     implementation(libs.okhttp)
     debugImplementation(libs.okhttp.logging)
     implementation(libs.androidx.datastore.preferences)
+
+    // Reminders (phase E)
+    implementation(libs.androidx.room.runtime)
+    implementation(libs.androidx.room.ktx)
+    ksp(libs.androidx.room.compiler)
+    implementation(libs.androidx.work.runtime.ktx)
+    implementation(libs.androidx.hilt.work)
+    ksp(libs.androidx.hilt.compiler)
 
     testImplementation(libs.junit)
     testImplementation(libs.kotlinx.coroutines.test)

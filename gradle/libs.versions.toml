@@ -60,6 +60,8 @@ androidx-navigation-compose      = { module = "androidx.navigation:navigation-co
 hilt-android                     = { module = "com.google.dagger:hilt-android",               version.ref = "hilt" }
 hilt-compiler                    = { module = "com.google.dagger:hilt-android-compiler",      version.ref = "hilt" }
 androidx-hilt-navigation-compose = { module = "androidx.hilt:hilt-navigation-compose",        version.ref = "hiltNavigationCompose" }
+androidx-hilt-work               = { module = "androidx.hilt:hilt-work",                      version.ref = "hiltNavigationCompose" }
+androidx-hilt-compiler           = { module = "androidx.hilt:hilt-compiler",                  version.ref = "hiltNavigationCompose" }
 
 # --- Kotlin runtime -----------------------------------------------------------
 kotlinx-coroutines-android       = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-android", version.ref = "coroutines" }
