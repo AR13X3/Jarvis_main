@@ -2,8 +2,8 @@
   "openapi": "3.1.0",
   "info": {
     "title": "Jarvis Gateway",
-    "version": "0.1.0",
-    "description": "Contract for the Jarvis Android app. Base URL: https://gw03.tail9662e3.ts.net/api"
+    "description": "Contract for the Jarvis Android app. Base URL: https://gw03.tail9662e3.ts.net/api",
+    "version": "0.1.0"
   },
   "paths": {
     "/health": {
@@ -30,18 +30,6 @@
       "get": {
         "summary": "Get Sections",
         "operationId": "get_sections_tasks_sections_get",
-        "parameters": [
-          {
-            "name": "authorization",
-            "in": "header",
-            "required": false,
-            "schema": {
-              "type": "string",
-              "default": "",
-              "title": "Authorization"
-            }
-          }
-        ],
         "responses": {
           "200": {
             "description": "Successful Response",
@@ -52,24 +40,24 @@
                 }
               }
             }
-          },
-          "422": {
-            "description": "Validation Error",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            }
           }
-        }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
       }
     },
     "/tasks": {
       "get": {
         "summary": "Get Tasks",
         "operationId": "get_tasks_tasks_get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
         "parameters": [
           {
             "name": "status",
@@ -129,16 +117,6 @@
               "default": 1,
               "title": "Page"
             }
-          },
-          {
-            "name": "authorization",
-            "in": "header",
-            "required": false,
-            "schema": {
-              "type": "string",
-              "default": "",
-              "title": "Authorization"
-            }
           }
         ],
         "responses": {
@@ -170,6 +148,11 @@
         "summary": "Patch Task",
         "description": "Direct UI manipulation of a cheap reversible flag \u2014 no proposal.\nAI-initiated mutations confirm; a menu tap cannot misparse.",
         "operationId": "patch_task_tasks__task_id__patch",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
         "parameters": [
           {
             "name": "task_id",
@@ -178,16 +161,6 @@
             "schema": {
               "type": "integer",
               "title": "Task Id"
-            }
-          },
-          {
-            "name": "authorization",
-            "in": "header",
-            "required": false,
-            "schema": {
-              "type": "string",
-              "default": "",
-              "title": "Authorization"
             }
           }
         ],
@@ -232,6 +205,11 @@
         "summary": "Cancel Task",
         "description": "Confirmed from either path, because cancelling is not cheaply reversible.\n\n`scope` distinguishes skipping one firing from stopping the rule.",
         "operationId": "cancel_task_tasks__task_id__cancel_post",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
         "parameters": [
           {
             "name": "task_id",
@@ -240,16 +218,6 @@
             "schema": {
               "type": "integer",
               "title": "Task Id"
-            }
-          },
-          {
-            "name": "authorization",
-            "in": "header",
-            "required": false,
-            "schema": {
-              "type": "string",
-              "default": "",
-              "title": "Authorization"
             }
           }
         ],
@@ -294,6 +262,11 @@
         "summary": "Get Upcoming",
         "description": "The device alarm mirror. Replace-the-window on the client, not merge.",
         "operationId": "get_upcoming_occurrences_upcoming_get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
         "parameters": [
           {
             "name": "within_hours",
@@ -305,16 +278,6 @@
               "minimum": 1,
               "default": 48,
               "title": "Within Hours"
-            }
-          },
-          {
-            "name": "authorization",
-            "in": "header",
-            "required": false,
-            "schema": {
-              "type": "string",
-              "default": "",
-              "title": "Authorization"
             }
           }
         ],
@@ -346,27 +309,15 @@
       "post": {
         "summary": "Create Session",
         "operationId": "create_session_sessions_post",
-        "parameters": [
-          {
-            "name": "authorization",
-            "in": "header",
-            "required": false,
-            "schema": {
-              "type": "string",
-              "default": "",
-              "title": "Authorization"
-            }
-          }
-        ],
         "requestBody": {
-          "required": true,
           "content": {
             "application/json": {
               "schema": {
                 "$ref": "#/components/schemas/CreateSessionBody"
               }
             }
-          }
+          },
+          "required": true
         },
         "responses": {
           "200": {
@@ -389,13 +340,23 @@
               }
             }
           }
-        }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
       }
     },
     "/sessions/{session_id}/messages": {
       "get": {
         "summary": "Get Messages",
         "operationId": "get_messages_sessions__session_id__messages_get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
         "parameters": [
           {
             "name": "session_id",
@@ -434,16 +395,6 @@
               "default": 20,
               "title": "Limit"
             }
-          },
-          {
-            "name": "authorization",
-            "in": "header",
-            "required": false,
-            "schema": {
-              "type": "string",
-              "default": "",
-              "title": "Authorization"
-            }
           }
         ],
         "responses": {
@@ -472,6 +423,11 @@
       "post": {
         "summary": "Send Message",
         "operationId": "send_message_sessions__session_id__messages_post",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
         "parameters": [
           {
             "name": "session_id",
@@ -481,16 +437,6 @@
               "type": "string",
               "format": "uuid",
               "title": "Session Id"
-            }
-          },
-          {
-            "name": "authorization",
-            "in": "header",
-            "required": false,
-            "schema": {
-              "type": "string",
-              "default": "",
-              "title": "Authorization"
             }
           }
         ],
@@ -532,6 +478,11 @@
       "post": {
         "summary": "Confirm Proposal",
         "operationId": "confirm_proposal_proposals__proposal_id__confirm_post",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
         "parameters": [
           {
             "name": "proposal_id",
@@ -541,16 +492,6 @@
               "type": "string",
               "format": "uuid",
               "title": "Proposal Id"
-            }
-          },
-          {
-            "name": "authorization",
-            "in": "header",
-            "required": false,
-            "schema": {
-              "type": "string",
-              "default": "",
-              "title": "Authorization"
             }
           }
         ],
@@ -584,6 +525,11 @@
       "post": {
         "summary": "Reject Proposal",
         "operationId": "reject_proposal_proposals__proposal_id__reject_post",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
         "parameters": [
           {
             "name": "proposal_id",
@@ -593,16 +539,6 @@
               "type": "string",
               "format": "uuid",
               "title": "Proposal Id"
-            }
-          },
-          {
-            "name": "authorization",
-            "in": "header",
-            "required": false,
-            "schema": {
-              "type": "string",
-              "default": "",
-              "title": "Authorization"
             }
           }
         ],
@@ -1354,6 +1290,13 @@
           "type"
         ],
         "title": "ValidationError"
+      }
+    },
+    "securitySchemes": {
+      "HTTPBearer": {
+        "type": "http",
+        "description": "The GATEWAY_TOKEN from the gateway .env",
+        "scheme": "bearer"
       }
     }
   }
