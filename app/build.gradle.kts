@@ -42,7 +42,9 @@ android {
 
         buildConfigField("String", "GIT_SHA", "\"$gitSha\"")
         buildConfigField("String", "BUILD_TIME", "\"${Instant.now()}\"")
-        buildConfigField("String", "DEFAULT_GATEWAY_URL", "\"https://gw03.tail9662e3.ts.net\"")
+        // The gateway is mounted at /api by `tailscale serve`, which strips the
+        // prefix — so the app must include it and the OpenAPI paths must not.
+        buildConfigField("String", "DEFAULT_GATEWAY_URL", "\"https://gw03.tail9662e3.ts.net/api\"")
     }
 
     buildTypes {

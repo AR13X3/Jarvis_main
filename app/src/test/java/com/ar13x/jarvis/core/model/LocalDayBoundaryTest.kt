@@ -7,6 +7,7 @@ import org.junit.Assert.assertNotEquals
 import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
+import java.time.Instant
 import java.time.LocalDate
 import java.time.ZoneId
 import java.util.TimeZone
@@ -65,6 +66,38 @@ class LocalDayBoundaryTest {
         val derivedInUtc = task.dueAt.atZone(ZoneId.of("UTC")).toLocalDate()
         assertEquals(LocalDate.parse("2026-08-21"), derivedInUtc)
         assertNotEquals(task.dueDate, derivedInUtc)
+    }
+
+    /**
+     * Guards the fixture itself, not the code.
+     *
+     * Both plans illustrate the rule with a "9 PM Sydney" reminder said to fall
+     * on the next UTC day. It does not: Sydney is UTC+10, so 9 PM lands at 11:00
+     * UTC the *same* day. It is the **morning** that crosses backwards —
+     * 9 AM Sydney is 23:00 UTC the day before.
+     *
+     * That matters because a test built on the plan's example would pass whether
+     * the app derived the day or not, and would look like coverage while
+     * providing none. This asserts the fixture above still straddles the
+     * boundary, so the guard cannot quietly stop guarding.
+     */
+    @Test
+    fun `the fixture straddles the boundary, unlike the example in the plans`() {
+        val task = JarvisJson.decodeFromString(Task.serializer(), json)
+
+        val utcDay = task.dueAt.atZone(ZoneId.of("UTC")).toLocalDate()
+        val localDay = task.dueAt.atZone(sydney).toLocalDate()
+        assertNotEquals("fixture must cross the UTC day boundary", utcDay, localDay)
+        assertEquals("and it must be a morning task, which is the direction that crosses",
+            9, task.dueAt.atZone(sydney).hour + 1)
+
+        // The plans' own example, for contrast: same UTC day, so useless as a test.
+        val evening = Instant.parse("2026-08-21T11:00:00Z")
+        assertEquals(
+            "a 9 PM Sydney task does not cross the boundary and proves nothing",
+            evening.atZone(ZoneId.of("UTC")).toLocalDate(),
+            evening.atZone(sydney).toLocalDate(),
+        )
     }
 
     @Test
