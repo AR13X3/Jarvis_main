@@ -233,17 +233,14 @@ class ConversationViewModel @Inject constructor(
                 state.copy(options = state.options + (key to existing.copy(loading = true)))
             }
             runCatching { agent.moreTaskOptions(sessionId, cursor) }
-                .onSuccess { response ->
-                    val more = response.components
-                        .filterIsInstance<AgentComponent.TaskOptions>()
-                        .firstOrNull()
+                .onSuccess { more ->
                     _state.update { state ->
                         val existing = state.options[key] ?: OptionsState()
                         state.copy(
                             options = state.options + (
                                 key to existing.copy(
-                                    extra = existing.extra + more?.options.orEmpty(),
-                                    cursor = more?.moreCursor,
+                                    extra = existing.extra + more.options,
+                                    cursor = more.moreCursor,
                                     loading = false,
                                 )
                                 ),

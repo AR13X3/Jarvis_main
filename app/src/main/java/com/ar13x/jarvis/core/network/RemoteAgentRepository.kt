@@ -1,10 +1,8 @@
 package com.ar13x.jarvis.core.network
 
 import com.ar13x.jarvis.core.data.AgentRepository
+import com.ar13x.jarvis.core.model.AgentComponent
 import com.ar13x.jarvis.core.model.AgentResponse
-import com.ar13x.jarvis.core.model.ApiError
-import com.ar13x.jarvis.core.model.FailureReason
-import com.ar13x.jarvis.core.model.JarvisException
 import com.ar13x.jarvis.core.model.PagedMessages
 import com.ar13x.jarvis.core.model.Session
 import com.ar13x.jarvis.core.model.SessionKind
@@ -56,28 +54,14 @@ class RemoteAgentRepository @Inject constructor(
     }
 
     /**
-     * "Show more" on a disambiguation card — **not yet servable**.
+     * Pages a disambiguation card (plan §5.4).
      *
-     * `task_options` carries a `more_cursor`, but the gateway exposes no route
-     * that takes one: there is no `GET /sessions/{id}/options`, and the cursor
-     * cannot be redeemed through `POST /messages` without inventing a fake user
-     * turn, which would show up in the transcript as something the user said
-     * and spend a model call to page a list the server already has.
-     *
-     * So it fails loudly with a message the user can act on, rather than doing
-     * nothing on tap or quietly corrupting the history. Blocked on
-     * BUILD_NOTES §3.8.
+     * A dedicated route, so it costs no model call and invents no user turn —
+     * which is what made redeeming the cursor through `POST /messages`
+     * unacceptable.
      */
-    override suspend fun moreTaskOptions(sessionId: String, cursor: String): AgentResponse =
-        throw JarvisException(
-            FailureReason.Api(
-                ApiError(
-                    code = "more_options_unsupported",
-                    message = "Showing more matches needs a gateway update.",
-                ),
-            ),
-            "No endpoint redeems a task_options cursor",
-        )
+    override suspend fun moreTaskOptions(sessionId: String, cursor: String): AgentComponent.TaskOptions =
+        gatewayCall { api.options(sessionId, cursor) }
 }
 
 internal fun SessionKind.wireName(): String = when (this) {

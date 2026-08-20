@@ -52,6 +52,7 @@
     "/tasks": {
       "get": {
         "summary": "Get Tasks",
+        "description": "`status` repeats: `?status=active&status=awaiting`. Single-valued was a\nfilter row that could only ever answer one chip (joy A6, 2026-08-20).\n\nAll three are typed rather than checked by hand, so the enum and the date\nformat appear in `openapi.json` and FastAPI rejects bad input before it\nreaches a query. Untyped, they were handed straight to Postgres: an unknown\nstatus hit an enum cast and 500'd, and the dates 500'd on *valid* input too,\nbecause `due_date` is a date column and asyncpg will not coerce a string.",
         "operationId": "get_tasks_tasks_get",
         "security": [
           {
@@ -66,7 +67,17 @@
             "schema": {
               "anyOf": [
                 {
-                  "type": "string"
+                  "type": "array",
+                  "items": {
+                    "enum": [
+                      "active",
+                      "awaiting",
+                      "completed",
+                      "cancelled",
+                      "incomplete"
+                    ],
+                    "type": "string"
+                  }
                 },
                 {
                   "type": "null"
@@ -82,7 +93,8 @@
             "schema": {
               "anyOf": [
                 {
-                  "type": "string"
+                  "type": "string",
+                  "format": "date"
                 },
                 {
                   "type": "null"
@@ -98,7 +110,8 @@
             "schema": {
               "anyOf": [
                 {
-                  "type": "string"
+                  "type": "string",
+                  "format": "date"
                 },
                 {
                   "type": "null"
@@ -144,6 +157,49 @@
       }
     },
     "/tasks/{task_id}": {
+      "get": {
+        "summary": "Get Task",
+        "description": "Opening a task's session needs exactly this one task \u2014 whether it is\nterminal decides whether the composer appears. Without it the app pages\n`GET /tasks` until it finds the id (joy A4, 2026-08-20).\n\nReturns the task bare: a GET returns the resource, a mutation wraps it.",
+        "operationId": "get_task_tasks__task_id__get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "task_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Task Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Task"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
       "patch": {
         "summary": "Patch Task",
         "description": "Direct UI manipulation of a cheap reversible flag \u2014 no proposal.\nAI-initiated mutations confirm; a menu tap cannot misparse.",
@@ -180,9 +236,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "object",
-                  "additionalProperties": true,
-                  "title": "Response Patch Task Tasks  Task Id  Patch"
+                  "$ref": "#/components/schemas/TaskEnvelope"
                 }
               }
             }
@@ -237,9 +291,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "object",
-                  "additionalProperties": true,
-                  "title": "Response Cancel Task Tasks  Task Id  Cancel Post"
+                  "$ref": "#/components/schemas/TaskEnvelope"
                 }
               }
             }
@@ -306,18 +358,89 @@
       }
     },
     "/sessions": {
+      "get": {
+        "summary": "List Sessions",
+        "description": "Browsable conversation history (joy addendum \u00a72).\n\nGeneral chat is a series of conversations, not one thread \u2014 you ask about\nsomething, get pointed at a task, and that exchange is worth looking back\nat. Reopening needs nothing new: `GET /sessions/{id}/messages` already\nreturns persisted `components`, so a past disambiguation renders with its\noption buttons intact.",
+        "operationId": "list_sessions_sessions_get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "kind",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "enum": [
+                    "task",
+                    "general"
+                  ],
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Kind"
+            }
+          },
+          {
+            "name": "page",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "default": 1,
+              "title": "Page"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PagedSessions"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
       "post": {
         "summary": "Create Session",
+        "description": "Get-or-create for a task binding: a task has exactly one session and\nreopening it is the normal path, so this no longer 409s on the second call.\nSee `agentrepo.create_session`.",
         "operationId": "create_session_sessions_post",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
         "requestBody": {
+          "required": true,
           "content": {
             "application/json": {
               "schema": {
                 "$ref": "#/components/schemas/CreateSessionBody"
               }
             }
-          },
-          "required": true
+          }
         },
         "responses": {
           "200": {
@@ -340,12 +463,62 @@
               }
             }
           }
-        },
+        }
+      }
+    },
+    "/sessions/{session_id}/options": {
+      "get": {
+        "summary": "Redeem Options",
+        "description": "\"Show more\" on a disambiguation list (joy A3, 2026-08-20).\n\nA pure read: it appends nothing to the transcript and calls no model. The\nalternative was redeeming the cursor through `POST /messages`, which would\nappear as something the user said and spend a model call to page a list the\nserver already has.\n\nThe cursor carries the search, so this holds no state between calls.",
+        "operationId": "redeem_options_sessions__session_id__options_get",
         "security": [
           {
             "HTTPBearer": []
           }
-        ]
+        ],
+        "parameters": [
+          {
+            "name": "session_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Session Id"
+            }
+          },
+          {
+            "name": "cursor",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Cursor"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TaskOptionsComponent"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
       }
     },
     "/sessions/{session_id}/messages": {
@@ -501,9 +674,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "object",
-                  "additionalProperties": true,
-                  "title": "Response Confirm Proposal Proposals  Proposal Id  Confirm Post"
+                  "$ref": "#/components/schemas/TaskEnvelope"
                 }
               }
             }
@@ -548,9 +719,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "object",
-                  "additionalProperties": true,
-                  "title": "Response Reject Proposal Proposals  Proposal Id  Reject Post"
+                  "$ref": "#/components/schemas/Ok"
                 }
               }
             }
@@ -585,12 +754,16 @@
                 },
                 {
                   "$ref": "#/components/schemas/TaskOptionsComponent"
+                },
+                {
+                  "$ref": "#/components/schemas/NewTaskComponent"
                 }
               ],
               "discriminator": {
                 "propertyName": "type",
                 "mapping": {
                   "confirm": "#/components/schemas/ConfirmComponent",
+                  "new_task": "#/components/schemas/NewTaskComponent",
                   "task_options": "#/components/schemas/TaskOptionsComponent"
                 }
               }
@@ -727,12 +900,16 @@
                 },
                 {
                   "$ref": "#/components/schemas/TaskOptionsComponent"
+                },
+                {
+                  "$ref": "#/components/schemas/NewTaskComponent"
                 }
               ],
               "discriminator": {
                 "propertyName": "type",
                 "mapping": {
                   "confirm": "#/components/schemas/ConfirmComponent",
+                  "new_task": "#/components/schemas/NewTaskComponent",
                   "task_options": "#/components/schemas/TaskOptionsComponent"
                 }
               }
@@ -755,6 +932,42 @@
         ],
         "title": "Message"
       },
+      "NewTaskComponent": {
+        "properties": {
+          "type": {
+            "type": "string",
+            "const": "new_task",
+            "title": "Type",
+            "default": "new_task"
+          },
+          "label": {
+            "type": "string",
+            "title": "Label",
+            "default": "Set this up"
+          },
+          "seed": {
+            "type": "string",
+            "title": "Seed"
+          }
+        },
+        "type": "object",
+        "required": [
+          "seed"
+        ],
+        "title": "NewTaskComponent",
+        "description": "A way out of a general session that was asked to create something.\n\nA general session has no create tool and correctly declines \u2014 but that\nleaves the user having already said what they wanted, with nowhere to go.\nThe app renders this as a button that opens a NEW unbound session and sends\n`seed` immediately, so nothing is retyped (joy addendum \u00a74).\n\nThe invariant is untouched: this session still creates nothing, and the new\nsession binds only on confirmation. Seeding skips the typing, not the\nconfirmation."
+      },
+      "Ok": {
+        "properties": {
+          "ok": {
+            "type": "boolean",
+            "title": "Ok",
+            "default": true
+          }
+        },
+        "type": "object",
+        "title": "Ok"
+      },
       "PagedMessages": {
         "properties": {
           "messages": {
@@ -775,6 +988,32 @@
           "has_more"
         ],
         "title": "PagedMessages"
+      },
+      "PagedSessions": {
+        "properties": {
+          "sessions": {
+            "items": {
+              "$ref": "#/components/schemas/SessionSummary"
+            },
+            "type": "array",
+            "title": "Sessions"
+          },
+          "page": {
+            "type": "integer",
+            "title": "Page"
+          },
+          "has_more": {
+            "type": "boolean",
+            "title": "Has More"
+          }
+        },
+        "type": "object",
+        "required": [
+          "sessions",
+          "page",
+          "has_more"
+        ],
+        "title": "PagedSessions"
       },
       "PagedTasks": {
         "properties": {
@@ -1004,6 +1243,59 @@
         ],
         "title": "Session"
       },
+      "SessionSummary": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "kind": {
+            "type": "string",
+            "title": "Kind"
+          },
+          "task_id": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Task Id"
+          },
+          "title": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Title"
+          },
+          "updated_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Updated At"
+          },
+          "message_count": {
+            "type": "integer",
+            "title": "Message Count"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "kind",
+          "updated_at",
+          "message_count"
+        ],
+        "title": "SessionSummary",
+        "description": "One line per conversation for the Chat history list (joy addendum \u00a72).\n\nA task session is one thread bound to a task forever; general chat is a\nseries of conversations, and the ones where you asked about something and\ngot pointed at a task are worth keeping. Computed here rather than by the\napp fetching every session's first page just to label a list."
+      },
       "Task": {
         "properties": {
           "id": {
@@ -1130,6 +1422,19 @@
           "updated_at"
         ],
         "title": "Task"
+      },
+      "TaskEnvelope": {
+        "properties": {
+          "task": {
+            "$ref": "#/components/schemas/Task"
+          }
+        },
+        "type": "object",
+        "required": [
+          "task"
+        ],
+        "title": "TaskEnvelope",
+        "description": "\u00a74.4 \u2014 a mutation answers with the task it changed.\n\nNamed in the schema rather than returned as a bare dict so the app can drop\nits tolerant envelope-or-task decoder. `task` is never null here: these\nendpoints 404 when the task does not exist rather than answering with none."
       },
       "TaskOption": {
         "properties": {

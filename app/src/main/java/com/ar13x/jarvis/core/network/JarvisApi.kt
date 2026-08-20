@@ -43,6 +43,10 @@ interface JarvisApi {
         @Query("page") page: Int = 1,
     ): PagedTasks
 
+    /** Returns a bare [Task], not an envelope — deliberately, per gw03. */
+    @GET("tasks/{id}")
+    suspend fun task(@Path("id") id: Long): com.ar13x.jarvis.core.model.Task
+
     @PATCH("tasks/{id}")
     suspend fun patchTask(@Path("id") id: Long, @Body body: PatchTaskBody): JsonObject
 
@@ -64,6 +68,16 @@ interface JarvisApi {
 
     @POST("sessions/{id}/messages")
     suspend fun sendMessage(@Path("id") sessionId: String, @Body body: SendMessageBody): AgentResponse
+
+    /**
+     * Pages a disambiguation card. Takes the cursor straight from the component,
+     * so it costs no model call and invents no user turn.
+     */
+    @GET("sessions/{id}/options")
+    suspend fun options(
+        @Path("id") sessionId: String,
+        @Query("cursor") cursor: String,
+    ): com.ar13x.jarvis.core.model.AgentComponent.TaskOptions
 
     @POST("proposals/{id}/confirm")
     suspend fun confirmProposal(@Path("id") proposalId: String): JsonObject

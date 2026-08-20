@@ -57,6 +57,23 @@ Two consequences worth knowing before touching `build.gradle.kts`:
 
 ## 3. Contract items for the gw03 side
 
+> **Status as of 2026-08-20 evening — six of eight resolved and deployed.**
+>
+> | ask | state |
+> |---|---|
+> | §3.9 `POST /sessions {task_id}` get-or-create | ✅ **done** — verified on device, the core loop works |
+> | §3.10 `find_tasks` date ranges | ✅ done — server resolves the range, model never does date arithmetic |
+> | §3.8 `task_options` cursor route | ✅ done — `GET /sessions/{id}/options?cursor=` |
+> | §3.7 `GET /tasks/{id}` | ✅ done — returns a bare `Task`, not an envelope |
+> | §3.6 mutation return types | ✅ done — `TaskEnvelope`; `confirm` now 404s rather than returning a null task |
+> | §3.11 `new_task` component | ✅ done — in the discriminator |
+> | §3.12 `GET /sessions?kind=general` | ⏳ outstanding — the chat-history list |
+> | §3.5 multi-value `status` | ⏳ outstanding — single-select chips stay correct meanwhile |
+>
+> The app now uses all six. The two workarounds they replaced are gone: paging
+> `GET /tasks` to find one row, and failing "Show more" with an honest error.
+
+
 §13 of the plan already lists the open questions. Phase A added two, both
 discovered by writing the types out in full:
 

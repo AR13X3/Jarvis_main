@@ -1,5 +1,6 @@
 package com.ar13x.jarvis.core.data
 
+import com.ar13x.jarvis.core.model.AgentComponent
 import com.ar13x.jarvis.core.model.AgentResponse
 import com.ar13x.jarvis.core.model.PagedMessages
 import com.ar13x.jarvis.core.model.Session
@@ -36,5 +37,5 @@ interface AgentRepository {
     suspend fun rejectProposal(proposalId: String)
 
     /** Pages the disambiguation buttons 3 at a time (plan §5.4). */
-    suspend fun moreTaskOptions(sessionId: String, cursor: String): AgentResponse
+    suspend fun moreTaskOptions(sessionId: String, cursor: String): AgentComponent.TaskOptions
 }

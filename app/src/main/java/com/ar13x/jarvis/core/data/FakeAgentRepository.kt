@@ -98,13 +98,9 @@ class FakeAgentRepository @Inject constructor(
         proposal?.let { drafts.remove(it.sessionId) }
     }
 
-    override suspend fun moreTaskOptions(sessionId: String, cursor: String): AgentResponse {
+    override suspend fun moreTaskOptions(sessionId: String, cursor: String): AgentComponent.TaskOptions {
         delay(FakeBackend.READ_LATENCY_MS)
-        val remaining = optionPages.remove(cursor).orEmpty()
-        return AgentResponse(
-            text = "",
-            components = listOf(optionsComponent(remaining)),
-        )
+        return optionsComponent(optionPages.remove(cursor).orEmpty())
     }
 
     // --- Unbound session: the create flow ---------------------------------------

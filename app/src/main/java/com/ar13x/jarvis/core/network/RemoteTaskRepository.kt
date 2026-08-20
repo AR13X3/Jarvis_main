@@ -58,21 +58,7 @@ class RemoteTaskRepository @Inject constructor(
             ).readTask(json)
         }
 
-    /**
-     * There is no `GET /tasks/{id}`, so a single task is read out of the paged
-     * list. Flagged to gw03 in BUILD_NOTES §3.7 — a session opening on a task
-     * currently costs a page of twenty to fetch one row.
-     */
-    override suspend fun task(taskId: Long): Task = gatewayCall {
-        var page = 1
-        while (true) {
-            val result = api.tasks(page = page)
-            result.tasks.firstOrNull { it.id == taskId }?.let { return@gatewayCall it }
-            if (!result.hasMore) break
-            page += 1
-        }
-        error("No task " + taskId)
-    }
+    override suspend fun task(taskId: Long): Task = gatewayCall { api.task(taskId) }
 
     override suspend fun upcomingOccurrences(withinHours: Int): UpcomingOccurrences =
         // The gateway caps this at 168 and 422s above it, so the app never asks

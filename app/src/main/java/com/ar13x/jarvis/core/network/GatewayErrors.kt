@@ -78,15 +78,31 @@ private fun HttpException.parseError(): ApiError {
 /**
  * Reads a task out of a mutation response.
  *
- * `PATCH /tasks/{id}`, `POST /tasks/{id}/cancel` and
- * `POST /proposals/{id}/confirm` are declared in the OpenAPI document as bare
- * objects with no schema — FastAPI did not annotate their return types — while
- * plan §4.4 says they return `{task}`. Rather than guess, this accepts either
- * an envelope or a bare task, so an annotation landing later cannot break the
- * app. Flagged to gw03 in BUILD_NOTES §3.6.
+ * The mutations now return a declared `TaskEnvelope` — `{"task": …}` — so the
+ * happy path is simply the `task` member. Two tolerances remain deliberately:
+ *
+ * - **A bare task is still accepted.** Costs one branch, and means an endpoint
+ *   that ever answers without the envelope does not break the app.
+ * - **A null `task` is read as absent rather than crashing.** This was briefly a
+ *   live concern: `TaskEnvelope.task` is declared non-nullable while `confirm`
+ *   could in principle answer without one. gw03 has since closed it at the
+ *   source — confirm now raises 404 inside the transaction instead, so a
+ *   proposal is never left marked confirmed for an effect that did not land.
+ *   The branch stays because reading a null as "no task" costs nothing, and
+ *   [readTask] still fails loudly for callers that require one.
  */
-fun JsonObject.readTask(json: Json): Task {
-    val envelope = this["task"]
-    val target = if (envelope is JsonObject) envelope else this
-    return json.decodeFromJsonElement(Task.serializer(), target)
+fun JsonObject.readTaskOrNull(json: Json): Task? {
+    val member = this["task"]
+    if (member is JsonObject) return json.decodeFromJsonElement(Task.serializer(), member)
+    if (member != null) return null // present but null — confirm's edge case
+    // No envelope at all: accept a bare task if it looks like one.
+    if (this["id"] == null || this["title"] == null) return null
+    return json.decodeFromJsonElement(Task.serializer(), this)
 }
+
+/** For the mutations gw03 confirms always carry a task. */
+fun JsonObject.readTask(json: Json): Task =
+    readTaskOrNull(json) ?: throw JarvisException(
+        FailureReason.Unexpected("empty task envelope"),
+        "The gateway returned no task",
+    )
