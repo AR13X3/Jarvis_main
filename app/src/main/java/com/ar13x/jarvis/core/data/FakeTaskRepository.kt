@@ -34,25 +34,25 @@ class FakeTaskRepository @Inject constructor(
 
         // These are views over one table, not task types (parent plan §2.7).
         //
-        // §5.2's open question — a task that is both priority and recurring —
-        // is **resolved: it appears once, under Recurring**, carrying its star so
-        // the priority is still visible. Showing it twice was defensible (both
-        // statements are true) but read as a bug.
+        // §5.2's open question is resolved: a task that is both priority and
+        // recurring appears **once, under Recurring**, carrying its star.
         //
-        // The de-duplication is against *what Recurring actually shows*, not
-        // against the recurrence flag. Recurring is `status == active` only, so
-        // excluding every recurring task from Priority would drop a priority
-        // recurring task in `awaiting` out of both sections — and that is
-        // precisely the one that wants attention.
+        // Recurring is defined by the task being a *rule*, not by the state of
+        // its current occurrence. Scoping it to `active` — as the plan's §5.2
+        // table does — means a repeating task that has fired and is waiting on
+        // you stops counting as recurring, and lands in Priority still showing
+        // "Every Sunday". That is precisely the duplication this was meant to
+        // remove, just relocated. Only a terminal task stops being a rule,
+        // because then the rule really is over.
         val recurring = all
-            .filter { it.isRecurring && it.status == TaskStatus.Active }
+            .filter { it.isRecurring && !it.status.isTerminal }
             .sortedBy { it.nextFireAt ?: it.dueAt }
 
-        val shownInRecurring = recurring.mapTo(mutableSetOf()) { it.id }
-
+        // With Recurring covering every live repeating task, Priority can simply
+        // exclude them: there is no longer a hole for one to fall through.
         val priority = all
             .filter { it.isPriority && (it.status == TaskStatus.Active || it.status == TaskStatus.Awaiting) }
-            .filterNot { it.id in shownInRecurring }
+            .filterNot { it.isRecurring }
             .sortedBy { it.dueAt }
 
         return SectionsResponse(

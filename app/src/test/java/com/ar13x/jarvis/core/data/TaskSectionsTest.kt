@@ -32,19 +32,33 @@ class TaskSectionsTest {
     }
 
     /**
-     * The edge the de-duplication has to respect: Recurring is `active` only, so
-     * a priority recurring task that has fired and is `awaiting` is shown by
-     * neither section unless Priority keeps it. That task is exactly the one
-     * wanting attention, so dropping it would be the worst possible omission.
+     * A repeating task that has fired is still a repeating task.
+     *
+     * Scoping Recurring to `active` put this one in Priority still showing
+     * "Every Sunday", which reads exactly like the duplication the section split
+     * was meant to remove. Being a rule does not stop because this week's
+     * occurrence is waiting on you.
      */
     @Test
-    fun `a priority recurring task that is awaiting falls back to priority`() = runTest {
+    fun `an awaiting recurring task stays under recurring`() = runTest {
         val sections = repository().sections()
 
-        val bins = sections.priority.single { it.title == "Take the bins out" }
+        val bins = sections.recurring.single { it.title == "Take the bins out" }
         assertEquals(TaskStatus.Awaiting, bins.status)
-        assertTrue(bins.isRecurring)
-        assertTrue(sections.recurring.none { it.id == bins.id })
+        assertTrue(bins.isPriority)
+        assertTrue(
+            "no recurring task may appear under Priority",
+            sections.priority.none { it.id == bins.id },
+        )
+    }
+
+    @Test
+    fun `priority never contains a recurring task`() = runTest {
+        val sections = repository().sections()
+        assertTrue(
+            "recurring tasks belong under Recurring, whatever their status",
+            sections.priority.none { it.isRecurring },
+        )
     }
 
     @Test
@@ -55,11 +69,13 @@ class TaskSectionsTest {
     }
 
     @Test
-    fun `recurring lists only active recurring tasks, ordered by next fire`() = runTest {
+    fun `recurring lists every live repeating task, ordered by next fire`() = runTest {
         val sections = repository().sections()
 
         assertTrue(sections.recurring.all { it.isRecurring })
-        assertTrue(sections.recurring.all { it.status == TaskStatus.Active })
+        // Terminal is the only thing that ends a rule: a cancelled or completed
+        // repeating task has no next occurrence to show.
+        assertTrue(sections.recurring.none { it.status.isTerminal })
 
         val fires = sections.recurring.map { it.nextFireAt ?: it.dueAt }
         assertEquals(fires.sorted(), fires)

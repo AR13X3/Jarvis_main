@@ -229,27 +229,28 @@ Clearing the filters brings them back.
 
 ### 7.3 Priority + recurring — **resolved**
 
-§5.2 asked for it to be built duplicated and judged on the device. Decided
-2026-08-20: a task that is both appears **once, under Recurring**, carrying its
-star so the priority is still legible. Showing it twice was defensible — both
-statements are true — but read as a bug.
+A task that is both appears **once, under Recurring**, carrying its star.
 
-The de-duplication is against **what Recurring actually shows**, not against the
-`recurrence` flag. Recurring is `recurrence != null && status == 'active'`, so
-excluding every recurring task from Priority would drop a priority recurring task
-in `awaiting` out of *both* sections — and that is exactly the task that wants
-attention. `TaskSectionsTest` covers the case, and there is a fixture ("Take the
-bins out") that sits in it.
+The subtlety is in how Recurring is defined. §5.2's table says
+`recurrence is not null and status = 'active'`. Deduplicating against that put a
+repeating task that had *fired* — status `awaiting` — into Priority, still
+showing "Every Sunday". That is the same duplication the split was meant to
+remove, just relocated, and on the device it read as the fix having failed.
 
-**This is a gateway change too.** `/tasks/sections` computes these queries
-server-side, so the same rule belongs there:
+**Recurring is a property of the rule, not of the current occurrence.** Only a
+terminal status ends it, because then the rule really is over:
 
 ```sql
--- priority: starred, live, and not already shown under recurring
-is_priority
-  and status in ('active','awaiting')
-  and not (recurrence is not null and status = 'active')
+-- recurring: every live repeating task
+recurrence is not null and status not in ('completed','cancelled')
+
+-- priority: starred, live, and not a repeating rule
+is_priority and status in ('active','awaiting') and recurrence is null
 ```
+
+`/tasks/sections` computes these server-side, so this belongs on the gateway.
+`TaskSectionsTest` covers it, including the `awaiting` case that caused the
+confusion.
 
 ### 7.4 Row composition
 
