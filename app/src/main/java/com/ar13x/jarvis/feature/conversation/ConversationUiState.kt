@@ -4,6 +4,7 @@ import androidx.compose.runtime.Immutable
 import com.ar13x.jarvis.core.model.FailureReason
 import com.ar13x.jarvis.core.model.Message
 import com.ar13x.jarvis.core.model.MessageRole
+import com.ar13x.jarvis.core.model.SessionSummary
 import com.ar13x.jarvis.core.model.Task
 import com.ar13x.jarvis.core.model.TaskOption
 import com.ar13x.jarvis.core.model.TaskStatus
@@ -29,8 +30,13 @@ sealed interface SessionTarget {
      */
     data class NewTask(val seed: String? = null) : SessionTarget
 
-    /** The Chat tab's general session (§5.4). */
-    data object General : SessionTarget
+    /**
+     * The Chat tab (§5.4).
+     *
+     * [sessionId] null means "the most recent conversation, or a new one if
+     * there are none" — the Chat tab resumes rather than starting blank.
+     */
+    data class General(val sessionId: String? = null) : SessionTarget
 }
 
 /**
@@ -85,6 +91,8 @@ data class ConversationUiState(
      */
     val optionStatus: Map<Long, TaskStatus> = emptyMap(),
     val transientFailure: FailureReason? = null,
+    /** Past conversations, loaded when the history sheet is opened. */
+    val conversations: LoadState<List<SessionSummary>>? = null,
 ) {
     /**
      * Terminal tasks are read-only (plan §5.3). The composer is *replaced* by an
@@ -133,4 +141,9 @@ sealed interface ConversationEvent {
     data class ShowMoreOptions(val key: OptionsKey, val cursor: String) : ConversationEvent
 
     data object DismissFailure : ConversationEvent
+
+    /** Chat history (§3.12). */
+    data object LoadConversations : ConversationEvent
+    data class OpenConversation(val sessionId: String) : ConversationEvent
+    data object NewConversation : ConversationEvent
 }

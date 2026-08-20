@@ -3,6 +3,7 @@ package com.ar13x.jarvis.core.data
 import com.ar13x.jarvis.core.model.AgentComponent
 import com.ar13x.jarvis.core.model.AgentResponse
 import com.ar13x.jarvis.core.model.PagedMessages
+import com.ar13x.jarvis.core.model.PagedSessions
 import com.ar13x.jarvis.core.model.Session
 import com.ar13x.jarvis.core.model.SessionKind
 import com.ar13x.jarvis.core.model.Task
@@ -23,8 +24,16 @@ interface AgentRepository {
     /** Session for a task, creating it on first open. One per task, by construction. */
     suspend fun sessionForTask(taskId: Long): Session
 
-    /** The general chat session. */
-    suspend fun generalSession(): Session
+    /** Starts a *new* general conversation. */
+    suspend fun newGeneralSession(): Session
+
+    /**
+     * Past general conversations, newest first (BUILD_NOTES §3.12).
+     *
+     * The Chat tab opens the most recent of these rather than starting blank,
+     * so returning to it resumes where you were.
+     */
+    suspend fun generalSessions(page: Int = 1): PagedSessions
 
     /** Paged backwards through history via `before`. */
     suspend fun messages(sessionId: String, before: Long? = null, limit: Int = 30): PagedMessages

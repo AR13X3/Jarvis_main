@@ -9,6 +9,7 @@ import com.ar13x.jarvis.core.model.ProposalAction
 import com.ar13x.jarvis.core.model.ProposalStatus
 import com.ar13x.jarvis.core.model.ProposalSummary
 import com.ar13x.jarvis.core.model.Session
+import com.ar13x.jarvis.core.model.SessionSummary
 import com.ar13x.jarvis.core.model.SessionKind
 import com.ar13x.jarvis.core.model.Task
 import com.ar13x.jarvis.core.model.TaskStatus
@@ -61,7 +62,6 @@ class FakeBackend @Inject constructor() {
 
     private var nextTaskId = 100L
     private var nextMessageId = 1L
-    private var generalSessionId: String? = null
 
     init {
         Fixtures.seed().forEach { tasks[it.id] = it }
@@ -116,10 +116,6 @@ class FakeBackend @Inject constructor() {
             val existing = sessionByTask[taskId]
             if (existing != null) return@withLock sessions.getValue(existing)
         }
-        if (kind == SessionKind.General) {
-            val existing = generalSessionId
-            if (existing != null) return@withLock sessions.getValue(existing)
-        }
         val now = Instant.now()
         val session = Session(
             id = UUID.randomUUID().toString(),
@@ -131,11 +127,28 @@ class FakeBackend @Inject constructor() {
         sessions[session.id] = session
         history[session.id] = mutableListOf()
         if (taskId != null) sessionByTask[taskId] = session.id
-        if (kind == SessionKind.General) generalSessionId = session.id
         session
     }
 
     suspend fun session(id: String): Session? = mutex.withLock { sessions[id] }
+
+    /** Newest first, with a title taken from the first thing the user said. */
+    suspend fun generalSessions(): List<SessionSummary> = mutex.withLock {
+        sessions.values
+            .filter { it.kind == SessionKind.General }
+            .map { session ->
+                val turns = history[session.id].orEmpty()
+                SessionSummary(
+                    id = session.id,
+                    kind = session.kind,
+                    title = turns.firstOrNull { it.role == MessageRole.User }
+                        ?.text?.take(60),
+                    updatedAt = turns.lastOrNull()?.createdAt ?: session.updatedAt,
+                    messageCount = turns.size,
+                )
+            }
+            .sortedByDescending { it.updatedAt }
+    }
 
     /**
      * Binds a session to the task it just created. From this point the session

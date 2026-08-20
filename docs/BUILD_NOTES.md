@@ -172,45 +172,30 @@ well.
 > gateway's current behaviour for general sessions is **correct**; what is
 > missing is a way to list and reopen them.
 
-### 3.12 General chat needs history — list and reopen past conversations
+### 3.12 General chat history — **app side built, route still missing**
 
-Requested after using the app: *"we need chat history for general chat… it shows
-us previous chats where we inquired about stuff and how it redirected us to the
-correct session. Currently we can't look back at any general tasks."*
+The schemas are already in your spec — `PagedSessions` and `SessionSummary`,
+with `id`, `kind`, `task_id`, `title`, `updated_at`, `message_count`. Exactly
+what was asked for. **The route was never wired**, so `GET /sessions` 404s.
 
-This is not the same as a task session. A task session is **one** thread bound
-to one task forever. General chat is a series of **conversations** — you ask
-about something, get pointed at a task, and that exchange is worth keeping.
+The whole app half is now built against that shape and tested on the fake:
 
-**So the gateway's current behaviour is right, not a bug.** A new general session
-per `POST` is exactly what a "new conversation" is. What is missing is a way to
-see the old ones:
+- The Chat tab opens the **most recent non-empty conversation** rather than
+  starting blank.
+- A history sheet lists past conversations by title, relative time and message
+  count, and opening one restores it — including its option buttons, because
+  persisted assistant turns carry `components`.
+- A `+` starts a new conversation.
 
 ```
-GET /sessions?kind=general&page=1
-
-{ "sessions": [
-    { "id": "2cd5dd0f-…",
-      "title": "Dinner with Sam",              // derived from the first user turn
-      "updated_at": "2026-08-20T21:12:00Z",
-      "message_count": 4 } ],
-  "page": 1, "has_more": false }
+GET /sessions?kind=general&page=1   ->  PagedSessions
 ```
 
-`title` is the field worth discussing. The app can fall back to the first user
-message if you would rather not derive one, but it would need the message text in
-this payload to do it — one line per session either way, and better computed once
-server-side than by the app fetching every session's first page.
-
-**What the app will do with it:** open the most recent conversation on launch, so
-returning to Chat resumes where you were rather than starting blank; a list to
-browse the rest; and an explicit "new chat" action that calls `POST /sessions`
-as it does today.
-
-Reopening an old conversation needs nothing new — `GET /sessions/{id}/messages`
-already works, and because persisted assistant turns carry `components`, a past
-disambiguation renders with its option buttons intact. That is precisely the
-"how it redirected us" the request asks for.
+One thing the app does that the endpoint should probably do too: **empty
+conversations are hidden.** Every `+` and every abandoned launch leaves a session
+with no messages, and a history list full of blanks is worse than a short one.
+The app filters on `message_count == 0`; filtering server-side would save sending
+them at all.
 
 ### 3.10 `find_tasks` needs date ranges — a stated requirement, not a nicety
 

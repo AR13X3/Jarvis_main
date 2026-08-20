@@ -59,6 +59,13 @@ interface JarvisApi {
     @POST("sessions")
     suspend fun createSession(@Body body: CreateSessionBody): Session
 
+    /** Not yet served — see BUILD_NOTES §3.12. The schema is already theirs. */
+    @GET("sessions")
+    suspend fun sessions(
+        @Query("kind") kind: String,
+        @Query("page") page: Int = 1,
+    ): com.ar13x.jarvis.core.model.PagedSessions
+
     @GET("sessions/{id}/messages")
     suspend fun messages(
         @Path("id") sessionId: String,

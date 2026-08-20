@@ -4,6 +4,7 @@ import com.ar13x.jarvis.core.data.AgentRepository
 import com.ar13x.jarvis.core.model.AgentComponent
 import com.ar13x.jarvis.core.model.AgentResponse
 import com.ar13x.jarvis.core.model.PagedMessages
+import com.ar13x.jarvis.core.model.PagedSessions
 import com.ar13x.jarvis.core.model.Session
 import com.ar13x.jarvis.core.model.SessionKind
 import com.ar13x.jarvis.core.model.Task
@@ -31,8 +32,11 @@ class RemoteAgentRepository @Inject constructor(
     override suspend fun sessionForTask(taskId: Long): Session =
         createSession(SessionKind.Task, taskId)
 
-    override suspend fun generalSession(): Session =
+    override suspend fun newGeneralSession(): Session =
         createSession(SessionKind.General, null)
+
+    override suspend fun generalSessions(page: Int): PagedSessions =
+        gatewayCall { api.sessions(kind = SessionKind.General.wireName(), page = page) }
 
     override suspend fun messages(sessionId: String, before: Long?, limit: Int): PagedMessages =
         gatewayCall { api.messages(sessionId, before, limit) }

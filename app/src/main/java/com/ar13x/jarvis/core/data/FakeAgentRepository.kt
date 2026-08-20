@@ -3,6 +3,7 @@ package com.ar13x.jarvis.core.data
 import com.ar13x.jarvis.core.model.AgentComponent
 import com.ar13x.jarvis.core.model.AgentResponse
 import com.ar13x.jarvis.core.model.PagedMessages
+import com.ar13x.jarvis.core.model.PagedSessions
 import com.ar13x.jarvis.core.model.ProposalAction
 import com.ar13x.jarvis.core.model.ProposalSummary
 import com.ar13x.jarvis.core.model.Session
@@ -48,8 +49,13 @@ class FakeAgentRepository @Inject constructor(
     override suspend fun sessionForTask(taskId: Long): Session =
         backend.createSession(SessionKind.Task, taskId)
 
-    override suspend fun generalSession(): Session =
+    override suspend fun newGeneralSession(): Session =
         backend.createSession(SessionKind.General, null)
+
+    override suspend fun generalSessions(page: Int): PagedSessions {
+        delay(FakeBackend.READ_LATENCY_MS)
+        return PagedSessions(sessions = backend.generalSessions(), page = 1, hasMore = false)
+    }
 
     override suspend fun messages(sessionId: String, before: Long?, limit: Int): PagedMessages {
         delay(FakeBackend.READ_LATENCY_MS)

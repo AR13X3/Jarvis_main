@@ -7,6 +7,7 @@ import com.ar13x.jarvis.core.data.TaskRepository
 import com.ar13x.jarvis.core.data.toFailureReason
 import com.ar13x.jarvis.core.model.AgentComponent
 import com.ar13x.jarvis.core.model.Session
+import com.ar13x.jarvis.core.model.SessionSummary
 import com.ar13x.jarvis.core.model.SessionKind
 import com.ar13x.jarvis.core.ui.LoadState
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -61,6 +62,57 @@ class ConversationViewModel @Inject constructor(
 
             ConversationEvent.DismissFailure ->
                 _state.update { it.copy(transientFailure = null) }
+
+            ConversationEvent.LoadConversations -> loadConversations()
+
+            is ConversationEvent.OpenConversation -> {
+                started = false
+                start(SessionTarget.General(event.sessionId))
+            }
+
+            ConversationEvent.NewConversation -> viewModelScope.launch {
+                runCatching { agent.newGeneralSession() }
+                    .onSuccess { session ->
+                        started = false
+                        start(SessionTarget.General(session.id))
+                    }
+                    .onFailure { error ->
+                        _state.update { it.copy(transientFailure = error.toFailureReason()) }
+                    }
+            }
+        }
+    }
+
+    /**
+     * Resolves which general conversation to show.
+     *
+     * Explicit id wins; otherwise the most recent one that actually has
+     * messages, and only a genuinely new conversation if there are none. That
+     * last condition matters — every `+` and every abandoned launch leaves an
+     * empty session behind, and resuming into one of those would look exactly
+     * like the history being lost.
+     */
+    private suspend fun openGeneral(sessionId: String?): Session {
+        if (sessionId != null) {
+            return Session(
+                id = sessionId,
+                kind = SessionKind.General,
+                createdAt = Instant.now(),
+                updatedAt = Instant.now(),
+            )
+        }
+        val recent = runCatching { agent.generalSessions() }.getOrNull()
+            ?.sessions
+            ?.firstOrNull { !it.isEmpty }
+        return if (recent != null) {
+            Session(
+                id = recent.id,
+                kind = SessionKind.General,
+                createdAt = recent.updatedAt,
+                updatedAt = recent.updatedAt,
+            )
+        } else {
+            agent.newGeneralSession()
         }
     }
 
@@ -70,7 +122,7 @@ class ConversationViewModel @Inject constructor(
             val session: Session = when (target) {
                 is SessionTarget.Bound -> agent.sessionForTask(target.taskId)
                 is SessionTarget.NewTask -> agent.createSession(SessionKind.Task, taskId = null)
-                SessionTarget.General -> agent.generalSession()
+                is SessionTarget.General -> openGeneral(target.sessionId)
             }
             // A bound session's task is fetched separately: the session says
             // which task it is, the task says whether it is still mutable, and
@@ -292,6 +344,24 @@ class ConversationViewModel @Inject constructor(
                             transientFailure = error.toFailureReason(),
                         )
                     }
+                }
+        }
+    }
+
+    private fun loadConversations() {
+        viewModelScope.launch {
+            _state.update { it.copy(conversations = LoadState.Loading) }
+            runCatching { agent.generalSessions() }
+                .onSuccess { page ->
+                    _state.update {
+                        // Empty conversations are hidden: they are the residue of
+                        // opening the tab and saying nothing, and a history list
+                        // full of blanks is worse than a short one.
+                        it.copy(conversations = LoadState.Ready(page.sessions.filterNot(SessionSummary::isEmpty)))
+                    }
+                }
+                .onFailure { error ->
+                    _state.update { it.copy(conversations = LoadState.Failed(error.toFailureReason())) }
                 }
         }
     }

@@ -18,6 +18,7 @@ import kotlinx.coroutines.test.setMain
 import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
+import org.junit.Assert.assertNotEquals
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Before
@@ -220,12 +221,86 @@ class ConversationViewModelTest {
         assertFalse("incomplete must stay mutable", other.state.value.isReadOnly)
     }
 
+    // --- chat history (§3.12) -------------------------------------------------
+
+    /**
+     * The Chat tab resumes rather than starting blank. Opening it, saying
+     * something, then opening it again must land in the same conversation —
+     * that is the whole feature.
+     */
+    @Test
+    fun `the chat tab reopens the most recent conversation`() = runTest {
+        val backend = FakeBackend()
+        val agent = FakeAgentRepository(backend)
+        val tasks = FakeTaskRepository(backend)
+
+        val first = ConversationViewModel(agent, tasks)
+        first.start(SessionTarget.General())
+        advanceUntilIdle()
+        first.onEvent(ConversationEvent.ComposerChanged("find my dentist appointment"))
+        first.onEvent(ConversationEvent.Send)
+        advanceUntilIdle()
+        val sessionId = first.state.value.sessionId
+
+        // A fresh ViewModel is what a cold start looks like.
+        val second = ConversationViewModel(agent, tasks)
+        second.start(SessionTarget.General())
+        advanceUntilIdle()
+
+        assertEquals("should resume, not start blank", sessionId, second.state.value.sessionId)
+        assertTrue(second.state.value.stream.any { it.text.contains("dentist") })
+    }
+
+    @Test
+    fun `starting a new conversation leaves the old one intact and listed`() = runTest {
+        val (viewModel, _, _) = fixture()
+        viewModel.start(SessionTarget.General())
+        advanceUntilIdle()
+        viewModel.onEvent(ConversationEvent.ComposerChanged("find my dentist appointment"))
+        viewModel.onEvent(ConversationEvent.Send)
+        advanceUntilIdle()
+        val original = viewModel.state.value.sessionId
+
+        viewModel.onEvent(ConversationEvent.NewConversation)
+        advanceUntilIdle()
+
+        assertNotEquals("a new conversation is a new session", original, viewModel.state.value.sessionId)
+        assertTrue("and it starts empty", viewModel.state.value.stream.isEmpty())
+
+        viewModel.onEvent(ConversationEvent.LoadConversations)
+        advanceUntilIdle()
+        val listed = viewModel.state.value.conversations?.dataOrNull.orEmpty()
+        assertTrue("the old conversation is still reachable", listed.any { it.id == original })
+        // The brand-new empty one is hidden — a history full of blanks is worse
+        // than a short one.
+        assertTrue(listed.none { it.isEmpty })
+    }
+
+    @Test
+    fun `opening a past conversation restores its messages`() = runTest {
+        val (viewModel, _, _) = fixture()
+        viewModel.start(SessionTarget.General())
+        advanceUntilIdle()
+        viewModel.onEvent(ConversationEvent.ComposerChanged("find my dentist appointment"))
+        viewModel.onEvent(ConversationEvent.Send)
+        advanceUntilIdle()
+        val original = requireNotNull(viewModel.state.value.sessionId)
+
+        viewModel.onEvent(ConversationEvent.NewConversation)
+        advanceUntilIdle()
+        viewModel.onEvent(ConversationEvent.OpenConversation(original))
+        advanceUntilIdle()
+
+        assertEquals(original, viewModel.state.value.sessionId)
+        assertTrue(viewModel.state.value.stream.any { it.text.contains("dentist") })
+    }
+
     // --- §12.7 — disambiguation, three at a time ------------------------------
 
     @Test
     fun `ambiguous lookup offers three options and pages the rest`() = runTest {
         val (viewModel, _, _) = fixture()
-        viewModel.start(SessionTarget.General)
+        viewModel.start(SessionTarget.General())
         advanceUntilIdle()
 
         viewModel.onEvent(ConversationEvent.ComposerChanged("dinner with sam"))
@@ -241,7 +316,7 @@ class ConversationViewModelTest {
     @Test
     fun `the users message appears before the agent replies, then is replaced`() = runTest {
         val (viewModel, _, _) = fixture()
-        viewModel.start(SessionTarget.General)
+        viewModel.start(SessionTarget.General())
         advanceUntilIdle()
 
         viewModel.onEvent(ConversationEvent.ComposerChanged("what is due today"))
@@ -268,7 +343,7 @@ class ConversationViewModelTest {
     @Test
     fun `stream ids are unique so the lazy list cannot crash on duplicate keys`() = runTest {
         val (viewModel, _, _) = fixture()
-        viewModel.start(SessionTarget.General)
+        viewModel.start(SessionTarget.General())
         advanceUntilIdle()
 
         viewModel.onEvent(ConversationEvent.ComposerChanged("hello"))
