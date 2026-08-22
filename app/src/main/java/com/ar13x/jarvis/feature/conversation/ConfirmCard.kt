@@ -21,6 +21,8 @@ import androidx.compose.material.icons.rounded.Check
 import androidx.compose.material.icons.rounded.EditCalendar
 import androidx.compose.material.icons.rounded.Repeat
 import androidx.compose.material.icons.rounded.Schedule
+import java.time.Instant
+import androidx.compose.material.icons.rounded.Warning
 import androidx.compose.material.icons.rounded.Star
 import androidx.compose.material.icons.rounded.TaskAlt
 import androidx.compose.material3.CircularProgressIndicator
@@ -115,6 +117,24 @@ fun ConfirmCard(
         if (whenText != null) {
             Spacer(Modifier.height(Space.x2))
             DetailLine(icon = Icons.Rounded.Schedule, text = whenText, tabular = true)
+        }
+
+        // A reminder proposed for a time that has already gone is always a
+        // mistake, and the card is the last place to catch one (§4.5). Seen in
+        // the field: "in 2 hours" came back as an hour *earlier* than the
+        // message that asked for it, was confirmed because the sentence above
+        // read correctly, and fired the instant it was created.
+        //
+        // This compares two instants, which is timezone-independent. It does
+        // **not** derive a calendar day from a timestamp — that is what §3.2
+        // forbids, and it stays the server's job.
+        if (!resolved && summary.dueAt?.isBefore(Instant.now()) == true) {
+            Spacer(Modifier.height(Space.x2))
+            DetailLine(
+                icon = Icons.Rounded.Warning,
+                text = "This time has already passed",
+                emphasis = true,
+            )
         }
 
         // Prominent, always. See the class doc — this is the line that catches a
