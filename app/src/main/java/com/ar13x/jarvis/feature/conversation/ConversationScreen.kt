@@ -276,6 +276,21 @@ private fun MessageItem(
                     )
                 }
 
+                is AgentComponent.Overdue -> Arrival(key = "overdue-" + component.occurrenceId) {
+                    OverdueCard(
+                        component = component,
+                        busy = state.resolvingOverdue == component.occurrenceId,
+                        onComplete = {
+                            onEvent(ConversationEvent.CompleteOccurrence(component.occurrenceId))
+                        },
+                        onExtend = { minutes ->
+                            onEvent(
+                                ConversationEvent.ExtendOccurrence(component.occurrenceId, minutes),
+                            )
+                        },
+                    )
+                }
+
                 // Forward compatibility (plan §4.5): a component type this build
                 // has never heard of renders as its text and nothing else,
                 // rather than taking the message list down.

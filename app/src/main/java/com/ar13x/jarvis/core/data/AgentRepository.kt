@@ -47,4 +47,23 @@ interface AgentRepository {
 
     /** Pages the disambiguation buttons 3 at a time (plan §5.4). */
     suspend fun moreTaskOptions(sessionId: String, cursor: String): AgentComponent.TaskOptions
+
+    /**
+     * Answers to an overdue nudge (docs/joy-to-gw03-07).
+     *
+     * **Occurrence-scoped, not task-scoped** — and that is the whole reason
+     * occurrences exist (parent plan §2.5). Finishing Monday's gym session must
+     * not close the weekly rule.
+     */
+    suspend fun completeOccurrence(occurrenceId: Long): Task
+
+    /**
+     * Pushes the deadline out by [minutes] and spends one of the allowance.
+     *
+     * The count is the server's; the app neither tracks nor enforces it. A
+     * device-held count would reset on reinstall and hand out fresh chances,
+     * making the cap decorative — so exhaustion comes back as a failure from
+     * the gateway rather than a button this app decided to disable.
+     */
+    suspend fun extendOccurrence(occurrenceId: Long, minutes: Int): Task
 }

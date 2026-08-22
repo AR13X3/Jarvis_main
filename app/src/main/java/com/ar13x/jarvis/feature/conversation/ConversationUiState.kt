@@ -92,6 +92,8 @@ data class ConversationUiState(
 
     /** Proposal id currently being confirmed or rejected. */
     val resolving: String? = null,
+    /** Occurrence id currently being completed or extended, for the overdue card. */
+    val resolvingOverdue: Long? = null,
     val options: Map<OptionsKey, OptionsState> = emptyMap(),
     /**
      * Status looked up per task, for options the gateway sent without one.
@@ -158,6 +160,10 @@ sealed interface ConversationEvent {
     data object LoadConversations : ConversationEvent
     data class OpenConversation(val sessionId: String) : ConversationEvent
     data object NewConversation : ConversationEvent
+
+    /** Answering an overdue nudge (docs/joy-to-gw03-07). */
+    data class CompleteOccurrence(val occurrenceId: Long) : ConversationEvent
+    data class ExtendOccurrence(val occurrenceId: Long, val minutes: Int) : ConversationEvent
 
     /** Voice. Dictation fills the composer; it never sends and never confirms. */
     data object ToggleMic : ConversationEvent

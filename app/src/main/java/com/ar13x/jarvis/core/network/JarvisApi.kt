@@ -89,6 +89,23 @@ interface JarvisApi {
     @POST("proposals/{id}/confirm")
     suspend fun confirmProposal(@Path("id") proposalId: String): JsonObject
 
+    /**
+     * Answers to an overdue nudge — see `docs/joy-to-gw03-07`.
+     *
+     * Occurrence-scoped: completing Monday's gym session must not close the
+     * weekly rule (parent plan §2.5). A `409` from `extend` means the allowance
+     * is spent; the app does not pre-empt that, because the count is the
+     * server's and only the server knows it is current.
+     */
+    @POST("occurrences/{id}/complete")
+    suspend fun completeOccurrence(@Path("id") occurrenceId: Long): JsonObject
+
+    @POST("occurrences/{id}/extend")
+    suspend fun extendOccurrence(
+        @Path("id") occurrenceId: Long,
+        @Body body: ExtendOccurrenceBody,
+    ): JsonObject
+
     @POST("proposals/{id}/reject")
     suspend fun rejectProposal(@Path("id") proposalId: String): JsonObject
 }
@@ -121,6 +138,9 @@ data class SendMessageBody(val text: String)
  * it the right probe for the first-run screen: it separates "cannot reach the
  * gateway" from "the token is wrong" before the user has entered anything.
  */
+@Serializable
+data class ExtendOccurrenceBody(val minutes: Int)
+
 @Serializable
 data class HealthResponse(
     val ok: Boolean = false,

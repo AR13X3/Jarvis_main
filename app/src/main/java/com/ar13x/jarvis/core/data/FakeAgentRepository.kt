@@ -81,6 +81,16 @@ class FakeAgentRepository @Inject constructor(
         return response
     }
 
+    override suspend fun completeOccurrence(occurrenceId: Long): Task {
+        delay(FakeBackend.WRITE_LATENCY_MS)
+        return backend.completeOccurrence(occurrenceId)
+    }
+
+    override suspend fun extendOccurrence(occurrenceId: Long, minutes: Int): Task {
+        delay(FakeBackend.WRITE_LATENCY_MS)
+        return backend.extendOccurrence(occurrenceId, minutes)
+    }
+
     override suspend fun confirmProposal(proposalId: String): Task {
         delay(FakeBackend.WRITE_LATENCY_MS)
         val proposal = backend.proposal(proposalId)

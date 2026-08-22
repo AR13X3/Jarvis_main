@@ -53,6 +53,14 @@ class RemoteAgentRepository @Inject constructor(
     override suspend fun confirmProposal(proposalId: String): Task =
         gatewayCall(mutating = true) { api.confirmProposal(proposalId).readTask(json) }
 
+    override suspend fun completeOccurrence(occurrenceId: Long): Task =
+        gatewayCall(mutating = true) { api.completeOccurrence(occurrenceId).readTask(json) }
+
+    override suspend fun extendOccurrence(occurrenceId: Long, minutes: Int): Task =
+        gatewayCall(mutating = true) {
+            api.extendOccurrence(occurrenceId, ExtendOccurrenceBody(minutes)).readTask(json)
+        }
+
     override suspend fun rejectProposal(proposalId: String) {
         gatewayCall(mutating = true) { api.rejectProposal(proposalId) }
     }

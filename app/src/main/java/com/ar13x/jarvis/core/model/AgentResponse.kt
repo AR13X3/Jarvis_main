@@ -85,6 +85,40 @@ sealed interface AgentComponent {
     ) : AgentComponent
 
     /**
+     * The agent asking whether an overdue task got done — the one message it
+     * ever starts on its own (see `docs/joy-to-gw03-07`).
+     *
+     * Rendered with four answers: done, or push it back by 15, 30 or 60
+     * minutes. Each push costs one of [extensionsAllowed], and when they run
+     * out an unfinished task becomes `incomplete` — a lapse, not a decision,
+     * and non-terminal (§4.3), so it can still be picked up later.
+     *
+     * The counts come from the server and are not tracked here. A device-held
+     * count would reset on reinstall and hand out fresh chances, which would
+     * make the cap decorative; and [extensionsAllowed] being sent rather than
+     * compiled in means the policy can change without shipping an APK.
+     *
+     * It lives in the session, not only in a notification, because one session
+     * per task is the architecture (parent §2.2) — scrolling back should show
+     * the agent asking and what you answered, exactly as a resolved confirm
+     * card does.
+     */
+    @Serializable
+    data class Overdue(
+        @SerialName("occurrence_id") val occurrenceId: Long,
+        @SerialName("task_id") val taskId: Long,
+        @Serializable(InstantSerializer::class)
+        val deadline: Instant? = null,
+        @SerialName("extensions_used") val extensionsUsed: Int = 0,
+        @SerialName("extensions_allowed") val extensionsAllowed: Int = 2,
+        /** Set once answered, so history shows what happened (§5.3). */
+        val resolution: OverdueResolution? = null,
+    ) : AgentComponent {
+        val extensionsLeft: Int get() = (extensionsAllowed - extensionsUsed).coerceAtLeast(0)
+        val canExtend: Boolean get() = resolution == null && extensionsLeft > 0
+    }
+
+    /**
      * Forward-compatibility branch. The gateway *will* grow component types
      * (attachments, task cards), and an app that throws on an unknown `type`
      * cannot be forward-compatible — it would blank the whole message list over
@@ -139,6 +173,15 @@ data class ProposalSummary(
     val description: String = "",
 )
 
+/** How an overdue nudge was answered. Null while it is still asking. */
+@Serializable
+enum class OverdueResolution {
+    @SerialName("completed") Completed,
+    @SerialName("extended") Extended,
+    /** The allowance ran out and the task lapsed. */
+    @SerialName("lapsed") Lapsed,
+}
+
 @Serializable
 data class TaskOption(
     @SerialName("task_id") val taskId: Long,
@@ -173,6 +216,7 @@ object AgentComponentSerializer : KSerializer<AgentComponent> {
     private const val CONFIRM = "confirm"
     private const val TASK_OPTIONS = "task_options"
     private const val NEW_TASK = "new_task"
+    private const val OVERDUE = "overdue"
 
     @OptIn(ExperimentalSerializationApi::class)
     override val descriptor: SerialDescriptor = SerialDescriptor(
@@ -190,6 +234,7 @@ object AgentComponentSerializer : KSerializer<AgentComponent> {
             CONFIRM -> input.json.decodeFromJsonElement(AgentComponent.Confirm.serializer(), obj)
             TASK_OPTIONS -> input.json.decodeFromJsonElement(AgentComponent.TaskOptions.serializer(), obj)
             NEW_TASK -> input.json.decodeFromJsonElement(AgentComponent.NewTask.serializer(), obj)
+            OVERDUE -> input.json.decodeFromJsonElement(AgentComponent.Overdue.serializer(), obj)
             else -> AgentComponent.Unknown(type, obj)
         }
     }
@@ -205,6 +250,8 @@ object AgentComponentSerializer : KSerializer<AgentComponent> {
                 output.json.encodeToJsonElement(AgentComponent.TaskOptions.serializer(), value).withType(TASK_OPTIONS)
             is AgentComponent.NewTask ->
                 output.json.encodeToJsonElement(AgentComponent.NewTask.serializer(), value).withType(NEW_TASK)
+            is AgentComponent.Overdue ->
+                output.json.encodeToJsonElement(AgentComponent.Overdue.serializer(), value).withType(OVERDUE)
             is AgentComponent.Unknown -> value.raw
         }
         output.encodeJsonElement(element)

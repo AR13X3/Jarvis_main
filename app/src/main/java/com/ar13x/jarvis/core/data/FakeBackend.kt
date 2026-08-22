@@ -208,6 +208,73 @@ class FakeBackend @Inject constructor() {
     }
 
     /** Executing a proposal is the only thing that writes a task (parent plan §2.4). */
+    // --- Overdue follow-up (docs/joy-to-gw03-07) ------------------------------
+
+    /**
+     * The extension ledger, which on the real system is the gateway's.
+     *
+     * Modelled here rather than stubbed because the cap is the feature: a fake
+     * that always allows an extension would let the UI look right while the one
+     * behaviour worth testing — running out — never happens.
+     */
+    private val occurrenceExtensions = mutableMapOf<Long, Int>()
+    private val occurrenceTasks = mutableMapOf<Long, Long>()
+
+    var extensionsAllowed: Int = 2
+
+    suspend fun registerOccurrence(occurrenceId: Long, taskId: Long) = mutex.withLock {
+        occurrenceTasks[occurrenceId] = taskId
+        occurrenceExtensions.putIfAbsent(occurrenceId, 0)
+        Unit
+    }
+
+    suspend fun extensionsUsed(occurrenceId: Long): Int =
+        mutex.withLock { occurrenceExtensions[occurrenceId] ?: 0 }
+
+    suspend fun completeOccurrence(occurrenceId: Long): Task = mutex.withLock {
+        val taskId = requireNotNull(occurrenceTasks[occurrenceId]) { "No occurrence " + occurrenceId }
+        val existing = requireNotNull(tasks[taskId]) { "No task " + taskId }
+        val now = Instant.now()
+        val updated = existing.copy(
+            status = TaskStatus.Completed,
+            completedAt = now,
+            updatedAt = now,
+            nextFireAt = null,
+        )
+        tasks[taskId] = updated
+        updated
+    }
+
+    /**
+     * Spends one allowance and pushes the deadline out.
+     *
+     * Throws when exhausted, mirroring the gateway's 409 — the app must not
+     * decide it has run out, because the count is not the app's to hold.
+     */
+    suspend fun extendOccurrence(occurrenceId: Long, minutes: Int): Task = mutex.withLock {
+        val taskId = requireNotNull(occurrenceTasks[occurrenceId]) { "No occurrence " + occurrenceId }
+        val used = occurrenceExtensions[occurrenceId] ?: 0
+        check(used < extensionsAllowed) { "no_extensions_left" }
+
+        val existing = requireNotNull(tasks[taskId]) { "No task " + taskId }
+        val now = Instant.now()
+        val pushed = (existing.dueAt.takeIf { it.isAfter(now) } ?: now)
+            .plusSeconds(minutes * 60L)
+        occurrenceExtensions[occurrenceId] = used + 1
+
+        val updated = existing.copy(
+            dueAt = pushed,
+            nextFireAt = pushed,
+            // Back to active: an extended task is scheduled again, not still
+            // waiting on the user.
+            status = TaskStatus.Active,
+            updatedAt = now,
+            dueToday = pushed.atZone(zone).toLocalDate() == LocalDate.now(zone),
+        )
+        tasks[taskId] = updated
+        updated
+    }
+
     suspend fun confirmProposal(proposalId: String): Task = mutex.withLock {
         val proposal = requireNotNull(proposals[proposalId]) { "No proposal " + proposalId }
         val now = Instant.now()

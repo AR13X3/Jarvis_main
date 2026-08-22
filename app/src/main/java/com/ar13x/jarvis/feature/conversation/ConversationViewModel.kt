@@ -140,6 +140,14 @@ class ConversationViewModel @Inject constructor(
 
             is ConversationEvent.ShowMoreOptions -> showMore(event.key, event.cursor)
 
+            is ConversationEvent.CompleteOccurrence ->
+                answerOverdue(event.occurrenceId) { agent.completeOccurrence(event.occurrenceId) }
+
+            is ConversationEvent.ExtendOccurrence ->
+                answerOverdue(event.occurrenceId) {
+                    agent.extendOccurrence(event.occurrenceId, event.minutes)
+                }
+
             ConversationEvent.DismissFailure ->
                 _state.update { it.copy(transientFailure = null) }
 
@@ -404,6 +412,39 @@ class ConversationViewModel @Inject constructor(
      * agent (parent plan §2.4). Rejecting writes nothing at all — which is
      * exactly what acceptance item 4 checks.
      */
+    /**
+     * Answering the agent's overdue question.
+     *
+     * Refreshes history afterwards rather than patching the card locally: the
+     * server rewrites the component with its resolution and the new counts, and
+     * guessing at them here is how the displayed allowance drifts from the one
+     * actually being enforced.
+     */
+    private fun answerOverdue(occurrenceId: Long, action: suspend () -> com.ar13x.jarvis.core.model.Task) {
+        val sessionId = _state.value.sessionId ?: return
+        if (_state.value.resolvingOverdue != null) return
+
+        viewModelScope.launch {
+            _state.update { it.copy(resolvingOverdue = occurrenceId) }
+            runCatching { action() }
+                .onSuccess { task ->
+                    _state.update { it.copy(resolvingOverdue = null, task = task) }
+                    refreshHistory(sessionId, clearOptimistic = false)
+                }
+                .onFailure { error ->
+                    // Includes running out of extensions, which the gateway
+                    // rejects rather than the app pre-empting — see the
+                    // repository doc. §3.5: nothing is queued and retried.
+                    _state.update {
+                        it.copy(
+                            resolvingOverdue = null,
+                            transientFailure = error.toFailureReason(),
+                        )
+                    }
+                }
+        }
+    }
+
     private fun resolveProposal(proposalId: String, confirm: Boolean) {
         val sessionId = _state.value.sessionId ?: return
         if (_state.value.resolving != null) return
