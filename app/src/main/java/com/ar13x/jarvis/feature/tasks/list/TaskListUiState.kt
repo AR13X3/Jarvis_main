@@ -4,6 +4,7 @@ import androidx.compose.runtime.Immutable
 import com.ar13x.jarvis.core.model.CancelScope
 import com.ar13x.jarvis.core.model.FailureReason
 import com.ar13x.jarvis.core.model.Task
+import java.time.Instant
 import com.ar13x.jarvis.core.model.TaskStatus
 import com.ar13x.jarvis.core.ui.LoadState
 import java.time.LocalDate
@@ -49,6 +50,39 @@ data class TaskListContent(
     val hasMore: Boolean = false,
 ) {
     /**
+     * Past their moment and still open — the section that goes above everything
+     * else, because it is the only one that is already costing you something.
+     *
+     * Two kinds land here:
+     *
+     * - **`awaiting`** — the server's own word for "fired, waiting on you"
+     *   (parent plan §2.8). This is the authoritative one.
+     * - **`active` with a `due_at` in the past** — the gap between a deadline
+     *   passing and the scheduler noticing. Without this the task you set for
+     *   6:40 sits in the list looking perfectly fine at 6:45.
+     *
+     * `incomplete` is deliberately **not** here. It has already lapsed; it is a
+     * record rather than something demanding an answer, and mixing the two
+     * would make the section something you learn to ignore.
+     *
+     * **This compares two instants**, which is timezone-independent, and it is
+     * not what §3.2 forbids — that rule is about deriving a calendar *day* from
+     * a timestamp, which the server still does. Nothing here re-derives
+     * `due_date` or `due_today`.
+     *
+     * Derived from the tasks already loaded rather than from a server section,
+     * so it can only see what has been paged in. Everything in `priority` and
+     * `recurring` arrives whole, and page one is the rest — an overdue task
+     * buried on page four is missed until it is paged in. The complete fix is
+     * an `overdue` array on `/tasks/sections`; see `docs/joy-to-gw03-07`.
+     */
+    fun overdue(now: Instant = Instant.now()): List<Task> =
+        (priority + recurring + all)
+            .distinctBy { it.id }
+            .filter { it.isOverdue(now) }
+            .sortedBy { it.dueAt }
+
+    /**
      * Priority and Recurring are unfiltered views by definition — they *are*
      * filters. Showing them beside a filtered All-tasks list produces a screen
      * that contradicts itself: filter to "Completed" and the Priority section
@@ -59,6 +93,16 @@ data class TaskListContent(
      * BUILD_NOTES §7.
      */
     fun showsSections(filters: TaskFilters): Boolean = filters.isEmpty
+}
+
+/**
+ * Past due and still open. See [TaskListContent.overdue] for why this compares
+ * instants and why that is not the §3.2 violation it resembles.
+ */
+fun Task.isOverdue(now: Instant = Instant.now()): Boolean = when (status) {
+    TaskStatus.Awaiting -> true
+    TaskStatus.Active -> dueAt.isBefore(now)
+    else -> false
 }
 
 @Immutable

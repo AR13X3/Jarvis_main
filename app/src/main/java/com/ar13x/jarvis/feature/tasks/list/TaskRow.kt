@@ -296,6 +296,10 @@ private fun MetaLine(
                 modifier = Modifier.size(13.dp),
             )
         }
+        // A recurring row reads by next fire, which is never in the past, so
+        // the overdue treatment does not apply to it.
+        val overdue = !showNextFire && task.isOverdue()
+
         Text(
             text = if (showNextFire && task.nextFireAt != null) {
                 DueDateFormat.nextFire(task.nextFireAt)
@@ -304,12 +308,43 @@ private fun MetaLine(
             },
             // Tabular numerals so a column of times does not read ragged (§6.6).
             style = JarvisTheme.typography.bodySmall.tabularNums(),
-            color = colors.inkMuted,
+            // Amber, not red: a missed deadline needs attention and is not a
+            // failure, and the brand hue cannot also mean "bad" (§6.2).
+            color = if (overdue) colors.status.incomplete else colors.inkMuted,
         )
+        if (overdue) {
+            OverduePill()
+        }
         // Straight from the server's `due_today`. Never computed (plan §3.2).
-        if (task.dueToday && !task.status.isTerminal) {
+        // Suppressed once overdue: "Today" beside "Overdue" reads as a
+        // contradiction, and the later fact is the one that matters.
+        if (task.dueToday && !task.status.isTerminal && !overdue) {
             DueTodayPill()
         }
+    }
+}
+
+/**
+ * Says it plainly on the row, so the list is readable without opening anything.
+ *
+ * Form as well as colour — a filled pill, not just amber text — so it survives
+ * colour-blindness and a dark theme, the same reasoning §6.2 applies to the
+ * cancelled/incomplete distinction.
+ */
+@Composable
+private fun OverduePill(modifier: Modifier = Modifier) {
+    val colors = JarvisTheme.colors
+    Box(
+        modifier
+            .clip(Corner.Pill)
+            .background(colors.status.incomplete.copy(alpha = 0.16f), Corner.Pill)
+            .padding(horizontal = Space.x2, vertical = 1.dp),
+    ) {
+        Text(
+            text = "Overdue",
+            style = JarvisTheme.typography.labelSmall,
+            color = colors.status.incomplete,
+        )
     }
 }
 

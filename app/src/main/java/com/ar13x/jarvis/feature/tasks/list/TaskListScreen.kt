@@ -198,6 +198,13 @@ private fun TaskList(
 ) {
     val showSections = content.showsSections(state.filters)
 
+    // Recomputed whenever the list is, which is on every resume and after every
+    // mutation (see the ON_RESUME refresh above). Deliberately not a ticking
+    // clock: a section that reshuffles under the thumb while being read is
+    // worse than one that is a few minutes stale, and coming back to the app is
+    // exactly when it matters.
+    val overdue = remember(content) { content.overdue() }
+
     LazyColumn(
         state = listState,
         modifier = Modifier.fillMaxSize(),
@@ -242,6 +249,21 @@ private fun TaskList(
         if (showSections) {
             // Sections with no rows are hidden, not shown empty — three empty
             // headers on first launch is noise (plan §5.2).
+
+            // Above everything, because it is the only section that is already
+            // costing you something. A task set for 6:40 must not look
+            // indistinguishable from the rest of the list at 6:45.
+            if (overdue.isNotEmpty()) {
+                item(key = "h-overdue") {
+                    SectionHeader(
+                        title = if (overdue.size == 1) "Overdue" else "Overdue · " + overdue.size,
+                    )
+                }
+                items(overdue, key = { "overdue-" + it.id }) { task ->
+                    Row_(task, onOpenTask, onEvent, state, Modifier.animateItem())
+                }
+            }
+
             if (content.priority.isNotEmpty()) {
                 item(key = "h-priority") { SectionHeader("Priority") }
                 items(content.priority, key = { "priority-" + it.id }) { task ->
