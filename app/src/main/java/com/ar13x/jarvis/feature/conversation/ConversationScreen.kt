@@ -27,6 +27,28 @@ import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.expandVertically
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.shrinkVertically
+import androidx.compose.material.icons.automirrored.rounded.VolumeOff
+import androidx.compose.material.icons.automirrored.rounded.VolumeUp
+import androidx.compose.material.icons.rounded.StopCircle
+import com.ar13x.jarvis.designsystem.component.CircleIconButton
+import com.ar13x.jarvis.designsystem.motion.Motion
+import com.ar13x.jarvis.designsystem.motion.motionFloat
+import com.ar13x.jarvis.designsystem.motion.motionSize
+import android.Manifest
+import android.content.pm.PackageManager
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.platform.LocalContext
+import androidx.core.content.ContextCompat
+import androidx.compose.runtime.getValue
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.remember
@@ -60,6 +82,11 @@ fun ConversationScreen(
     onCreateTask: (String) -> Unit,
     placeholder: String,
     header: @Composable () -> Unit,
+    /**
+     * Tapping the microphone. Lives above this because starting dictation may
+     * need the RECORD_AUDIO prompt, and only something Activity-scoped can ask.
+     */
+    onMic: () -> Unit = {},
     empty: @Composable () -> Unit,
     modifier: Modifier = Modifier,
 ) {
@@ -107,14 +134,25 @@ fun ConversationScreen(
                 }
 
                 if (state.isReadOnly) {
+                    // The mic goes with the composer, so a terminal task cannot
+                    // be dictated at either — §5.3 falls out of the layout
+                    // rather than needing its own rule.
                     ReadOnlyStrip(status = state.task!!.status)
                 } else {
+                    VoiceErrorStrip(
+                        message = state.voiceError,
+                        onDismiss = { onEvent(ConversationEvent.DismissVoiceError) },
+                    )
                     Composer(
                         text = state.composerText,
                         canSend = state.canSend,
                         placeholder = placeholder,
                         onTextChange = { onEvent(ConversationEvent.ComposerChanged(it)) },
                         onSend = { onEvent(ConversationEvent.Send) },
+                        micAvailable = state.micAvailable,
+                        listening = state.listening,
+                        amplitude = state.amplitude,
+                        onMic = onMic,
                     )
                 }
             }
@@ -327,5 +365,134 @@ private fun HandoffButton(
             modifier = Modifier.size(16.dp),
         )
         Text(text = label, style = JarvisTheme.typography.labelLarge, color = colors.onBrand)
+    }
+}
+
+/**
+ * Recognition failed, said quietly.
+ *
+ * A strip above the composer rather than a dialog or a snackbar: dictation
+ * failing is a small, local, immediately retryable thing, and interrupting the
+ * screen for it would make it feel far more serious than it is.
+ */
+@Composable
+private fun VoiceErrorStrip(
+    message: String?,
+    onDismiss: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    val colors = JarvisTheme.colors
+
+    AnimatedVisibility(
+        visible = message != null,
+        enter = fadeIn(motionFloat(Motion.Standard)) + expandVertically(motionSize(Motion.StandardSize)),
+        exit = fadeOut(motionFloat(Motion.Snappy)) + shrinkVertically(motionSize(Motion.StandardSize)),
+    ) {
+        val shown = message ?: return@AnimatedVisibility
+        Row(
+            modifier = modifier
+                .fillMaxWidth()
+                .padding(horizontal = Space.Gutter)
+                .clip(Corner.Sm)
+                .background(colors.surfaceSunk, Corner.Sm)
+                .clickable(onClick = onDismiss)
+                .padding(horizontal = Space.x4, vertical = Space.x2),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Text(
+                text = shown,
+                style = JarvisTheme.typography.bodySmall,
+                color = colors.inkMuted,
+            )
+        }
+    }
+}
+
+/**
+ * The spoken-replies toggle, for a conversation header.
+ *
+ * In the header rather than buried in a settings screen because it is the kind
+ * of setting whose right value changes by situation — on in the car, off in an
+ * office — and one that is three taps away is one nobody turns off in time.
+ *
+ * While speaking it becomes a stop button. There must always be a way to shut
+ * it up that does not involve turning the feature off entirely.
+ */
+@Composable
+fun SpeakToggle(
+    enabled: Boolean,
+    speaking: Boolean,
+    onToggle: () -> Unit,
+    onStop: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    val colors = JarvisTheme.colors
+
+    CircleIconButton(
+        onClick = if (speaking) onStop else onToggle,
+        diameter = 40.dp,
+        background = if (enabled) colors.brandTint else colors.surfaceSunk,
+        modifier = modifier,
+    ) {
+        Icon(
+            imageVector = when {
+                speaking -> Icons.Rounded.StopCircle
+                enabled -> Icons.AutoMirrored.Rounded.VolumeUp
+                else -> Icons.AutoMirrored.Rounded.VolumeOff
+            },
+            contentDescription = when {
+                speaking -> "Stop speaking"
+                enabled -> "Spoken replies on"
+                else -> "Spoken replies off"
+            },
+            tint = if (enabled) colors.brandCore else colors.inkMuted,
+            modifier = Modifier.size(18.dp),
+        )
+    }
+}
+
+/**
+ * The microphone tap, permission and all.
+ *
+ * `RECORD_AUDIO` is asked **in context** — on the first tap of the mic, by
+ * someone who has just said they want to dictate — rather than in a wall of
+ * dialogs at launch (plan §5.5, the same rule the reminder permissions follow).
+ * A permission prompt whose reason is on screen behind it is one people answer;
+ * one at first launch is one they dismiss.
+ *
+ * A denial is not nagged at. The mic simply does nothing this time and can be
+ * tapped again later, which is the honest behaviour — Android stops delivering
+ * the dialog after two refusals anyway, so a third attempt would be an
+ * invisible no-op dressed up as a retry.
+ */
+@Composable
+fun rememberMicAction(
+    listening: Boolean,
+    onToggleMic: () -> Unit,
+): () -> Unit {
+    val context = LocalContext.current
+    val granted = remember(context) {
+        ContextCompat.checkSelfPermission(
+            context,
+            Manifest.permission.RECORD_AUDIO,
+        ) == PackageManager.PERMISSION_GRANTED
+    }
+    var hasPermission by rememberSaveable { mutableStateOf(granted) }
+
+    val request = rememberLauncherForActivityResult(
+        ActivityResultContracts.RequestPermission(),
+    ) { allowed ->
+        hasPermission = allowed
+        // Starts listening straight away on a grant. Making someone tap the
+        // mic a second time after they just agreed to it is a small insult.
+        if (allowed) onToggleMic()
+    }
+
+    return {
+        when {
+            hasPermission -> onToggleMic()
+            listening -> onToggleMic()
+            else -> request.launch(Manifest.permission.RECORD_AUDIO)
+        }
     }
 }

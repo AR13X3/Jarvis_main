@@ -78,6 +78,18 @@ data class ConversationUiState(
     val thinking: Boolean = false,
 
     val composerText: String = "",
+
+    /** False when the device has no recogniser at all — the mic is then hidden. */
+    val micAvailable: Boolean = false,
+    val listening: Boolean = false,
+    /** Input level 0..1 while listening, for the mic ring. */
+    val amplitude: Float = 0f,
+    /** Off by default — see `VoiceSettings`. */
+    val speakReplies: Boolean = false,
+    val speaking: Boolean = false,
+    /** Recognition failed. Shown in the composer area, never as a dialog. */
+    val voiceError: String? = null,
+
     /** Proposal id currently being confirmed or rejected. */
     val resolving: String? = null,
     val options: Map<OptionsKey, OptionsState> = emptyMap(),
@@ -146,4 +158,10 @@ sealed interface ConversationEvent {
     data object LoadConversations : ConversationEvent
     data class OpenConversation(val sessionId: String) : ConversationEvent
     data object NewConversation : ConversationEvent
+
+    /** Voice. Dictation fills the composer; it never sends and never confirms. */
+    data object ToggleMic : ConversationEvent
+    data object ToggleSpeakReplies : ConversationEvent
+    data object StopSpeaking : ConversationEvent
+    data object DismissVoiceError : ConversationEvent
 }

@@ -60,8 +60,11 @@ class UpdateRepository @Inject constructor(
 
     /**
      * Called on app foreground. Safe to call often — the daily guard is inside.
+     *
+     * [force] skips the guard, for the About screen's explicit check. Only ever
+     * reached by someone deliberately asking, so it cannot turn into a poll.
      */
-    suspend fun refresh() {
+    suspend fun refresh(force: Boolean = false) {
         // Two foregrounds in quick succession (a permission dialog returning,
         // say) must not both fire the GitHub call and race on the timestamp.
         if (!refreshing.tryLock()) return
@@ -72,7 +75,7 @@ class UpdateRepository @Inject constructor(
 
             val remembered = store.remembered.first()
             val now = System.currentTimeMillis()
-            if (now - remembered.lastCheckedAt >= CHECK_INTERVAL_MS) {
+            if (force || now - remembered.lastCheckedAt >= CHECK_INTERVAL_MS) {
                 val release = runCatching { github.latestRelease() }.getOrNull()
                     // A draft or pre-release is not something to offer: the
                     // channel only ships finished releases, and Obtainium would

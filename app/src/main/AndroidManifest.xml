@@ -20,6 +20,10 @@
          policy on this permission does not apply (plan §7.3). -->
     <uses-permission android:name="android.permission.REQUEST_IGNORE_BATTERY_OPTIMIZATIONS" />
 
+    <!-- Dictation (voice). Requested in context, on the first mic tap, not at
+         launch — same rule as the reminder permissions (plan §5.5). -->
+    <uses-permission android:name="android.permission.RECORD_AUDIO" />
+
     <!-- From Android 11 another app is invisible unless declared here, and
          `getLaunchIntentForPackage` returns **null** rather than failing — so
          without this the "Open Tailscale" button in §8.2 and the Obtainium
@@ -29,6 +33,12 @@
         <package android:name="com.tailscale.ipn" />
         <package android:name="dev.imranr.obtainium" />
         <package android:name="dev.imranr.obtainium.fdroid" />
+        <!-- Without this the speech recogniser is invisible to the app and
+             SpeechRecognizer.isRecognitionAvailable() reports false on a device
+             that has one installed. -->
+        <intent>
+            <action android:name="android.speech.RecognitionService" />
+        </intent>
         <!-- The browser fallback, for when Obtainium is not installed. -->
         <intent>
             <action android:name="android.intent.action.VIEW" />

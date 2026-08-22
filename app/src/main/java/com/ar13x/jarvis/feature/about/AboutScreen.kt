@@ -18,6 +18,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.ArrowBack
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -99,7 +100,11 @@ fun AboutScreen(
             verticalArrangement = Arrangement.spacedBy(Space.x4),
         ) {
             VersionCard()
-            UpdateCard(status = updates.status.collectAsStateWithLifecycle().value)
+            UpdateCard(
+                status = updates.status.collectAsStateWithLifecycle().value,
+                checking = updates.checking.collectAsStateWithLifecycle().value,
+                onCheckNow = updates::checkNow,
+            )
             GatewayCard()
         }
 
@@ -154,7 +159,11 @@ private fun VersionCard() {
  * answer sits directly under it.
  */
 @Composable
-private fun UpdateCard(status: UpdateStatus) {
+private fun UpdateCard(
+    status: UpdateStatus,
+    checking: Boolean,
+    onCheckNow: () -> Unit,
+) {
     val colors = JarvisTheme.colors
     val context = LocalContext.current
     val available = (status as? UpdateStatus.Available)?.update
@@ -175,14 +184,23 @@ private fun UpdateCard(status: UpdateStatus) {
                     color = colors.ink,
                 )
                 Text(
-                    text = if (available == null) {
-                        "Checked daily against the releases repo."
-                    } else {
-                        "Tap to open Obtainium."
+                    text = when {
+                        checking -> "Checking…"
+                        available != null -> "Tap to open Obtainium."
+                        else -> "Checked daily against the releases repo."
                     },
                     style = JarvisTheme.typography.bodySmall,
                     color = colors.inkMuted,
                 )
+            }
+
+            // The daily guard is right for the background check and wrong for a
+            // person standing in front of the screen wondering. This is the
+            // override, and it is the only thing that can force one.
+            if (available == null) {
+                TextButton(onClick = onCheckNow, enabled = !checking) {
+                    Text("Check now", color = colors.brandCore)
+                }
             }
         }
     }

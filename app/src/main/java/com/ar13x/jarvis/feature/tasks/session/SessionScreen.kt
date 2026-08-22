@@ -39,6 +39,8 @@ import com.ar13x.jarvis.designsystem.theme.Space
 import com.ar13x.jarvis.designsystem.theme.statusStyle
 import com.ar13x.jarvis.designsystem.theme.tabularNums
 import com.ar13x.jarvis.feature.conversation.ConversationEvent
+import com.ar13x.jarvis.feature.conversation.rememberMicAction
+import com.ar13x.jarvis.feature.conversation.SpeakToggle
 import com.ar13x.jarvis.feature.conversation.ConversationScreen
 import com.ar13x.jarvis.feature.conversation.ConversationViewModel
 import com.ar13x.jarvis.feature.conversation.SessionTarget
@@ -69,9 +71,15 @@ fun SessionScreen(
     val state by viewModel.state.collectAsStateWithLifecycle()
     val task = state.task
 
+    val onMic = rememberMicAction(
+        listening = state.listening,
+        onToggleMic = { viewModel.onEvent(ConversationEvent.ToggleMic) },
+    )
+
     ConversationScreen(
         state = state,
         onEvent = viewModel::onEvent,
+        onMic = onMic,
         onOpenTask = onOpenTask,
         onCreateTask = onCreateTask,
         placeholder = if (task == null) "What should I remind you about?" else "Ask or change something…",
@@ -83,6 +91,21 @@ fun SessionScreen(
                 statusLabel = task?.let { statusStyle(it.status).label },
                 sharedTaskId = task?.id,
                 onBack = onBack,
+                // Hidden on a terminal task: there is no composer to dictate
+                // into and no new reply coming, so the control would toggle
+                // something with nothing to act on.
+                speakControl = if (state.isReadOnly) {
+                    null
+                } else {
+                    {
+                        SpeakToggle(
+                            enabled = state.speakReplies,
+                            speaking = state.speaking,
+                            onToggle = { viewModel.onEvent(ConversationEvent.ToggleSpeakReplies) },
+                            onStop = { viewModel.onEvent(ConversationEvent.StopSpeaking) },
+                        )
+                    }
+                },
             )
         },
         empty = {
@@ -107,6 +130,7 @@ private fun SessionHeader(
     sharedTaskId: Long?,
     onBack: () -> Unit,
     modifier: Modifier = Modifier,
+    speakControl: (@Composable () -> Unit)? = null,
 ) {
     val colors = JarvisTheme.colors
 
@@ -151,6 +175,11 @@ private fun SessionHeader(
                     maxLines = 1,
                 )
             }
+        }
+
+        if (speakControl != null) {
+            Spacer(Modifier.width(Space.x2))
+            speakControl()
         }
 
         if (statusLabel != null) {

@@ -10,6 +10,10 @@ import com.ar13x.jarvis.core.model.Session
 import com.ar13x.jarvis.core.model.SessionSummary
 import com.ar13x.jarvis.core.model.SessionKind
 import com.ar13x.jarvis.core.ui.LoadState
+import com.ar13x.jarvis.core.voice.NoVoice
+import com.ar13x.jarvis.core.voice.VoiceController
+import com.ar13x.jarvis.core.voice.VoiceState
+import com.ar13x.jarvis.core.voice.toUtterance
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -25,12 +29,68 @@ private const val HISTORY_PAGE = 30
 class ConversationViewModel @Inject constructor(
     private val agent: AgentRepository,
     private val tasks: TaskRepository,
+    /**
+     * Defaulted for tests and previews only — **Hilt always injects the real
+     * one**, because it generates a call passing every parameter and would fail
+     * at compile time if the binding were missing. Nothing in the app ever runs
+     * on [NoVoice].
+     */
+    private val voice: VoiceController = NoVoice,
 ) : ViewModel() {
 
     private val _state = MutableStateFlow(ConversationUiState())
     val state: StateFlow<ConversationUiState> = _state.asStateFlow()
 
     private var started = false
+
+    init {
+        _state.update { it.copy(micAvailable = voice.available()) }
+
+        // Partials land straight in the composer, so dictation reads as typing
+        // that happens to be spoken — and whatever was captured stays there if
+        // recognition is stopped halfway.
+        viewModelScope.launch {
+            voice.state.collect { voiceState ->
+                _state.update { current ->
+                    when (voiceState) {
+                        is VoiceState.Listening -> current.copy(
+                            listening = true,
+                            amplitude = voiceState.amplitude,
+                            voiceError = null,
+                            composerText = voiceState.partial.ifEmpty { current.composerText },
+                        )
+                        is VoiceState.Failed -> current.copy(
+                            listening = false,
+                            amplitude = 0f,
+                            voiceError = voiceState.message,
+                        )
+                        VoiceState.Idle -> current.copy(listening = false, amplitude = 0f)
+                    }
+                }
+            }
+        }
+
+        viewModelScope.launch {
+            voice.speakReplies.collect { enabled ->
+                _state.update { it.copy(speakReplies = enabled) }
+                if (!enabled) voice.stopSpeaking()
+            }
+        }
+
+        viewModelScope.launch {
+            voice.speaking.collect { value -> _state.update { it.copy(speaking = value) } }
+        }
+    }
+
+    /**
+     * Nothing should still be talking after the screen is gone — leaving the
+     * engine mid-sentence when someone backs out of a session is the fastest
+     * way to make a spoken reply feel like something that escaped.
+     */
+    override fun onCleared() {
+        voice.cancelListening()
+        voice.stopSpeaking()
+    }
 
     /**
      * Idempotent: the screen calls this from a `LaunchedEffect`, which re-runs on
@@ -46,8 +106,28 @@ class ConversationViewModel @Inject constructor(
 
     fun onEvent(event: ConversationEvent) {
         when (event) {
-            is ConversationEvent.ComposerChanged ->
+            is ConversationEvent.ComposerChanged -> {
+                // Typing is a barge-in: someone who has started writing is no
+                // longer listening, and talking over them is rude in the same
+                // way an unskippable animation is.
+                if (_state.value.speaking) voice.stopSpeaking()
                 _state.update { it.copy(composerText = event.text) }
+            }
+
+            ConversationEvent.ToggleMic -> toggleMic()
+
+            ConversationEvent.ToggleSpeakReplies -> viewModelScope.launch {
+                val next = !_state.value.speakReplies
+                voice.setSpeakReplies(next)
+                if (!next) voice.stopSpeaking()
+            }
+
+            ConversationEvent.StopSpeaking -> voice.stopSpeaking()
+
+            ConversationEvent.DismissVoiceError -> {
+                voice.clearFailure()
+                _state.update { it.copy(voiceError = null) }
+            }
 
             ConversationEvent.Send -> send()
             ConversationEvent.LoadOlder -> loadOlder()
@@ -163,11 +243,41 @@ class ConversationViewModel @Inject constructor(
      * At a ~4s median that state is on screen constantly, so it is a first-class
      * part of the design rather than a spinner bolted on afterwards.
      */
+    /**
+     * Start or stop dictating.
+     *
+     * Stops any spoken reply first: the phone talking into its own microphone
+     * is both comic and a genuine recognition problem, since the engine hears
+     * the speaker and transcribes it.
+     *
+     * Permission is the screen's job — it needs an Activity to ask. This is
+     * reached only once permission is granted.
+     */
+    private fun toggleMic() {
+        val current = _state.value
+        if (current.isReadOnly) return
+
+        if (current.listening) {
+            voice.stopListening()
+            return
+        }
+        voice.stopSpeaking()
+        voice.startListening(current.composerText) { finalText ->
+            // Fills the composer and stops. It deliberately does **not** send:
+            // a transcript is a draft, and auto-sending would put a misheard
+            // sentence in front of the model with nobody having read it.
+            _state.update { it.copy(composerText = finalText, listening = false, amplitude = 0f) }
+        }
+    }
+
     private fun send() {
         val current = _state.value
         val sessionId = current.sessionId ?: return
         val text = current.composerText.trim()
         if (text.isEmpty() || current.thinking || current.isReadOnly) return
+
+        if (current.listening) voice.stopListening()
+        voice.stopSpeaking()
 
         _state.update {
             it.copy(
@@ -179,11 +289,17 @@ class ConversationViewModel @Inject constructor(
 
         viewModelScope.launch {
             runCatching { agent.send(sessionId, text) }
-                .onSuccess {
+                .onSuccess { response ->
                     // The server now holds both turns, so the optimistic copy is
                     // dropped in the same update that installs the real history —
                     // clearing it first would blink the message out and back.
                     refreshHistory(sessionId, clearOptimistic = true)
+
+                    // Spoken from the response rather than from the refreshed
+                    // history: the response is the turn that just happened, and
+                    // reading the newest message off the list would speak the
+                    // wrong thing on any turn the server rewrote.
+                    if (_state.value.speakReplies) voice.speak(response.toUtterance())
                 }
                 .onFailure { error ->
                     _state.update {

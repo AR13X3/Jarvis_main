@@ -6,7 +6,9 @@ import com.ar13x.jarvis.core.update.SemVer
 import com.ar13x.jarvis.core.update.UpdateRepository
 import com.ar13x.jarvis.core.update.UpdateStatus
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 
@@ -20,6 +22,22 @@ class UpdateViewModel @Inject constructor(
 ) : ViewModel() {
 
     val status: StateFlow<UpdateStatus> = repository.status
+
+    private val _checking = MutableStateFlow(false)
+    /**
+     * An explicit check needs visible feedback even when the answer is "no
+     * change" — otherwise the button looks broken precisely when it is working.
+     */
+    val checking: StateFlow<Boolean> = _checking.asStateFlow()
+
+    fun checkNow() {
+        if (_checking.value) return
+        _checking.value = true
+        viewModelScope.launch {
+            repository.refresh(force = true)
+            _checking.value = false
+        }
+    }
 
     /** Cheap and guarded internally, so calling it on every resume is fine. */
     fun refresh() {

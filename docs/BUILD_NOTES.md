@@ -603,3 +603,71 @@ declined — the hostname is not a credential, MagicDNS does not resolve publicl
 the host is on CGNAT `100.x` unreachable from the internet, and the bearer token
 guards it behind that. Recorded so the reasoning is visible rather than looking
 like an oversight.
+
+## 9. Voice — dictation in, replies out
+
+Not in the plan at all: §11 has no voice phase. Added after Phase F, as its own
+phase, on one condition that shaped every decision below.
+
+**Both halves are entirely app-side. The gateway is untouched** — no endpoint,
+no contract change, nothing to coordinate. `TextToSpeech` and `SpeechRecognizer`
+are on-device Android APIs, and `AgentResponse.text` was already there to read.
+
+### 9.1 The guardrail that shaped it
+
+Voice makes "just say yes to confirm" very tempting, and it is exactly what
+parent plan §2.2 deleted auto-confirm to prevent: committing because the user
+did not look is wrong, and committing because the phone *misheard* is the same
+failure with a worse cause.
+
+So **dictation ends at the composer**. A transcript is a draft; the user reads
+it and presses send. Confirming a proposal stays a tap, always.
+`VoiceGuardrailTest` asserts a spoken "yes" while a card is live writes nothing,
+because the erosion of this would arrive as a small reasonable-looking change.
+
+### 9.2 Speaking a confirmation, not just the prose
+
+Responses are structured, never bare text (§4.5). Speaking only `text` would
+read "Just to confirm —" and stop, leaving the part that matters on screen.
+`SpokenReply.toUtterance()` therefore speaks the proposal too, and **always the
+recurrence**: the 1-in-5 malformed day set §4.5 warns about is only ever caught
+by a human checking before confirming, and a listener has nothing else. It also
+says "tap confirm to go ahead", so nobody is left thinking it is already done.
+
+Options are deliberately *not* read out. Three titles with dates is a list
+nobody can hold in their head, and tapping one is the real next step.
+
+### 9.3 Choices worth keeping
+
+- **`SpeechRecognizer`, not `ACTION_RECOGNIZE_SPEECH`.** The intent version puts
+  Google's dialog over a screen §6 spends its whole length making deliberate.
+  The API version also gives partial results, which is the difference between
+  dictation that looks alive and a button that appears dead for four seconds.
+- **On-device recognition preferred.** `minSdk = 31` already clears
+  `createOnDeviceSpeechRecognizer`; nothing spoken leaves the phone, and it
+  works with Tailscale off. Falls back when no model is installed.
+- **Spoken replies default to off**, and go silent when the ringer is not on
+  normal. An app that starts talking on a bus has made a decision that was not
+  its to make.
+- **`VoiceController` is `@ViewModelScoped`, not a singleton.** The recogniser
+  holds one live callback; shared between the Chat tab and an open session,
+  whichever tapped the mic last owns it while both render as listening — so a
+  transcript could land in the conversation you are not looking at.
+- **Barge-in everywhere.** Typing, dictating, sending or leaving the screen all
+  stop speech. The mic also stops the speaker first: the phone talking into its
+  own microphone is both comic and a real recognition failure.
+
+### 9.4 Manifest
+
+`RECORD_AUDIO`, requested on the first mic tap rather than at launch (§5.5), and
+a `<queries>` entry for `android.speech.RecognitionService` — without it
+`isRecognitionAvailable()` reports false on a device that has one, and the mic
+would be hidden on hardware that supports it perfectly well.
+
+### 9.5 "Check now"
+
+Added to the About screen alongside voice. The update check's daily guard is
+right for the background and wrong for a person standing in front of the screen
+after a release — and without an override, verifying the §10.2 banner means
+waiting a day. It forces one check and cannot become a poll, since only a
+deliberate tap reaches it.

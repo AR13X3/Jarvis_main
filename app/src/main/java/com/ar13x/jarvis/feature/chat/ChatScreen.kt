@@ -45,6 +45,8 @@ import com.ar13x.jarvis.designsystem.theme.JarvisTheme
 import com.ar13x.jarvis.designsystem.theme.Space
 import com.ar13x.jarvis.designsystem.theme.tabularNums
 import com.ar13x.jarvis.feature.conversation.ConversationEvent
+import com.ar13x.jarvis.feature.conversation.rememberMicAction
+import com.ar13x.jarvis.feature.conversation.SpeakToggle
 import com.ar13x.jarvis.feature.conversation.ConversationScreen
 import com.ar13x.jarvis.feature.conversation.ConversationViewModel
 import com.ar13x.jarvis.feature.conversation.SessionTarget
@@ -75,15 +77,25 @@ fun ChatScreen(
     var showHistory by remember { mutableStateOf(false) }
     val sheetState = rememberModalBottomSheetState()
 
+    val onMic = rememberMicAction(
+        listening = state.listening,
+        onToggleMic = { viewModel.onEvent(ConversationEvent.ToggleMic) },
+    )
+
     ConversationScreen(
         state = state,
         onEvent = viewModel::onEvent,
+        onMic = onMic,
         onOpenTask = onOpenTask,
         onCreateTask = onCreateTask,
         placeholder = "Ask anything…",
         modifier = modifier,
         header = {
             ChatHeader(
+                speakReplies = state.speakReplies,
+                speaking = state.speaking,
+                onToggleSpeak = { viewModel.onEvent(ConversationEvent.ToggleSpeakReplies) },
+                onStopSpeaking = { viewModel.onEvent(ConversationEvent.StopSpeaking) },
                 showTitle = !state.isEmpty,
                 onHistory = {
                     showHistory = true
@@ -126,6 +138,10 @@ private fun ChatHeader(
     showTitle: Boolean,
     onHistory: () -> Unit,
     onNew: () -> Unit,
+    speakReplies: Boolean,
+    speaking: Boolean,
+    onToggleSpeak: () -> Unit,
+    onStopSpeaking: () -> Unit,
 ) {
     val colors = JarvisTheme.colors
     Row(
@@ -150,6 +166,15 @@ private fun ChatHeader(
             Text("Jarvis", style = JarvisTheme.typography.titleLarge, color = colors.ink)
         }
         Spacer(Modifier.weight(1f))
+        // Before the + rather than after: the + is the saturated one and stays
+        // the last thing on the row, so the eye still lands there first (§6.7).
+        SpeakToggle(
+            enabled = speakReplies,
+            speaking = speaking,
+            onToggle = onToggleSpeak,
+            onStop = onStopSpeaking,
+        )
+        Spacer(Modifier.size(Space.x2))
         CircleIconButton(onClick = onNew, diameter = 40.dp, background = colors.brandCore) {
             Icon(
                 Icons.Rounded.Add,

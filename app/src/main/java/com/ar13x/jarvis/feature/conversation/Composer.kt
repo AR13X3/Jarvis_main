@@ -22,6 +22,8 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.Send
 import androidx.compose.material.icons.rounded.Lock
+import androidx.compose.material.icons.rounded.Mic
+import androidx.compose.material.icons.rounded.Stop
 import androidx.compose.material3.Icon
 import androidx.compose.material3.LocalTextStyle
 import androidx.compose.material3.Text
@@ -63,6 +65,12 @@ fun Composer(
     onTextChange: (String) -> Unit,
     onSend: () -> Unit,
     modifier: Modifier = Modifier,
+    /** Hidden entirely when the device has no recogniser — see [VoiceInput]. */
+    micAvailable: Boolean = false,
+    listening: Boolean = false,
+    /** Input level, 0..1, driving the ring while listening. */
+    amplitude: Float = 0f,
+    onMic: () -> Unit = {},
 ) {
     val colors = JarvisTheme.colors
 
@@ -99,9 +107,12 @@ fun Composer(
                 Box(contentAlignment = Alignment.CenterStart) {
                     if (text.isEmpty()) {
                         Text(
-                            text = placeholder,
+                            // While listening the placeholder is the only thing
+                            // saying the mic is live before the first word lands,
+                            // and the first word can be a second or two away.
+                            text = if (listening) "Listening…" else placeholder,
                             style = JarvisTheme.typography.bodyLarge,
-                            color = colors.inkMuted,
+                            color = if (listening) colors.brandCore else colors.inkMuted,
                         )
                     }
                     field()
@@ -109,11 +120,86 @@ fun Composer(
             },
         )
 
+        // The mic yields to send the moment there is something to send. Two
+        // adjacent circles, one of which is always the wrong one to press, is
+        // how a one-line composer starts feeling like a control panel — and
+        // dictating into a finished message is not a thing anyone does.
+        if (micAvailable && (listening || !canSend)) {
+            Spacer(Modifier.width(Space.x2))
+            MicButton(listening = listening, amplitude = amplitude, onClick = onMic)
+        }
+
         Spacer(Modifier.width(Space.x2))
         // Inline rather than on a row of its own. Phase G's attachment control
         // joins this row on the leading side (§9), so the composer still has
         // somewhere to grow without being tall while empty.
         SendButton(enabled = canSend, onClick = onSend)
+    }
+}
+
+/**
+ * Dictation, and the one control in the app that is *live* rather than merely
+ * pressed.
+ *
+ * The ring tracks input level, which is doing real work: it is the only
+ * feedback that distinguishes "listening and hearing you" from "listening to
+ * silence because the mic is muted or you are too far away". A static
+ * indicator would look identical in both cases, and the user would find out
+ * only when nothing was transcribed.
+ */
+@Composable
+private fun MicButton(
+    listening: Boolean,
+    amplitude: Float,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    val colors = JarvisTheme.colors
+
+    val container by animateColorAsState(
+        targetValue = if (listening) colors.brandCore else colors.surfaceSunk,
+        animationSpec = motionColor(Motion.SnappyColor),
+        label = "micContainer",
+    )
+    // Springs rather than tracking the raw value: RMS updates arrive fast and
+    // jaggedly, and a ring that snaps to every sample reads as a glitch rather
+    // than as a voice.
+    val ring by animateFloatAsState(
+        targetValue = if (listening) 1f + (amplitude * 0.35f) else 1f,
+        animationSpec = motionFloat(Motion.Snappy),
+        label = "micRing",
+    )
+
+    Box(
+        modifier = modifier.size(40.dp),
+        contentAlignment = Alignment.Center,
+    ) {
+        if (listening) {
+            Box(
+                Modifier
+                    .size(40.dp)
+                    .scale(ring)
+                    .clip(CircleShape)
+                    .background(colors.brandCore.copy(alpha = 0.18f), CircleShape),
+            )
+        }
+        Box(
+            modifier = Modifier
+                .size(36.dp)
+                .clip(CircleShape)
+                .background(container, CircleShape)
+                .clickable(onClick = onClick),
+            contentAlignment = Alignment.Center,
+        ) {
+            Icon(
+                // Stop, not a mic with a slash: while listening the button's
+                // job is ending the utterance, and it should say so.
+                imageVector = if (listening) Icons.Rounded.Stop else Icons.Rounded.Mic,
+                contentDescription = if (listening) "Stop listening" else "Dictate",
+                tint = if (listening) colors.onBrand else colors.inkMuted,
+                modifier = Modifier.size(18.dp),
+            )
+        }
     }
 }
 
