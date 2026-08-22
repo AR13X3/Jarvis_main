@@ -871,3 +871,28 @@ two things that decide whether the app feels good.
 - **Attachment semantics.** Whether an image may *drive a proposal* is a Budget
   domain question, out of scope here. Until answered, chat accepts and displays
   images with no tool able to act on them.
+
+---
+
+## 14. Addendum — phases added after this plan was written
+
+This document is the authority for everything above. These are additions agreed
+after it, recorded here so the phase list is not silently out of date. The *how*
+for each lives in `BUILD_NOTES.md`.
+
+| phase | scope | state |
+|---|---|---|
+| **H. Voice** | Dictation into the composer; replies read aloud, confirmations included. Entirely on-device; no gateway change. Confirming stays a tap. | done — `BUILD_NOTES` §9 |
+| **I. Overdue** | An Overdue section in the task list (no gateway change), and an agent-initiated follow-up at the deadline with two extensions before a task lapses to `incomplete`. | section shipped; follow-up built and awaiting the gateway — `BUILD_NOTES` §10, `joy-to-gw03-07` |
+
+Two rules from §3 that these additions were checked against, since both look
+adjacent to them:
+
+- **Voice never writes.** Dictation ends at the composer and confirming a
+  proposal stays a tap (§3.4, parent §2.2). A misheard "yes" would be the
+  auto-confirm failure the parent plan deleted, arriving by a new route.
+- **Instant comparison is not day derivation.** The Overdue section and the
+  past-due warning on the confirmation card compare `due_at` to now, which is
+  timezone-independent. §3.2 forbids deriving a calendar *day* from a
+  timestamp; `due_date` and `due_today` still come from the server and are
+  never computed here.

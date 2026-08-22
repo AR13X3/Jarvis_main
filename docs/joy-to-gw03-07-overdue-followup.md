@@ -138,6 +138,32 @@ rather than pretend, and we will make that legible rather than silent. Worth
 knowing on your side, because it means an extension can be *attempted* and not
 land, and the deadline you see may be the one the user thought they moved.
 
+## 4a. One more ask, cheap and separate
+
+**`/tasks/sections` should carry an `overdue` array.**
+
+The app now shows an Overdue section at the top of the task list — `awaiting`,
+plus `active` whose `due_at` has passed, which covers the gap between a deadline
+going by and your scheduler noticing. It needs nothing from you to work, and it
+already shipped.
+
+But it is derived from the tasks the app has loaded, and `all` is paged 20 at a
+time. Priority and recurring arrive whole; everything else does not. So an
+overdue task deep in the list is invisible until it is paged in — which is the
+wrong failure for the one section whose entire job is "you have missed
+something".
+
+```jsonc
+{ "overdue":   [Task],   // NEW: status = awaiting, or active with due_at < now
+  "priority":  [Task],
+  "recurring": [Task],
+  "all": { "tasks": [Task], "page": 1, "has_more": true } }
+```
+
+Same shape as the sections beside it, and the query is one you already run for
+the scheduler. Independent of everything else in this document — worth doing
+even if the follow-up loop is not.
+
 ## 5. Open, for you
 
 1. **Extensions are per occurrence, not per task** — so a recurring task gets a

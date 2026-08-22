@@ -671,3 +671,75 @@ right for the background and wrong for a person standing in front of the screen
 after a release — and without an override, verifying the §10.2 banner means
 waiting a day. It forces one check and cannot become a poll, since only a
 deliberate tap reaches it.
+
+## 10. Overdue — the section, and the follow-up loop
+
+Two related pieces, deliberately separable: one shipped and needs nothing from
+gw03, the other is built and dark until the contract lands.
+
+### 10.1 The Overdue section (shipped)
+
+A task set for 6:40 looked identical to every other row at 6:45. There is now an
+**Overdue** section above Priority, with a count, and the row's time turns amber
+with a pill.
+
+What lands in it:
+
+| included | why |
+|---|---|
+| `status = awaiting` | the server's own word for "fired, waiting on you" (parent §2.8) — authoritative |
+| `status = active` and `due_at` in the past | the gap between a deadline passing and the scheduler noticing |
+
+`incomplete` is **excluded**. It has already lapsed, so it is a record rather
+than something demanding an answer, and a section mixing the two is one you
+learn to ignore.
+
+**On §3.2, because this looks exactly like the rule it does not break.**
+Comparing two instants is timezone-independent. Deriving a calendar *day* from a
+timestamp is not, which is why the server owns `due_date` and `due_today` and
+still does. `OverdueSectionTest` pins the 08:40 UTC / 6:40 pm Sydney boundary
+from the safe side.
+
+**Known limit:** it is a view over tasks already loaded, and `all` is paged 20 at
+a time, so an overdue task deep in the list is invisible until it is paged in.
+Asked for as an `overdue` array on `/tasks/sections` in document 07 §4a.
+
+### 10.2 The follow-up loop (built, dark)
+
+The first thing in the app the agent says without being asked. At the deadline:
+*"Have you done this?"* — done, or push it back 15/30/60 minutes. Two extensions,
+then an unfinished task becomes `incomplete`.
+
+Three decisions worth not undoing:
+
+- **The count is the gateway's.** A device-held counter resets on reinstall and
+  hands out fresh chances, which makes the cap decorative. So the third push is
+  refused *by the server* and shown as a failure, rather than pre-empted by a
+  disabled button. `OverdueAnswerTest` covers exactly that.
+- **`extensions_allowed` is sent, not compiled in.** Same reasoning as §3.1 and
+  §3.3 keeping rules server-side: a cap that needs an APK to change is a cap
+  nobody tunes.
+- **The nudge is a component in the session, not only a notification.** One
+  session per task is the architecture (parent §2.2), so scrolling back shows
+  the agent asking and what you answered, as a resolved confirm card does. A
+  nudge living only in the shade leaves no record you were ever asked.
+
+Everything is occurrence-scoped, which is why occurrences exist: completing
+Monday's gym session must not close the weekly rule, and next Monday should
+arrive with a fresh allowance.
+
+**Not built:** answering from the notification. It needs `extensions_used` in
+the Room mirror, which is a schema migration, and it is pointless before the
+gateway sends the field. That is the remaining piece.
+
+### 10.3 A past-due proposal is called out on the confirmation card
+
+From a real failure: "remind me to apply for jobs in 2 hours", sent at 18:40,
+came back as 17:40 — an hour *before* the message asking for it. It was
+confirmed, because the sentence above the card read "2 hours from now" and only
+the parenthesised time was wrong.
+
+The card is the last human checkpoint (§4.5), so it now says when a proposed
+reminder has already passed. The value itself is gw03's to fix and document 06
+reports it — the arithmetic was right and the *now* it was added to was three
+hours stale.
