@@ -581,3 +581,25 @@ APK in the field keeps checking whatever repo it was compiled against.
   been seen on a device.
 - Phase F's done-when — *an update installs in place over a prior build, and the
   older build shows the banner first* — needs two published releases to verify.
+
+### 8.7 Known bug — the pairing screen's URL field does nothing
+
+`TokenStore.gatewayUrl` is written by `save()` and **read by nothing**. Retrofit's
+base URL is fixed at build time from `BuildConfig.DEFAULT_GATEWAY_URL`
+(`NetworkModule`), and no interceptor rewrites the host — so a URL typed at
+pairing is stored and then ignored, and the app keeps talking to gw03 regardless.
+
+Harmless today, since there is one gateway and the constant is right. It becomes
+real the moment the gateway moves, and it will present as "I changed the URL and
+nothing happened".
+
+The fix is a host-rewriting interceptor reading a `@Volatile` off `TokenStore`,
+exactly as `AuthInterceptor` already does for the token, plus a placeholder base
+URL. Roughly forty lines.
+
+**Deliberately not done before the first release.** The same change would have
+kept `gw03.tail9662e3.ts.net` out of the published APK; that was considered and
+declined — the hostname is not a credential, MagicDNS does not resolve publicly,
+the host is on CGNAT `100.x` unreachable from the internet, and the bearer token
+guards it behind that. Recorded so the reasoning is visible rather than looking
+like an oversight.
