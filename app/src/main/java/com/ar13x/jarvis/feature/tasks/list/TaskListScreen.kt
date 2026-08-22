@@ -25,6 +25,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.Add
+import androidx.compose.material.icons.rounded.Info
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
@@ -64,6 +65,7 @@ import com.ar13x.jarvis.designsystem.component.CircleIconButton
 import com.ar13x.jarvis.designsystem.component.JarvisCard
 import com.ar13x.jarvis.designsystem.component.JarvisChip
 import com.ar13x.jarvis.designsystem.component.ScreenHeader
+import com.ar13x.jarvis.feature.update.UpdateBanner
 import com.ar13x.jarvis.designsystem.component.SectionHeader
 import com.ar13x.jarvis.designsystem.component.softShadow
 import com.ar13x.jarvis.designsystem.motion.Motion
@@ -86,6 +88,7 @@ private const val PREFETCH_ROWS = 5
 fun TaskListScreen(
     onOpenTask: (Long) -> Unit,
     onNewSession: () -> Unit,
+    onAbout: () -> Unit,
     modifier: Modifier = Modifier,
     viewModel: TaskListViewModel = hiltViewModel(),
 ) {
@@ -95,6 +98,7 @@ fun TaskListScreen(
         onEvent = viewModel::onEvent,
         onOpenTask = onOpenTask,
         onNewSession = onNewSession,
+        onAbout = onAbout,
         modifier = modifier,
     )
 }
@@ -105,6 +109,7 @@ fun TaskListScreen(
     onEvent: (TaskListEvent) -> Unit,
     onOpenTask: (Long) -> Unit,
     onNewSession: () -> Unit,
+    onAbout: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val colors = JarvisTheme.colors
@@ -135,8 +140,12 @@ fun TaskListScreen(
     Box(modifier.fillMaxSize()) {
         BrandBackdrop() {
             when (val content = state.content) {
-                is LoadState.Loading -> LoadingScreen(onNewSession)
-                is LoadState.Failed -> FailureScreen(content.reason) { onEvent(TaskListEvent.Refresh) }
+                is LoadState.Loading -> LoadingScreen(onNewSession, onAbout)
+                is LoadState.Failed -> FailureScreen(
+                    reason = content.reason,
+                    onAbout = onAbout,
+                    onRetry = { onEvent(TaskListEvent.Refresh) },
+                )
                 is LoadState.Ready -> TaskList(
                     content = content.data,
                     state = state,
@@ -145,6 +154,7 @@ fun TaskListScreen(
                     onEvent = onEvent,
                     onOpenTask = onOpenTask,
                     onNewSession = onNewSession,
+                    onAbout = onAbout,
                 )
             }
         }
@@ -184,6 +194,7 @@ private fun TaskList(
     onEvent: (TaskListEvent) -> Unit,
     onOpenTask: (Long) -> Unit,
     onNewSession: () -> Unit,
+    onAbout: () -> Unit,
 ) {
     val showSections = content.showsSections(state.filters)
 
@@ -194,7 +205,15 @@ private fun TaskList(
         verticalArrangement = Arrangement.spacedBy(Space.x2),
     ) {
         item(key = "header") {
-            TasksHeader(content = content, onNewSession = onNewSession)
+            TasksHeader(content = content, onNewSession = onNewSession, onAbout = onAbout)
+        }
+
+        // Above the reminder card: being on a build the gateway may already
+        // have moved past explains failures the reminder card cannot.
+        item(key = "update-banner") {
+            UpdateBanner(
+                modifier = Modifier.padding(horizontal = Space.Gutter, vertical = Space.x1),
+            )
         }
 
         item(key = "reminder-setup") {
@@ -293,6 +312,7 @@ private fun Row_(
 private fun TasksHeader(
     content: TaskListContent,
     onNewSession: () -> Unit,
+    onAbout: () -> Unit,
 ) {
     val colors = JarvisTheme.colors
     // Counted from the server's `due_today`, never derived from an instant.
@@ -334,6 +354,19 @@ private fun TasksHeader(
                         contentDescription = "New task",
                         tint = colors.onBrand,
                         modifier = Modifier.size(22.dp),
+                    )
+                }
+            },
+            trailing = {
+                // A ghost circle, not a second saturated one: the + is the only
+                // saturated element in the list so the eye lands on it (§6.7),
+                // and a build-identity screen must never compete with it.
+                CircleIconButton(onClick = onAbout, diameter = 40.dp) {
+                    Icon(
+                        Icons.Rounded.Info,
+                        contentDescription = "About this build",
+                        tint = colors.inkMuted,
+                        modifier = Modifier.size(20.dp),
                     )
                 }
             },
@@ -466,7 +499,7 @@ private fun AppendFooter(
 }
 
 @Composable
-private fun LoadingScreen(onNewSession: () -> Unit) {
+private fun LoadingScreen(onNewSession: () -> Unit, onAbout: () -> Unit) {
     val colors = JarvisTheme.colors
     Column(Modifier.fillMaxSize()) {
         ScreenHeader(
@@ -480,6 +513,19 @@ private fun LoadingScreen(onNewSession: () -> Unit) {
                         contentDescription = "New task",
                         tint = colors.onBrand,
                         modifier = Modifier.size(22.dp),
+                    )
+                }
+            },
+            trailing = {
+                // A ghost circle, not a second saturated one: the + is the only
+                // saturated element in the list so the eye lands on it (§6.7),
+                // and a build-identity screen must never compete with it.
+                CircleIconButton(onClick = onAbout, diameter = 40.dp) {
+                    Icon(
+                        Icons.Rounded.Info,
+                        contentDescription = "About this build",
+                        tint = colors.inkMuted,
+                        modifier = Modifier.size(20.dp),
                     )
                 }
             },
@@ -501,7 +547,7 @@ private fun LoadingScreen(onNewSession: () -> Unit) {
  * tailnet and the fix is one toggle — so that case gets a button.
  */
 @Composable
-private fun FailureScreen(reason: FailureReason, onRetry: () -> Unit) {
+private fun FailureScreen(reason: FailureReason, onAbout: () -> Unit, onRetry: () -> Unit) {
     val colors = JarvisTheme.colors
     val context = LocalContext.current
 
@@ -538,6 +584,15 @@ private fun FailureScreen(reason: FailureReason, onRetry: () -> Unit) {
                 }
                 TextButton(onClick = onRetry) {
                     Text("Try again", color = colors.brandCore)
+                }
+            }
+            // The header with its About affordance is not on screen in this
+            // state, and this is precisely when "which build is that?" gets
+            // asked — so the one screen that works with the gateway down keeps
+            // a way in.
+            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.Center) {
+                TextButton(onClick = onAbout) {
+                    Text("About this build", color = colors.inkMuted)
                 }
             }
         }

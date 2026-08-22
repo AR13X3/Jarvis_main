@@ -490,3 +490,94 @@ The actions are *overlaid* rather than laid out beside the content so only the
 title yields width to them — otherwise every metadata line is silently 68dp
 narrower than the card, which is what clipped "Every Monday, Wednesday and
 Friday" to "…and…".
+
+## 8. Phase F — release channel
+
+Signing landed earlier (§10 of the plan). This section covers the rest.
+
+### 8.1 About screen
+
+`feature/about/AboutScreen.kt`. Everything on it comes from `BuildConfig`, so it
+renders with the gateway down — which is the state it is most often opened in.
+Reachable from the Tasks header's right shoulder, a ghost circle so it never
+competes with the brand-filled `+` (§6.7).
+
+It is also reachable from the **failure** screen, via a quiet "About this build"
+under "Try again". The header is not on screen in that state, and "which build
+is that?" is asked precisely when something is broken.
+
+### 8.2 `<queries>` — a latent bug the update work surfaced
+
+The manifest had no `<queries>` element. From Android 11 a package the app has
+not declared is invisible to `getLaunchIntentForPackage`, **which returns null
+rather than failing**, so §8.2's "Open Tailscale" button had never once appeared
+on the device — the code was correct and the button silently did not exist.
+
+Declared now: `com.tailscale.ipn`, both Obtainium package ids, and an
+`ACTION_VIEW`/`https` intent for the browser fallback.
+
+### 8.3 Update check (§10.2)
+
+`core/update/`. Two sources, two cadences, and the split is deliberate:
+
+| source | cadence | why |
+|---|---|---|
+| `GET /health` | every foreground | It decides whether to **block**, which is too consequential to answer from something stale. One cheap unauthenticated call. |
+| `api.github.com` | at most once a day | A release does not appear more often than that. Rate limits are a non-issue — 0.07% of the anonymous allowance. |
+
+Three things worth not undoing:
+
+- **The GitHub client is a separate `OkHttpClient` with no `AuthInterceptor`.**
+  Reusing the app's client would attach the gateway bearer token to every update
+  check, handing github.com a tailnet credential — in the one request that by
+  design succeeds when everything else fails.
+- **`min_supported_app` is never persisted.** It is held in memory from a live
+  read. A wall raised from a cached number while the gateway is unreachable
+  would say "update to continue" when the real fix is turning Tailscale on,
+  sending the user to fix the one thing that is not broken.
+- **Dismissal is per version**, not a boolean. A global "don't tell me" would
+  silence the next release, which is the one that might matter.
+
+`SemVerTest` covers the trap §10.2 names: as strings, `"1.10.0" < "1.9.0"`, so a
+string comparison would quietly stop offering updates after the ninth minor and
+give no sign it had. The `-debug` suffix is stripped too — if it were not, the
+check would be dead in exactly the build used to develop it, and would look like
+it worked.
+
+### 8.4 APK naming
+
+`assembleRelease` is finalised by a `renameReleaseApk` copy task producing
+`app/build/outputs/release/jarvis-v<versionName>.apk` — one asset per release,
+named consistently (§10), so `gh release create` needs no manual rename.
+
+Note for anyone editing it: the `rename {}` lambda must capture a **local**, not
+`appVersionName` directly. A lambda reading a script-level property captures the
+build script object, which the configuration cache cannot serialise, and the
+build fails *after* producing a correct APK.
+
+### 8.5 Repo split, as built
+
+The plan's §10 names one repo, `AR13X3/jarvis-releases`. The names differ in
+practice; the split does not:
+
+| role | repo | visibility |
+|---|---|---|
+| source | `AR13X3/Jarvis_main` | **private** |
+| releases — APK assets only, no code | `AR13X3/Jarvis_2.0` | **public** |
+
+The visibility is the load-bearing part, not the names. A public releases repo
+is what lets Obtainium work with **no GitHub token** — and its token setting is
+global across every source, so pointing it at a private repo would put a
+standing credential for every private repo on the account onto the phone.
+
+`GithubReleasesApi.RELEASES_REPO` follows this. Changing it means shipping a
+build, so it is worth getting right once rather than renaming later: an older
+APK in the field keeps checking whatever repo it was compiled against.
+
+### 8.6 Still outstanding in F
+
+- No release has been published yet, so the GitHub check 404s and fails
+  silently. That is the designed behaviour, but it means the banner has never
+  been seen on a device.
+- Phase F's done-when — *an update installs in place over a prior build, and the
+  older build shows the banner first* — needs two published releases to verify.

@@ -41,9 +41,15 @@ import com.ar13x.jarvis.designsystem.motion.Motion
 import com.ar13x.jarvis.designsystem.theme.JarvisTheme
 import com.ar13x.jarvis.feature.onboarding.AppGateViewModel
 import com.ar13x.jarvis.feature.onboarding.TokenScreen
+import com.ar13x.jarvis.core.update.UpdateStatus
+import com.ar13x.jarvis.feature.about.AboutScreen
 import com.ar13x.jarvis.feature.chat.ChatScreen
 import com.ar13x.jarvis.feature.tasks.list.TaskListScreen
 import com.ar13x.jarvis.feature.tasks.session.SessionScreen
+import com.ar13x.jarvis.feature.update.UpdateRequiredScreen
+import com.ar13x.jarvis.feature.update.UpdateViewModel
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.compose.LifecycleEventEffect
 
 /**
  * The app gate: onboarding until a token exists, the tabs afterwards.
@@ -59,7 +65,27 @@ fun JarvisApp(gate: AppGateViewModel = hiltViewModel()) {
     when (hasToken) {
         null -> Box(Modifier.fillMaxSize().background(JarvisTheme.colors.ground))
         false -> TokenScreen(onConnected = { /* the flow re-emits and swaps this out */ })
-        true -> JarvisTabs()
+        true -> PairedApp()
+    }
+}
+
+/**
+ * The paired app, behind the version gate (plan §10.3).
+ *
+ * The check runs on every foreground because `/health` is one cheap
+ * unauthenticated call and it is the only thing that can tell a drifted client
+ * from a broken one. Everything it does fails silently — see `UpdateRepository`.
+ */
+@Composable
+private fun PairedApp(updates: UpdateViewModel = hiltViewModel()) {
+    val status by updates.status.collectAsStateWithLifecycle()
+
+    LifecycleEventEffect(Lifecycle.Event.ON_RESUME) { updates.refresh() }
+
+    when (val current = status) {
+        // The one screen in the app that blocks, and it blocks for one reason.
+        is UpdateStatus.Blocked -> UpdateRequiredScreen(current)
+        else -> JarvisTabs()
     }
 }
 
@@ -179,8 +205,12 @@ private fun JarvisNavHost(
                             TaskListScreen(
                                 onOpenTask = { taskId -> navController.navigate(TaskSession(taskId)) },
                                 onNewSession = { navController.navigate(NewSession()) },
+                                onAbout = { navController.navigate(About) },
                             )
                         }
+                    }
+                    composable<About> {
+                        WithNavScope { AboutScreen(onBack = navController::popBackStack) }
                     }
                     composable<TaskSession> { entry ->
                         WithNavScope {

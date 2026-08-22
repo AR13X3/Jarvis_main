@@ -20,6 +20,22 @@
          policy on this permission does not apply (plan §7.3). -->
     <uses-permission android:name="android.permission.REQUEST_IGNORE_BATTERY_OPTIMIZATIONS" />
 
+    <!-- From Android 11 another app is invisible unless declared here, and
+         `getLaunchIntentForPackage` returns **null** rather than failing — so
+         without this the "Open Tailscale" button in §8.2 and the Obtainium
+         action in §10.2 silently never appear, on the one device that has both
+         installed. -->
+    <queries>
+        <package android:name="com.tailscale.ipn" />
+        <package android:name="dev.imranr.obtainium" />
+        <package android:name="dev.imranr.obtainium.fdroid" />
+        <!-- The browser fallback, for when Obtainium is not installed. -->
+        <intent>
+            <action android:name="android.intent.action.VIEW" />
+            <data android:scheme="https" />
+        </intent>
+    </queries>
+
     <application
         android:name=".JarvisApplication"
         android:allowBackup="false"

@@ -40,3 +40,12 @@ sealed interface Route
 ) : Route
 
 @Serializable data object Chat : Route
+
+/**
+ * Build identity (plan §10.1), and later the update banner's home (§10.2).
+ *
+ * It lives in the Tasks graph rather than at the top level so backing out of it
+ * returns to the list with its scroll intact, the same as any other detail
+ * screen.
+ */
+@Serializable data object About : Route

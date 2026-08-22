@@ -190,3 +190,28 @@ dependencies {
     androidTestImplementation(libs.androidx.compose.ui.test.junit4)
     debugImplementation(libs.androidx.compose.ui.test.manifest)
 }
+
+/**
+ * One APK asset per release, named consistently (plan §10): `jarvis-v1.4.0.apk`.
+ *
+ * Multiple assets, or a name that changes shape between releases, force an
+ * Obtainium regex filter for no benefit — and `app-release.apk` says nothing
+ * about which build it is once it is sitting in a downloads folder next to the
+ * last three.
+ *
+ * Runs off the back of `assembleRelease` so the release checklist (§10.4) has a
+ * correctly named file to hand `gh release create` without a manual rename that
+ * only has to be forgotten once.
+ */
+val renameReleaseApk = tasks.register<Copy>("renameReleaseApk") {
+    // Held as a local: a lambda that reads a script-level property captures the
+    // build script itself, which the configuration cache cannot serialise.
+    val apkName = "jarvis-v" + appVersionName + ".apk"
+    from(layout.buildDirectory.dir("outputs/apk/release")) { include("*.apk") }
+    into(layout.buildDirectory.dir("outputs/release"))
+    rename { apkName }
+}
+
+tasks.matching { it.name == "assembleRelease" }.configureEach {
+    finalizedBy(renameReleaseApk)
+}
