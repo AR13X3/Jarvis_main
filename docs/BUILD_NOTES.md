@@ -743,3 +743,24 @@ The card is the last human checkpoint (§4.5), so it now says when a proposed
 reminder has already passed. The value itself is gw03's to fix and document 06
 reports it — the arithmetic was right and the *now* it was added to was three
 hours stale.
+
+### 8.6 Commit the version bump *before* building
+
+`0.1.1`, `0.1.2` and `0.1.3` each report the commit **before** their own bump,
+because the bump was still uncommitted when `assembleRelease` ran. Check out the
+SHA that `0.1.3` shows and `appVersionName` reads `0.1.2`.
+
+Nothing broke, but it defeats §10.1's one stated purpose — identifying a release
+from the app, the gateway logs and the repo without guessing — and a bare SHA
+gives no hint that it is lying.
+
+Two changes:
+
+1. **Order.** Bump, commit, *then* `assembleRelease`, then tag. The checklist in
+   §10.4 of the plan implies this; it did not survive contact.
+2. **A `-dirty` suffix on `GIT_SHA`** when the tree has uncommitted changes, so
+   the About screen says `abc1234-dirty` rather than presenting a SHA that does
+   not contain the build. Cheap, and it makes the mistake self-announcing
+   instead of needing to be remembered.
+
+Releases before `0.1.4` predate both and carry the off-by-one.

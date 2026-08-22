@@ -27,6 +27,26 @@ val gitSha: String = runCatching {
 }.getOrDefault("nogit")
 
 /**
+ * Whether the tree had uncommitted changes at build time.
+ *
+ * Learned the hard way: 0.1.1 through 0.1.3 were each built *before* their
+ * version bump was committed, so every one of them reports the commit before
+ * its own — check it out and you get the previous version. That is exactly the
+ * failure §10.1 exists to prevent, and it is invisible without this marker,
+ * because a plain SHA always looks authoritative.
+ *
+ * The About screen now shows `abc1234-dirty`, which is unmistakable.
+ */
+val gitDirty: Boolean = runCatching {
+    providers.exec {
+        commandLine("git", "status", "--porcelain")
+        isIgnoreExitValue = true
+    }.standardOutput.asText.get().isNotBlank()
+}.getOrDefault(false)
+
+val gitDescription: String = if (gitDirty) gitSha + "-dirty" else gitSha
+
+/**
  * Signing (plan §10). The keystore and its passwords live outside the repo and
  * are gitignored — `keystore.properties` at the project root.
  *
@@ -61,7 +81,7 @@ android {
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
 
-        buildConfigField("String", "GIT_SHA", "\"$gitSha\"")
+        buildConfigField("String", "GIT_SHA", "\"$gitDescription\"")
         buildConfigField("String", "BUILD_TIME", "\"${Instant.now()}\"")
         // The gateway is mounted at /api by `tailscale serve`, which strips the
         // prefix — so the app must include it and the OpenAPI paths must not.
