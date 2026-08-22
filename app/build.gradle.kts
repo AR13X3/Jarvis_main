@@ -13,7 +13,7 @@ plugins {
 // --- Version identity (plan §10.1) -------------------------------------------
 // One number, everywhere: versionCode is DERIVED from versionName so the two
 // can never drift. 1.4.0 -> 10400. Caps at 99 minor / 99 patch per major.
-val appVersionName = "0.1.0"
+val appVersionName = "0.1.1"
 val appVersionCode = appVersionName.split(".")
     .map(String::toInt)
     .let { (maj, min, patch) -> maj * 10_000 + min * 100 + patch }
