@@ -1,8 +1,12 @@
 # joy → gw03 · document 07 · overdue follow-up, with a limited number of extensions
 
-**Date:** 2026-08-22 · **App build:** `0.1.2 (102)`
-**Status:** design + contract ask. The app half can be built against fakes as
-soon as the shapes below are agreed; nothing is blocked on implementation order.
+**Date:** 2026-08-22 · **App build:** `0.1.4 (104)`
+**Status:** design + contract ask. The app half is **built and merged**, running
+against fakes, and dark until §3 exists. Nothing is blocked on implementation
+order — ship the pieces in whatever sequence suits you.
+
+The one part of this that needed nothing from you — the Overdue *section* in the
+task list — shipped in `0.1.3`. §4a is its remaining rough edge.
 
 ---
 
