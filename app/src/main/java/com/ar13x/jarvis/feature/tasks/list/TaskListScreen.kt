@@ -260,7 +260,14 @@ private fun TaskList(
                     )
                 }
                 items(overdue, key = { "overdue-" + it.id }) { task ->
-                    Row_(task, onOpenTask, onEvent, state, Modifier.animateItem())
+                    // A repeating rule is here because a *firing* was missed,
+                    // and its `due_at` is the series anchor — months old and
+                    // never the thing you missed. Read it by next fire so the
+                    // row names the moment that put it in this section.
+                    Row_(
+                        task, onOpenTask, onEvent, state, Modifier.animateItem(),
+                        showNextFire = task.isRecurring,
+                    )
                 }
             }
 

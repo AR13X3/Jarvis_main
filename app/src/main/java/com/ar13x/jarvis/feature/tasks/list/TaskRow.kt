@@ -296,9 +296,13 @@ private fun MetaLine(
                 modifier = Modifier.size(13.dp),
             )
         }
-        // A recurring row reads by next fire, which is never in the past, so
-        // the overdue treatment does not apply to it.
-        val overdue = !showNextFire && task.isOverdue()
+        // Ask the task, not the display mode. This used to read
+        // `!showNextFire && …` on the reasoning that a next fire is never in
+        // the past — which is not true in the one window that matters: between
+        // a firing passing and the scheduler noticing, exactly the gap the
+        // Overdue section exists to cover. `isOverdue` already measures a
+        // repeating task against its firing rather than its anchor.
+        val overdue = task.isOverdue()
 
         Text(
             text = if (showNextFire && task.nextFireAt != null) {

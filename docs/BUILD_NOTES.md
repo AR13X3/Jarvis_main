@@ -688,7 +688,10 @@ What lands in it:
 | included | why |
 |---|---|
 | `status = awaiting` | the server's own word for "fired, waiting on you" (parent §2.8) — authoritative |
-| `status = active` and `due_at` in the past | the gap between a deadline passing and the scheduler noticing |
+| `status = active` and its moment in the past | the gap between a deadline passing and the scheduler noticing |
+
+"Its moment" is `due_at` for a one-shot task and `next_fire_at` for a repeating
+one. Reading `due_at` for both was the defect in §10.4.
 
 `incomplete` is **excluded**. It has already lapsed, so it is a record rather
 than something demanding an answer, and a section mixing the two is one you
@@ -743,6 +746,82 @@ The card is the last human checkpoint (§4.5), so it now says when a proposed
 reminder has already passed. The value itself is gw03's to fix and document 06
 reports it — the arithmetic was right and the *now* it was added to was three
 hours stale.
+
+### 10.4 Every recurring task was permanently overdue
+
+Shipped broken in `0.1.3` and live until now. Found by gw03 from the other side
+of the contract: document 08 §4.3 records the server declining the same literal
+reading of document 07 §4a, and flags that our side probably took it.
+
+We had:
+
+```kotlin
+TaskStatus.Active -> dueAt.isBefore(now)
+```
+
+A recurring parent keeps its original `due_at` as the **series anchor** — it
+never moves — and stays `active` between firings by design (parent §2.5 rule 1).
+So the anchor is in the past for the entire life of the rule, and every
+repeating task sat in Overdue forever. A daily task created in June would still
+be there in December.
+
+The moment that actually has a deadline is `next_fire_at`, which the app already
+receives and already sorts the Recurring section by. So:
+
+```kotlin
+val Task.overdueMoment: Instant?
+    get() = if (isRecurring) nextFireAt else dueAt
+```
+
+Three things worth not undoing:
+
+- **`awaiting` stays authoritative and unconditional.** If the server fired it
+  and is waiting, it is overdue whatever the anchor or the next firing says.
+- **A recurring rule with no `next_fire_at` is not overdue.** There is no moment
+  to have missed, and falling back to the anchor is exactly the bug.
+- **The ordering reads the same property.** Judged on one moment and sorted by
+  another is the same defect wearing a different hat — sorting on the anchor
+  would pin every repeating task to the top regardless of when it is next due.
+  `sortedBy { it.overdueMoment ?: it.dueAt }`.
+
+Five cases added to `OverdueSectionTest`, including the one that fails against
+the old code.
+
+**This is a stopgap.** §4a's `overdue` array is now built server-side (gw03
+document 10), and it is derived from occurrences rather than from either
+timestamp — the server asks whether a live occurrence has passed, which is the
+question we are approximating. When we consume it, this whole derivation goes,
+along with the paging limit in §10.1.
+
+### 10.5 The loop runs on timeouts — app-side work it creates
+
+`joy-to-gw03-09` changes the follow-up loop from "the user taps" to "silence
+extends": an unanswered nudge auto-extends by an hour after a 15-minute grace,
+twice, and the third closes the task `incomplete`. Two consequences land on this
+side, neither built yet, both gated on gw03.
+
+**A second notification kind.** `Notifier` has exactly one: `show(occurrence)`,
+the reminder itself, on channel `jarvis.reminders` with a full-screen intent.
+An auto-extension and a lapse are not reminders — nothing is being asked, the
+agent is reporting what it already did. They want their own channel so the two
+can be tuned apart, and no full-screen intent: a task quietly closing does not
+warrant taking over the screen.
+
+**A poll timer after each nudge.** There is no push (gw03 document 10 §2), so a
+server-originated transition is invisible until the phone asks. The alarm fires
+the nudge; the grace expires on the server; nothing tells us. So `AlarmReceiver`
+must also schedule a poll for `GRACE_MINUTES + small`, and on discovering the
+transition raise the notification locally and let `AlarmScheduler.reconcile`
+re-arm from the new occurrence list.
+
+The ordering matters and is easy to get backwards: **the notification is raised
+from what the poll learned**, not predicted from the timer. Predicting it means
+announcing an extension the server may not have made — the user answered on
+another device, the grace was reconfigured, the request failed. The timer says
+when to look; the server says what happened.
+
+`GRACE_MINUTES` therefore has to arrive from the server alongside
+`EXTENSION_MINUTES` (document 09 §5), or the app is guessing when to poll.
 
 ### 8.6 Commit the version bump *before* building
 

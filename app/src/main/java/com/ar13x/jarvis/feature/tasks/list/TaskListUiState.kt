@@ -57,9 +57,10 @@ data class TaskListContent(
      *
      * - **`awaiting`** — the server's own word for "fired, waiting on you"
      *   (parent plan §2.8). This is the authoritative one.
-     * - **`active` with a `due_at` in the past** — the gap between a deadline
+     * - **`active` with its moment in the past** — the gap between a deadline
      *   passing and the scheduler noticing. Without this the task you set for
-     *   6:40 sits in the list looking perfectly fine at 6:45.
+     *   6:40 sits in the list looking perfectly fine at 6:45. Which moment that
+     *   is differs for a repeating task; see [Task.overdueMoment].
      *
      * `incomplete` is deliberately **not** here. It has already lapsed; it is a
      * record rather than something demanding an answer, and mixing the two
@@ -80,7 +81,7 @@ data class TaskListContent(
         (priority + recurring + all)
             .distinctBy { it.id }
             .filter { it.isOverdue(now) }
-            .sortedBy { it.dueAt }
+            .sortedBy { it.overdueMoment ?: it.dueAt }
 
     /**
      * Priority and Recurring are unfiltered views by definition — they *are*
@@ -98,12 +99,39 @@ data class TaskListContent(
 /**
  * Past due and still open. See [TaskListContent.overdue] for why this compares
  * instants and why that is not the §3.2 violation it resembles.
+ *
+ * **Which moment counts depends on whether the task repeats.** For a one-shot
+ * task it is [Task.dueAt]. For a recurring one `due_at` is the series *anchor*
+ * and never moves — the rule stays `active` between firings by design (parent
+ * §2.5 rule 1) — so comparing it to now marks every repeating task overdue
+ * forever. A daily task created in June would sit here for the rest of its
+ * life. [Task.nextFireAt] is the moment that actually has a deadline.
+ *
+ * A recurring task with no `next_fire_at` is not overdue: there is no next
+ * moment to have missed, and the anchor is the wrong thing to fall back to.
+ *
+ * This mirrors the server, which asks whether a live *occurrence* has passed
+ * rather than reading the parent's `due_at` — see `docs/gw03-to-joy-08` §4.3.
+ * When the `overdue` array on `/tasks/sections` lands this whole derivation is
+ * replaced by it.
  */
 fun Task.isOverdue(now: Instant = Instant.now()): Boolean = when (status) {
     TaskStatus.Awaiting -> true
-    TaskStatus.Active -> dueAt.isBefore(now)
+    TaskStatus.Active -> overdueMoment?.isBefore(now) == true
     else -> false
 }
+
+/**
+ * The moment this task is measured against: its next firing if it repeats, its
+ * deadline if it does not. Null for a recurring rule with nothing scheduled.
+ *
+ * Both [Task.isOverdue] and the section's ordering read this, so a repeating
+ * task cannot be judged by one moment and sorted by another — sorting on the
+ * anchor would pin every recurring task to the top of the list regardless of
+ * when it is actually next due.
+ */
+val Task.overdueMoment: Instant?
+    get() = if (isRecurring) nextFireAt else dueAt
 
 @Immutable
 data class TaskFilters(
