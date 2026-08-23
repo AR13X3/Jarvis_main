@@ -357,6 +357,106 @@
         }
       }
     },
+    "/occurrences/{occurrence_id}/extend": {
+      "post": {
+        "summary": "Extend Occurrence",
+        "description": "One second chance on a missed deadline (joy 07 \u00a73.2).\n\nNot a proposal. The four buttons on an overdue nudge are direct UI\nmanipulation of a cheap, reversible thing \u2014 the same reasoning that lets\nPATCH /tasks set a priority flag without a confirmation card. Routing this\nthrough the model would also make answering a nudge cost an LLM call and\ncould misparse a tap, which is exactly what a button is for.\n\nOccurrence-scoped, so extending Monday's firing leaves the weekly rule\nalone.",
+        "operationId": "extend_occurrence_occurrences__occurrence_id__extend_post",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "occurrence_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Occurrence Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ExtendOccurrenceBody"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OccurrenceEnvelope"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/occurrences/{occurrence_id}/complete": {
+      "post": {
+        "summary": "Complete Occurrence",
+        "description": "Mark this firing done (joy 07 \u00a73.2).\n\nThe gateway had NO completion endpoint at all until this one: `propose_complete`\nexisted as a tool and `/tasks/{id}/cancel` as a route, but nothing completed\na task outside the confirm flow. Needed regardless of the follow-up loop.\n\nTask-scoped completion is deliberately still absent. Finishing one firing of\na weekly rule must not close the series, and an endpoint that could do\neither depending on a flag is how that mistake gets made.",
+        "operationId": "complete_occurrence_occurrences__occurrence_id__complete_post",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "occurrence_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Occurrence Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OccurrenceEnvelope"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/sessions": {
       "get": {
         "summary": "List Sessions",
@@ -757,6 +857,9 @@
                 },
                 {
                   "$ref": "#/components/schemas/NewTaskComponent"
+                },
+                {
+                  "$ref": "#/components/schemas/OverdueComponent"
                 }
               ],
               "discriminator": {
@@ -764,6 +867,7 @@
                 "mapping": {
                   "confirm": "#/components/schemas/ConfirmComponent",
                   "new_task": "#/components/schemas/NewTaskComponent",
+                  "overdue": "#/components/schemas/OverdueComponent",
                   "task_options": "#/components/schemas/TaskOptionsComponent"
                 }
               }
@@ -860,6 +964,25 @@
         "type": "object",
         "title": "CreateSessionBody"
       },
+      "ExtendOccurrenceBody": {
+        "properties": {
+          "minutes": {
+            "type": "integer",
+            "enum": [
+              15,
+              30,
+              60
+            ],
+            "title": "Minutes"
+          }
+        },
+        "type": "object",
+        "required": [
+          "minutes"
+        ],
+        "title": "ExtendOccurrenceBody",
+        "description": "A second chance, in minutes (07 \u00a73.2).\n\nTyped as a literal so the choices appear in openapi.json and FastAPI rejects\nanything else with a 422 before it reaches a query \u2014 the same reasoning as\nthe `status` filter on GET /tasks. Kept in step with config.EXTENSION_MINUTES,\nwhich is what the app renders as buttons; a Literal cannot be built from a\nruntime value without losing the generated schema, so the two are asserted\nequal at import instead of one deriving from the other."
+      },
       "HTTPValidationError": {
         "properties": {
           "detail": {
@@ -903,6 +1026,9 @@
                 },
                 {
                   "$ref": "#/components/schemas/NewTaskComponent"
+                },
+                {
+                  "$ref": "#/components/schemas/OverdueComponent"
                 }
               ],
               "discriminator": {
@@ -910,6 +1036,7 @@
                 "mapping": {
                   "confirm": "#/components/schemas/ConfirmComponent",
                   "new_task": "#/components/schemas/NewTaskComponent",
+                  "overdue": "#/components/schemas/OverdueComponent",
                   "task_options": "#/components/schemas/TaskOptionsComponent"
                 }
               }
@@ -957,6 +1084,80 @@
         "title": "NewTaskComponent",
         "description": "A way out of a general session that was asked to create something.\n\nA general session has no create tool and correctly declines \u2014 but that\nleaves the user having already said what they wanted, with nowhere to go.\nThe app renders this as a button that opens a NEW unbound session and sends\n`seed` immediately, so nothing is retyped (joy addendum \u00a74).\n\nThe invariant is untouched: this session still creates nothing, and the new\nsession binds only on confirmation. Seeding skips the typing, not the\nconfirmation."
       },
+      "Occurrence": {
+        "properties": {
+          "occurrence_id": {
+            "type": "integer",
+            "title": "Occurrence Id"
+          },
+          "task_id": {
+            "type": "integer",
+            "title": "Task Id"
+          },
+          "title": {
+            "type": "string",
+            "title": "Title"
+          },
+          "scheduled_for": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Scheduled For"
+          },
+          "is_priority": {
+            "type": "boolean",
+            "title": "Is Priority",
+            "default": false
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "active",
+              "awaiting",
+              "completed",
+              "cancelled",
+              "incomplete"
+            ],
+            "title": "Status"
+          },
+          "extensions_used": {
+            "type": "integer",
+            "title": "Extensions Used",
+            "default": 0
+          },
+          "extensions_allowed": {
+            "type": "integer",
+            "title": "Extensions Allowed",
+            "default": 0
+          }
+        },
+        "type": "object",
+        "required": [
+          "occurrence_id",
+          "task_id",
+          "title",
+          "scheduled_for",
+          "status"
+        ],
+        "title": "Occurrence",
+        "description": "One firing of a task (joy 07 \u00a73.1).\n\nOccurrence-scoped, not task-scoped, and this is the whole reason the table\nexists (parent \u00a72.5): finishing Monday's gym session must not close the\nweekly rule."
+      },
+      "OccurrenceEnvelope": {
+        "properties": {
+          "occurrence": {
+            "$ref": "#/components/schemas/Occurrence"
+          },
+          "task": {
+            "$ref": "#/components/schemas/Task"
+          }
+        },
+        "type": "object",
+        "required": [
+          "occurrence",
+          "task"
+        ],
+        "title": "OccurrenceEnvelope",
+        "description": "What /extend and /complete answer with (07 \u00a73.2).\n\nBoth, not one: extending changes the firing AND (for a one-shot) the task's\nown due time, and completing resolves the firing while possibly leaving a\nrecurring parent untouched. The app needs to see which of those happened."
+      },
       "Ok": {
         "properties": {
           "ok": {
@@ -967,6 +1168,47 @@
         },
         "type": "object",
         "title": "Ok"
+      },
+      "OverdueComponent": {
+        "properties": {
+          "type": {
+            "type": "string",
+            "const": "overdue",
+            "title": "Type",
+            "default": "overdue"
+          },
+          "occurrence_id": {
+            "type": "integer",
+            "title": "Occurrence Id"
+          },
+          "task_id": {
+            "type": "integer",
+            "title": "Task Id"
+          },
+          "deadline": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Deadline"
+          },
+          "extensions_used": {
+            "type": "integer",
+            "title": "Extensions Used"
+          },
+          "extensions_allowed": {
+            "type": "integer",
+            "title": "Extensions Allowed"
+          }
+        },
+        "type": "object",
+        "required": [
+          "occurrence_id",
+          "task_id",
+          "deadline",
+          "extensions_used",
+          "extensions_allowed"
+        ],
+        "title": "OverdueComponent",
+        "description": "The agent asking whether a missed thing got done (joy 07 \u00a73.3).\n\nThis is the first component the SERVER originates. Every other one answers a\nuser turn; this one is posted into the task's session by the scheduler when\na deadline passes, which is what makes the agent able to initiate at all.\n\nIt is a MESSAGE, not only a push notification, because one session per task\nis the architecture (parent \u00a72.2) and scrolling back has to show the agent\nasking and what was answered \u2014 exactly as a resolved confirm card does\n(\u00a75.3). A nudge living only in a notification vanishes with the notification\nand leaves no record that you were asked.\n\n`extensions_used == extensions_allowed` is the app's signal that no second\nchance remains, so this renders with \"Mark done\" alone and no extend\nbuttons. That case is also the FINAL message: the firing has already been\nrecorded `incomplete` by the time it is sent (\u00a73.4). Deliberately derived\nrather than carried as a separate flag \u2014 the doc fixes this shape, and a\nfield the app has not been built to read is worth less than one it can\ncompute."
       },
       "PagedMessages": {
         "properties": {
@@ -1155,6 +1397,13 @@
       },
       "SectionsResponse": {
         "properties": {
+          "overdue": {
+            "items": {
+              "$ref": "#/components/schemas/Task"
+            },
+            "type": "array",
+            "title": "Overdue"
+          },
           "priority": {
             "items": {
               "$ref": "#/components/schemas/Task"
@@ -1175,6 +1424,7 @@
         },
         "type": "object",
         "required": [
+          "overdue",
           "priority",
           "recurring",
           "all"
@@ -1434,7 +1684,7 @@
           "task"
         ],
         "title": "TaskEnvelope",
-        "description": "\u00a74.4 \u2014 a mutation answers with the task it changed.\n\nNamed in the schema rather than returned as a bare dict so the app can drop\nits tolerant envelope-or-task decoder. `task` is never null here: these\nendpoints 404 when the task does not exist rather than answering with none."
+        "description": "\u00a74.4 \u2014 a mutation answers with the task it changed.\n\nNamed in the schema rather than returned as a bare dict so the app can drop\nits tolerant envelope-or-task decoder (joy A5, 2026-08-20). The rule across\nthe API: a GET returns the resource, a mutation returns it wrapped, so a\nmutation can gain a sibling field without changing shape.\n\n`task` is never null: these endpoints 404 when the task does not exist\nrather than answering with none. (This class was declared twice, and the\nearlier copy typed `task` as optional \u2014 the later one won, so the optional\nshape never reached the wire and removing it changes nothing.)"
       },
       "TaskOption": {
         "properties": {
@@ -1516,6 +1766,16 @@
           "is_priority": {
             "type": "boolean",
             "title": "Is Priority"
+          },
+          "extensions_used": {
+            "type": "integer",
+            "title": "Extensions Used",
+            "default": 0
+          },
+          "extensions_allowed": {
+            "type": "integer",
+            "title": "Extensions Allowed",
+            "default": 0
           }
         },
         "type": "object",
