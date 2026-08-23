@@ -87,4 +87,52 @@ class OverdueComponentTest {
         )
         assertEquals(0, odd.extensionsLeft)
     }
+
+    // --- the chips the server chooses ---------------------------------------
+
+    /**
+     * Read before the field exists, so the day the gateway starts sending it
+     * every install in the field honours it without a release. That is the
+     * mirror of §4.5: tolerate what we do not know, honour what we do.
+     */
+    @Test
+    fun `offered minutes come from the server when sent`() {
+        val component = decode(
+            """
+            {"type":"overdue","occurrence_id":1,"task_id":1,
+             "extension_minutes":[10,20]}
+            """.trimIndent(),
+        ) as AgentComponent.Overdue
+
+        assertEquals(listOf(10, 20), component.offeredMinutes)
+    }
+
+    /** A gateway that has not shipped the field yet behaves exactly as before. */
+    @Test
+    fun `absent means the default`() {
+        val component = decode(
+            """{"type":"overdue","occurrence_id":1,"task_id":1}""",
+        ) as AgentComponent.Overdue
+
+        assertEquals(listOf(15, 30, 60), component.offeredMinutes)
+    }
+
+    /**
+     * These become buttons sized by weight, so the server can wreck the layout
+     * with values it is otherwise entitled to send.
+     */
+    @Test
+    fun `nonsense is sanitised rather than rendered`() {
+        fun offered(vararg minutes: Int) = AgentComponent.Overdue(
+            occurrenceId = 1,
+            taskId = 1,
+            extensionMinutes = minutes.toList(),
+        ).offeredMinutes
+
+        assertEquals("zero and negatives dropped", listOf(30), offered(0, -5, 30))
+        assertEquals("duplicates collapsed, order fixed", listOf(15, 30), offered(30, 15, 30))
+        assertEquals("capped at what fits", 4, offered(5, 10, 15, 20, 25, 30).size)
+        assertEquals("empty falls back", listOf(15, 30, 60), offered())
+        assertEquals("all-invalid falls back", listOf(15, 30, 60), offered(0, -1))
+    }
 }

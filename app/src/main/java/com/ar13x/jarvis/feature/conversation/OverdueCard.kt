@@ -32,8 +32,9 @@ import com.ar13x.jarvis.designsystem.theme.JarvisTheme
 import com.ar13x.jarvis.designsystem.theme.Space
 import com.ar13x.jarvis.designsystem.theme.tabularNums
 
-/** The three offered extensions. Any of them costs one allowance. */
-val ExtensionChoices = listOf(15, 30, 60)
+// The choices come from the component, not from here — see
+// AgentComponent.Overdue.offeredMinutes. Any of them costs one allowance, and a
+// manual extension and an auto-extension spend from the same two.
 
 /**
  * The agent asking whether an overdue task got done.
@@ -130,7 +131,7 @@ fun OverdueCard(
                 )
                 Spacer(Modifier.height(Space.x2))
                 Row(horizontalArrangement = Arrangement.spacedBy(Space.x2)) {
-                    ExtensionChoices.forEach { minutes ->
+                    component.offeredMinutes.forEach { minutes ->
                         ExtendChip(
                             minutes = minutes,
                             enabled = !busy,

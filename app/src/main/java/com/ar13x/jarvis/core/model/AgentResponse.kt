@@ -111,10 +111,40 @@ sealed interface AgentComponent {
         val deadline: Instant? = null,
         @SerialName("extensions_used") val extensionsUsed: Int = 0,
         @SerialName("extensions_allowed") val extensionsAllowed: Int = 2,
+        /**
+         * What the chips offer, in minutes. Server-owned policy, same argument
+         * as [extensionsAllowed] — a set of choices compiled into the APK can
+         * only change by shipping one.
+         *
+         * Defaulted, so a gateway that does not send it yet behaves exactly as
+         * before. Reading it **now**, before the field exists, is the point:
+         * §4.5 has the app tolerating fields it does not recognise, and the
+         * mirror of that is honouring one the day it starts arriving rather
+         * than needing a release to notice.
+         */
+        @SerialName("extension_minutes")
+        val extensionMinutes: List<Int> = DefaultExtensionMinutes,
         /** Set once answered, so history shows what happened (§5.3). */
         val resolution: OverdueResolution? = null,
     ) : AgentComponent {
         val extensionsLeft: Int get() = (extensionsAllowed - extensionsUsed).coerceAtLeast(0)
+
+        /**
+         * [extensionMinutes], made safe to render.
+         *
+         * These become buttons sized by `weight(1f)`, so the server can break
+         * the layout with a value it is otherwise entitled to send — an empty
+         * list, a zero, a duplicate, or eight of them. Sanitising here rather
+         * than in the card keeps the guarantee with the data instead of with
+         * whoever renders it next.
+         */
+        val offeredMinutes: List<Int>
+            get() = extensionMinutes
+                .filter { it > 0 }
+                .distinct()
+                .sorted()
+                .take(MaxExtensionChoices)
+                .ifEmpty { DefaultExtensionMinutes }
         val canExtend: Boolean get() = resolution == null && extensionsLeft > 0
     }
 
@@ -172,6 +202,16 @@ data class ProposalSummary(
     @SerialName("recurrence_text") val recurrenceText: String? = null,
     val description: String = "",
 )
+
+/**
+ * The chips offered when the server has not said otherwise. Matches what the
+ * gateway implements today, so the default and the server agree until the
+ * field arrives and the server becomes the only source.
+ */
+val DefaultExtensionMinutes: List<Int> = listOf(15, 30, 60)
+
+/** Four is what fits across the card before the labels start truncating. */
+private const val MaxExtensionChoices = 4
 
 /** How an overdue nudge was answered. Null while it is still asking. */
 @Serializable
