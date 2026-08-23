@@ -574,13 +574,20 @@ standing credential for every private repo on the account onto the phone.
 build, so it is worth getting right once rather than renaming later: an older
 APK in the field keeps checking whatever repo it was compiled against.
 
-### 8.6 Still outstanding in F
+### 8.6 Phase F, as it actually stands
 
-- No release has been published yet, so the GitHub check 404s and fails
-  silently. That is the designed behaviour, but it means the banner has never
-  been seen on a device.
-- Phase F's done-when — *an update installs in place over a prior build, and the
-  older build shows the banner first* — needs two published releases to verify.
+Four releases are published: `v0.1.1`, `v0.1.2`, `v0.1.3`, `v0.1.5`. `0.1.4` was
+built and deliberately **skipped** — `0.1.5` supersedes it, and spending an
+install on a metadata-only build buys nothing.
+
+| done-when | state |
+|---|---|
+| an update installs **in place** over a prior build | **verified** on device, `0.1.1` over `0.1.0` through Obtainium, no uninstall prompt |
+| the older build shows the **banner** before you install it | **not yet seen** |
+
+The second half has been testable since `0.1.5` shipped alongside `0.1.3` in the
+field, and "Check now" on the About screen removes the 24h wait. It is the last
+unproven step of the phase, and it is about ten seconds of work on a device.
 
 ### 8.7 Known bug — the pairing screen's URL field does nothing
 
@@ -603,6 +610,27 @@ declined — the hostname is not a credential, MagicDNS does not resolve publicl
 the host is on CGNAT `100.x` unreachable from the internet, and the bearer token
 guards it behind that. Recorded so the reasoning is visible rather than looking
 like an oversight.
+
+### 8.8 Commit the version bump *before* building
+
+`0.1.1`, `0.1.2` and `0.1.3` each report the commit **before** their own bump,
+because the bump was still uncommitted when `assembleRelease` ran. Check out the
+SHA that `0.1.3` shows and `appVersionName` reads `0.1.2`.
+
+Nothing broke, but it defeats §10.1's one stated purpose — identifying a release
+from the app, the gateway logs and the repo without guessing — and a bare SHA
+gives no hint that it is lying.
+
+Two changes:
+
+1. **Order.** Bump, commit, *then* `assembleRelease`, then tag. The checklist in
+   §10.4 of the plan implies this; it did not survive contact.
+2. **A `-dirty` suffix on `GIT_SHA`** when the tree has uncommitted changes, so
+   the About screen says `abc1234-dirty` rather than presenting a SHA that does
+   not contain the build. Cheap, and it makes the mistake self-announcing
+   instead of needing to be remembered.
+
+Releases before `0.1.4` predate both and carry the off-by-one.
 
 ## 9. Voice — dictation in, replies out
 
@@ -823,23 +851,3 @@ when to look; the server says what happened.
 `GRACE_MINUTES` therefore has to arrive from the server alongside
 `EXTENSION_MINUTES` (document 09 §5), or the app is guessing when to poll.
 
-### 8.6 Commit the version bump *before* building
-
-`0.1.1`, `0.1.2` and `0.1.3` each report the commit **before** their own bump,
-because the bump was still uncommitted when `assembleRelease` ran. Check out the
-SHA that `0.1.3` shows and `appVersionName` reads `0.1.2`.
-
-Nothing broke, but it defeats §10.1's one stated purpose — identifying a release
-from the app, the gateway logs and the repo without guessing — and a bare SHA
-gives no hint that it is lying.
-
-Two changes:
-
-1. **Order.** Bump, commit, *then* `assembleRelease`, then tag. The checklist in
-   §10.4 of the plan implies this; it did not survive contact.
-2. **A `-dirty` suffix on `GIT_SHA`** when the tree has uncommitted changes, so
-   the About screen says `abc1234-dirty` rather than presenting a SHA that does
-   not contain the build. Cheap, and it makes the mistake self-announcing
-   instead of needing to be remembered.
-
-Releases before `0.1.4` predate both and carry the off-by-one.
