@@ -632,6 +632,36 @@ Two changes:
 
 Releases before `0.1.4` predate both and carry the off-by-one.
 
+### 8.9 The GitHub release body is an app surface
+
+Easy to forget, because it is authored on a web page and reviewed on a web page.
+
+`UpdateCard` renders `update.notes` through `toInlineMarkdown`, which
+understands exactly four inline delimiters — `` ` ``, `**`, `~~`, `*`, `_` — and
+nothing block-level, inside `maxLines = 6` with an ellipsis. So notes written
+the way release notes are normally written arrive on the phone as literal
+characters: `- ` in front of every bullet, `##` in front of a heading, a row of
+dashes where a rule was. And the convention of putting a horizontal rule between
+a summary and the detail places it in the *worst* spot, mid-banner.
+
+Two halves, because a rule nobody remembers is not a fix:
+
+1. **Write the first block short, inline-only, summary first.** The app
+   truncates at six wrapped lines exactly where a web reader keeps going, so
+   summary-then-rule-then-detail suits both surfaces at once.
+2. **`ReleaseNotes.asBannerNotes()` strips block markers before rendering** —
+   bullets, headings, blockquotes and rules. Conservative by design: it removes
+   markers, never content, and leaves the inline emphasis `toInlineMarkdown`
+   does understand untouched. A note written for the web still reads as prose on
+   the phone.
+
+The bullet pattern requires whitespace after the marker (`^[-*+]\s+`) on
+purpose: `*emphasis*` also starts with an asterisk and has to survive.
+
+Found by the session that cut `0.1.6`, after writing `0.1.5`'s notes for a web
+page — two headed sections, four bullets, a rule, a trailer — which would have
+been six lines of ellipsised prose with stray dashes on the phone.
+
 ## 9. Voice — dictation in, replies out
 
 Not in the plan at all: §11 has no voice phase. Added after Phase F, as its own

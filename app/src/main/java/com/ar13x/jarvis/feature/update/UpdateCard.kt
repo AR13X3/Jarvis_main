@@ -78,7 +78,10 @@ fun UpdateCard(
             Text(
                 // Release notes are written for the person holding the phone
                 // (§10.4 step 2), so they are shown, not summarised away.
-                text = update.notes.trim().toInlineMarkdown(codeColor = colors.brandCore),
+                // Block markers stripped first: the body is authored on a web
+                // page but rendered here, and toInlineMarkdown leaves `- `,
+                // `##` and rules as literal characters. See ReleaseNotes.kt.
+                text = update.notes.asBannerNotes().toInlineMarkdown(codeColor = colors.brandCore),
                 style = JarvisTheme.typography.bodyMedium,
                 color = colors.inkMuted,
                 maxLines = 6,
