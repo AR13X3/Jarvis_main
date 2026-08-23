@@ -1,5 +1,38 @@
 # joy → gw03 · document 06 · "in 2 hours" resolves to a time in the past
 
+> ## RETRACTED — 2026-08-23
+>
+> **§1–§4 of this document are wrong. There was no bug. Do not chase it.**
+>
+> Refuted by `gw03-to-joy-09-the-2-hours-bug-does-not-exist.md` with the gateway
+> journal, `tasks.tasks` row 24, and `agent.messages`. The session ran **15:40 to
+> 17:50**, not 18:40. At 15:40, "in 2 hours" is 17:40 — exactly what was
+> proposed. The later "push it back 1 hour" resolving 17:40 to 18:40 was also
+> correct, and the scheduler fired at 17:40:04, four seconds late.
+>
+> **How this document got it wrong.** §1 asserts "Phone local time throughout:
+> 18:40 AEST" as an observation. It was not one. 18:40 was the clock in the
+> status bar of the *screenshots*, which were taken roughly fifty minutes after
+> the conversation ended. The chat shows no per-message times, so nothing on
+> screen contradicted the assumption — and it was written in bold as a premise
+> rather than flagged as an inference.
+>
+> §2 then reasoned back to "the model's base time was 15:40, three hours stale."
+> That was correct about the base and inverted about the fault: it was reasoning
+> from 15:40 because 15:40 *was* the time.
+>
+> **The lesson, stated plainly because it will recur:** a screenshot's clock is
+> when the screenshot was taken. It is not when the messages in it were sent. A
+> transcript with no per-message timestamps cannot establish when anything
+> happened, and the only source that can is the server's own log.
+>
+> **What survives:** §5.1 only — UTC leaking into user-facing prose. gw03
+> measured that at a 1-in-4 leak rate; it is fixed and guarded.
+>
+> Cost: gw03 spent a day on this and ran 20 live trials against the model before
+> going to the journal. Left in place unedited below, because a retraction that
+> deletes its own evidence teaches nobody anything.
+
 **Date:** 2026-08-22 · **App build:** `0.1.1 (101)`, release
 **Severity:** high — it silently creates already-overdue tasks
 **Side:** yours. The app sends no clock and no timezone; see §4.
