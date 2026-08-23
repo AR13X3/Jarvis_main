@@ -90,4 +90,61 @@ class ReleaseNotesTest {
             assertTrue("lost: $it", out.contains(it))
         }
     }
+
+    // --- tables and fences ---------------------------------------------------
+
+    /**
+     * The case worth caring about: a version-comparison table reads well on a
+     * web page, so someone will put one in the first block, where the six-line
+     * cap cannot save it.
+     */
+    @Test
+    fun `a table becomes readable lines`() {
+        val notes = TABLE.asBannerNotes()
+        assertEquals("Version \u00b7 Change\n0.1.6 \u00b7 Chips from the server", notes)
+    }
+
+    @Test
+    fun `alignment markers in the delimiter row are still recognised`() {
+        assertEquals("A \u00b7 B", "| A | B |\n|:--|--:|".asBannerNotes())
+    }
+
+    @Test
+    fun `code fences are dropped and their contents kept`() {
+        assertEquals(
+            "Run this:\ngh release create v1.0.0",
+            "Run this:\n```bash\ngh release create v1.0.0\n```".asBannerNotes(),
+        )
+    }
+
+    /**
+     * A pipe in a sentence is prose, not a table, and prose is not ours to
+     * touch. The discriminator is the leading pipe.
+     */
+    @Test
+    fun `a sentence containing a pipe is left alone`() {
+        val prose = "Piped through grep | head, as usual."
+        assertEquals(prose, prose.asBannerNotes())
+    }
+
+    /** A rule has no pipe, so the two checks must not eat each other. */
+    @Test
+    fun `rules and table delimiters do not collide`() {
+        assertEquals("Before\nAfter", "Before\n---\nAfter".asBannerNotes())
+        assertEquals("Before\nAfter", "Before\n|---|---|\nAfter".asBannerNotes())
+    }
+
+    /** No dash means it is not a delimiter row, so it survives as content. */
+    @Test
+    fun `a row with no dashes survives as content`() {
+        assertEquals("a \u00b7 b", "| a | b |".asBannerNotes())
+    }
+
+    private companion object {
+        val TABLE = listOf(
+            "| Version | Change |",
+            "|---------|--------|",
+            "| 0.1.6   | Chips from the server |",
+        ).joinToString("\n")
+    }
 }

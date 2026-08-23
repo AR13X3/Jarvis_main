@@ -658,6 +658,14 @@ Two halves, because a rule nobody remembers is not a fix:
 The bullet pattern requires whitespace after the marker (`^[-*+]\s+`) on
 purpose: `*emphasis*` also starts with an asterisk and has to survive.
 
+Tables and code fences are handled too. A table's delimiter row is the one line
+in markdown that is pure punctuation with no content beneath it, so it is
+dropped; content rows become `Version · Change`, keeping every word. The
+discriminator is a **leading** pipe — a sentence that merely contains one is
+prose. A version-comparison table is the realistic case, because it reads well
+on the web page and so tends to land in the first block, where the six-line cap
+cannot hide it.
+
 Found by the session that cut `0.1.6`, after writing `0.1.5`'s notes for a web
 page — two headed sections, four bullets, a rule, a trailer — which would have
 been six lines of ellipsised prose with stray dashes on the phone.

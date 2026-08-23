@@ -27,6 +27,12 @@ fun String.asBannerNotes(): String {
         // six lines. The convention of putting one between a summary and the
         // detail makes it the *most* likely thing to land mid-banner.
         .filterNot { it.isHorizontalRule() }
+        // A fence renders as three literal backticks, and a table's delimiter
+        // row is the one line in markdown that is pure punctuation — there is
+        // no content under it to preserve.
+        .filterNot { it.isCodeFence() }
+        .filterNot { it.isTableDelimiter() }
+        .map { it.flattenTableRow() }
         .map { it.stripBlockMarkers() }
         .toList()
 
@@ -42,6 +48,33 @@ fun String.asBannerNotes(): String {
 
 private fun String.isHorizontalRule(): Boolean =
     HORIZONTAL_RULE.matches(this)
+
+/** ``` or ```kotlin — decoration with nothing to keep. */
+private fun String.isCodeFence(): Boolean = CODE_FENCE.matches(this)
+
+/**
+ * `|---|---|`, `|:--|--:|` and friends.
+ *
+ * Requires a pipe *and* a dash so it cannot swallow a horizontal rule (no pipe)
+ * or an empty row (no dash), and permits nothing but the table alphabet.
+ */
+private fun String.isTableDelimiter(): Boolean =
+    contains('|') && contains('-') && all { it in TABLE_ALPHABET }
+
+/**
+ * `| Version | Change |` becomes `Version · Change`.
+ *
+ * Every word survives; only the delimiters change, and in a table the pipes
+ * *are* the markers. Left alone unless the line actually starts with a pipe —
+ * a sentence that merely contains one is prose, and prose is not ours to touch.
+ */
+private fun String.flattenTableRow(): String {
+    if (!startsWith("|")) return this
+    return trim('|')
+        .split('|')
+        .joinToString(" · ") { it.trim() }
+        .trim()
+}
 
 private fun String.stripBlockMarkers(): String = this
     .replace(HEADING, "")
@@ -62,3 +95,8 @@ private val BLOCKQUOTE = Regex("""^>\s?""")
 private val BULLET = Regex("""^[-*+]\s+""")
 
 private val NUMBERED = Regex("""^\d+[.)]\s+""")
+
+private val CODE_FENCE = Regex("""^`{3,}\w*$""")
+
+/** Everything a table delimiter row is allowed to be made of. */
+private val TABLE_ALPHABET = charArrayOf('|', '-', ':', ' ', '	').toSet()
