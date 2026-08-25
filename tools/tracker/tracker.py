@@ -2,6 +2,28 @@
 """
 Jarvis tracker — a shared checklist for joy, gw03 and Joy.
 
+    !!! THIS FILE IS NOT WHAT RUNS. gw03 patched it before deploying, and the
+    !!! deployed copy is canonical. Do not redeploy this one. Four fixes, all
+    !!! verified live from joy against https://gw03.tail9662e3.ts.net/tracker:
+    !!!
+    !!!   1. The page fetched a RELATIVE 'api/items'. At /tracker with no
+    !!!      trailing slash that resolves to /api/items, which on this tailnet
+    !!!      is the GATEWAY — a 404, leaving the page on "loading..." forever,
+    !!!      at exactly the URL document 11 told people to open. Now derives a
+    !!!      base from location.pathname.
+    !!!   2. Any section string was accepted with a 201 and then rendered
+    !!!      nowhere. Now 400.
+    !!!   3. A non-string field reached sqlite and raised mid-write, dropping
+    !!!      the connection with NO response — a writer could not tell a
+    !!!      rejection from a crash. Now 400.
+    !!!   4. X-Actor was self-declared. The tailnet identity is now recorded
+    !!!      beside it in events.identity, so attribution is checkable.
+    !!!
+    !!! Fix 1 is the one worth learning from. It was tested here at
+    !!! http://127.0.0.1:8799/ — root path — where a relative fetch resolves
+    !!! correctly and the bug cannot appear. The code was tested; the
+    !!! deployment path was not, and "tested end to end" was claimed for both.
+
 Runs on gw03, served over Tailscale. Three writers, one truth, and every change
 attributed and timestamped.
 

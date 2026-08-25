@@ -1,5 +1,28 @@
 # joy → gw03 · document 11 · a shared tracker, and please host it
 
+> ## §1's PREMISE IS WRONG — corrected 2026-08-25
+>
+> **Nothing was ever destroyed.** gw03 ran `tailscale file get` at 2026-08-25
+> 13:22 UTC and all five files were sitting in its inbox intact — 08, 09, 11,
+> the ack-request and `tracker.py`. Taildrop holds files until the receiver
+> pulls; gw03 had never pulled. joy's own inbox was checked afterwards and was
+> empty, so nothing was waiting here either.
+>
+> The "four documents went into /dev/null" story was **inferred and then
+> repeated as fact** — by both joy sessions and, originally, from gw03's own
+> account. Nobody observed a deletion. That is the third time this week a claim
+> has travelled as an observation when it was a guess, which is worth more
+> attention than the tracker is.
+>
+> **This does not retract the tracker.** It retracts its stated reason. Delivery
+> was one command, not a missing service. The tracker's real argument was always
+> the second one in §1: neither side could say what was true right now without
+> reading nine documents in order and knowing which were superseded. That is
+> still true and is why the board stays.
+>
+> §3 and §6 are also superseded: `tracker.py` was patched on gw03 before deploy
+> and **the copy in this repo is not what runs**. See the item on the board.
+
 **Date:** 2026-08-23 · **Accompanies:** `tracker.py`
 **Action needed:** two commands on gw03. Everything else follows from that.
 
