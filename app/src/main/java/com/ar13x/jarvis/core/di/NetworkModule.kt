@@ -2,6 +2,7 @@ package com.ar13x.jarvis.core.di
 
 import com.ar13x.jarvis.BuildConfig
 import com.ar13x.jarvis.core.network.AuthInterceptor
+import com.ar13x.jarvis.core.network.GatewayUrlInterceptor
 import com.ar13x.jarvis.core.network.JarvisApi
 import dagger.Module
 import dagger.Provides
@@ -30,8 +31,14 @@ object NetworkModule {
 
     @Provides
     @Singleton
-    fun provideOkHttp(auth: AuthInterceptor): OkHttpClient {
+    fun provideOkHttp(
+        gatewayUrl: GatewayUrlInterceptor,
+        auth: AuthInterceptor,
+    ): OkHttpClient {
         val builder = OkHttpClient.Builder()
+            // First, so the logging interceptor below reports the host the
+            // request actually goes to rather than the compiled-in placeholder.
+            .addInterceptor(gatewayUrl)
             .addInterceptor(auth)
             // Tailscale issues a real certificate for the *.ts.net name, so
             // standard trust works. If anyone ever adds a trust-manager override
@@ -57,6 +64,12 @@ object NetworkModule {
     @Provides
     @Singleton
     fun provideRetrofit(client: OkHttpClient, json: Json): Retrofit = Retrofit.Builder()
+        // A placeholder, not the destination. Retrofit needs a base URL at
+        // construction and cannot be told about one saved later, so
+        // GatewayUrlInterceptor rewrites scheme, host, port and prefix on the
+        // way out. This value is what gets used until pairing stores something,
+        // which makes it the right default rather than dead weight.
+        //
         // Trailing slash is required: without it Retrofit resolves relative
         // paths against the parent and every call loses the /api mount.
         .baseUrl(BuildConfig.DEFAULT_GATEWAY_URL.trimEnd('/') + "/")

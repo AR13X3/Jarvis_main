@@ -589,27 +589,33 @@ The second half has been testable since `0.1.5` shipped alongside `0.1.3` in the
 field, and "Check now" on the About screen removes the 24h wait. It is the last
 unproven step of the phase, and it is about ten seconds of work on a device.
 
-### 8.7 Known bug — the pairing screen's URL field does nothing
+### 8.7 Fixed — the pairing screen's URL field now does something
 
-`TokenStore.gatewayUrl` is written by `save()` and **read by nothing**. Retrofit's
-base URL is fixed at build time from `BuildConfig.DEFAULT_GATEWAY_URL`
-(`NetworkModule`), and no interceptor rewrites the host — so a URL typed at
-pairing is stored and then ignored, and the app keeps talking to gw03 regardless.
+`TokenStore.gatewayUrl` was written by `save()` and **read by nothing**.
+Retrofit's base URL was fixed at build time from `BuildConfig`, so a URL typed
+at pairing was accepted, stored, and silently ignored while the app carried on
+talking to the compiled-in host. Harmless with one gateway; it became real the
+day it moved, and would have presented as "I changed the URL and nothing
+happened".
 
-Harmless today, since there is one gateway and the constant is right. It becomes
-real the moment the gateway moves, and it will present as "I changed the URL and
-nothing happened".
+`GatewayUrlInterceptor` now rewrites scheme, host, port and path prefix on the
+way out, reading a `@Volatile` off `TokenStore` — the same shape `AuthInterceptor`
+uses, and for the same reason: an interceptor is not a coroutine and must not
+block on DataStore inside OkHttp's chain. `currentUrl` is set *before* `save()`
+returns, closing the same race that made pairing fail in release (§8 of the
+0.1.1 notes).
 
-The fix is a host-rewriting interceptor reading a `@Volatile` off `TokenStore`,
-exactly as `AuthInterceptor` already does for the token, plus a placeholder base
-URL. Roughly forty lines.
+**The subtlety, which the tests caught and the first version got wrong:** the
+rewrite is a *replacement*, not an addition. `tailscale serve` mounts the
+gateway at `/api`, so Retrofit is constructed with that prefix and every
+outgoing path already contains it. Prepending the target's prefix without
+removing the old one produced `/api/api/tasks/sections`. `rebased(from, to)`
+therefore takes both bases.
 
-**Deliberately not done before the first release.** The same change would have
-kept `gw03.tail9662e3.ts.net` out of the published APK; that was considered and
-declined — the hostname is not a credential, MagicDNS does not resolve publicly,
-the host is on CGNAT `100.x` unreachable from the internet, and the bearer token
-guards it behind that. Recorded so the reasoning is visible rather than looking
-like an oversight.
+About shows the paired URL rather than the constant, via its own small
+`AboutViewModel`. Showing the compiled-in value on the screen whose entire job
+is "what is this build doing" would be a confident lie the moment the two
+differ.
 
 ### 8.8 Commit the version bump *before* building
 

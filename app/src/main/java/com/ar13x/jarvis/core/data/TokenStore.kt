@@ -74,7 +74,21 @@ class TokenStore @Inject constructor(
         // restore, or the store being cleared from elsewhere.
         .onEach { current = it }
 
-    val gatewayUrl: Flow<String?> = context.credentials.data.map { it[GATEWAY_URL] }
+    /**
+     * The gateway URL as of right now, readable without suspending.
+     *
+     * Same reason [current] exists: `GatewayUrlInterceptor` is not a coroutine
+     * and cannot wait for a flow. And the same race — `save()` returns as soon
+     * as DataStore has written, but the emission lands on another coroutine, so
+     * a request made on the next line would otherwise still go to the old host.
+     */
+    @Volatile
+    var currentUrl: String? = null
+        private set
+
+    val gatewayUrl: Flow<String?> = context.credentials.data
+        .map { it[GATEWAY_URL] }
+        .onEach { currentUrl = it }
 
     /**
      * Read synchronously for the OkHttp interceptor, which is not a coroutine.
@@ -85,9 +99,11 @@ class TokenStore @Inject constructor(
     suspend fun currentToken(): String? = token.first()
 
     suspend fun save(token: String, gatewayUrl: String) {
-        // Set first, so the very next request is authenticated even though the
-        // flow has not emitted yet.
+        // Set first, so the very next request is authenticated and correctly
+        // addressed even though the flow has not emitted yet. The probe that
+        // immediately follows pairing is exactly that request.
         current = token
+        currentUrl = gatewayUrl
         context.credentials.edit { prefs ->
             prefs[TOKEN] = encrypt(token)
             prefs[GATEWAY_URL] = gatewayUrl

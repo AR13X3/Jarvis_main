@@ -67,6 +67,7 @@ fun AboutScreen(
     onBack: () -> Unit,
     modifier: Modifier = Modifier,
     updates: UpdateViewModel = hiltViewModel(),
+    about: AboutViewModel = hiltViewModel(),
 ) {
     val colors = JarvisTheme.colors
     val scroll = rememberScrollState()
@@ -105,7 +106,9 @@ fun AboutScreen(
                 checking = updates.checking.collectAsStateWithLifecycle().value,
                 onCheckNow = updates::checkNow,
             )
-            GatewayCard()
+            GatewayCard(
+                gatewayUrl = about.gatewayUrl.collectAsStateWithLifecycle().value,
+            )
         }
 
         Spacer(Modifier.height(Space.x12))
@@ -207,7 +210,7 @@ private fun UpdateCard(
 }
 
 @Composable
-private fun GatewayCard() {
+private fun GatewayCard(gatewayUrl: String) {
     JarvisCard {
         Text(
             text = "Gateway",
@@ -216,7 +219,10 @@ private fun GatewayCard() {
         )
         Spacer(Modifier.height(Space.x2))
         Text(
-            text = BuildConfig.DEFAULT_GATEWAY_URL,
+            // The paired URL, not the compiled-in one. Showing the constant on
+            // the screen whose job is "what is this build doing" would be a lie
+            // the moment the two differ.
+            text = gatewayUrl,
             style = JarvisTheme.typography.bodyMedium,
             color = JarvisTheme.colors.ink,
             overflow = TextOverflow.Ellipsis,
