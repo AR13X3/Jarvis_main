@@ -80,6 +80,17 @@
             android:name=".reminders.alarm.AlarmReceiver"
             android:exported="false" />
 
+        <!-- Answering the agent from the lock screen, and the catch-up that
+             keeps the loop going when nobody does. Not exported: only our own
+             PendingIntents and AlarmManager address these. -->
+        <receiver
+            android:name=".reminders.notification.NudgeActionReceiver"
+            android:exported="false" />
+
+        <receiver
+            android:name=".reminders.notification.NudgeCatchUpReceiver"
+            android:exported="false" />
+
         <receiver
             android:name=".reminders.alarm.BootReceiver"
             android:exported="true"

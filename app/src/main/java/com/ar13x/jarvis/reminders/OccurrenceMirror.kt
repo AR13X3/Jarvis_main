@@ -44,6 +44,10 @@ class OccurrenceMirror @Inject constructor(
                 title = occurrence.title,
                 scheduledForMillis = occurrence.scheduledFor.toEpochMilli(),
                 isPriority = occurrence.isPriority,
+                extensionsUsed = occurrence.extensionsUsed,
+                extensionsAllowed = occurrence.extensionsAllowed,
+                graceMinutes = occurrence.graceMinutes,
+                extensionMinutes = occurrence.extensionMinutes.joinToString(","),
             )
         }
 

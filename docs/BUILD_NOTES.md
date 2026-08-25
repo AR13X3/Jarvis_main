@@ -895,3 +895,58 @@ when to look; the server says what happened.
 `GRACE_MINUTES` therefore has to arrive from the server alongside
 `EXTENSION_MINUTES` (document 09 §5), or the app is guessing when to poll.
 
+### 10.4 Answering the agent from the lock screen
+
+Without this the follow-up loop is **unanswerable at any hour**. The nudge exists
+only as a card inside a task session, nothing surfaces it, and the deadline walks
+its two auto-extensions and lapses to `incomplete` while the user is sitting
+right there. Quiet hours turned out to be the smaller half of that problem —
+being awake does not help if nothing asks.
+
+**No new notification kind, and that was the wrong scoping to begin with.** The
+reminder and the nudge are the same instant seen from two sides: the server says
+"your deadline passed", the app already says "this is due now". So the
+notification that already fires gains the answers. Two notifications for one
+moment would be the duplicate §7.2 spends its dedup id preventing.
+
+**The chain that removes the need for push.** An unanswered nudge is answered by
+the server, which extends and moves the deadline — and the phone has no idea,
+because the mirror refreshes only on foreground and daily. So `NudgeCatchUp`
+schedules a look for `grace_minutes` plus 90 seconds, `refresh()` replaces the
+window and reconciles, and the next alarm arms itself:
+
+    alarm -> notification -> unanswered -> poll -> new deadline -> alarm
+
+That runs entirely on local alarms, offline, reaching the gateway only when there
+is something to say. It is a real data point for §7.4: the loop that most
+obviously wanted push does not need it.
+
+The catch-up alarm is **inexact** on purpose. Nothing user-visible happens at
+that instant — it only re-reads state — so it has no business competing for the
+exact-alarm budget with the reminders themselves.
+
+`grace_minutes` comes from the server, like the chips. An app assuming 15 is
+wrong the day gw03 tunes it, and wrong *silently*: the poll would run before the
+extension existed, learn nothing, and look exactly like the feature not working.
+
+**On §3.4.** A notification action writes without a proposal. That is not the
+rule being broken — §3.4 governs *AI-initiated* mutations, and §5.4 draws the
+line explicitly at direct manipulation. This is the user answering a question
+they were asked. The proposal path is untouched.
+
+**No offline queue** (§3.5). A tap with no gateway fails and says so in a toast,
+rather than replacing the reminder with an error. Queueing a "done" is worse here
+than the rule's usual case, because the server is running its own timer against
+the same occurrence.
+
+The Room bump to version 2 needed no migration: the module already builds with
+`fallbackToDestructiveMigration`, and the mirror is derived data that one refresh
+rebuilds. What looked like the risky part of this work was the cheapest.
+
+### 10.5 The line that became a countdown
+
+`OverdueCard`'s last line read "if this isn't done, it'll be marked incomplete" —
+true, and open-ended, which was right when only a missed deadline could lapse a
+task. Under the timeout loop the user has a hard `grace_minutes` from the card
+appearing before the server answers for them. Wording that reads like a general
+rule materially understates a running clock, so it now states the number.

@@ -124,6 +124,14 @@ sealed interface AgentComponent {
          */
         @SerialName("extension_minutes")
         val extensionMinutes: List<Int> = DefaultExtensionMinutes,
+        /**
+         * How long this nudge waits before the server answers it by extending.
+         *
+         * The card has to say this. Under the revised loop the last question is
+         * a hard countdown, not an open-ended warning, and a number the app
+         * invented would be wrong the moment gw03 tuned it.
+         */
+        @SerialName("grace_minutes") val graceMinutes: Int = 15,
         /** Set once answered, so history shows what happened (§5.3). */
         val resolution: OverdueResolution? = null,
     ) : AgentComponent {

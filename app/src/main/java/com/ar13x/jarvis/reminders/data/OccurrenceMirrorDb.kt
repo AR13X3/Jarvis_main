@@ -25,7 +25,26 @@ data class OccurrenceEntity(
     /** Epoch millis — what AlarmManager wants, so no conversion at fire time. */
     val scheduledForMillis: Long,
     val isPriority: Boolean,
-)
+
+    /**
+     * Mirrored so the notification can state the remaining allowance and
+     * schedule its own catch-up poll while the phone is offline — which is the
+     * state it is in when an alarm fires more often than not.
+     */
+    val extensionsUsed: Int = 0,
+    val extensionsAllowed: Int = 2,
+    val graceMinutes: Int = 15,
+    /** Stored comma-separated; a list is not worth a type converter for three ints. */
+    val extensionMinutes: String = "15,30,60",
+) {
+    val extensionsLeft: Int get() = (extensionsAllowed - extensionsUsed).coerceAtLeast(0)
+    val canExtend: Boolean get() = extensionsLeft > 0
+    val offeredMinutes: List<Int>
+        get() = extensionMinutes.split(',')
+            .mapNotNull { it.trim().toIntOrNull() }
+            .filter { it > 0 }
+            .ifEmpty { listOf(15, 30, 60) }
+}
 
 @Dao
 interface OccurrenceDao {
@@ -67,7 +86,11 @@ interface OccurrenceDao {
     }
 }
 
-@Database(entities = [OccurrenceEntity::class], version = 1, exportSchema = true)
+// Version 2 adds the follow-up loop's fields. No migration is written: the
+// module builds this with fallbackToDestructiveMigration, and the mirror is
+// derived data that one refresh rebuilds. The tasks live on the gateway and are
+// never at risk — see RemindersModule.
+@Database(entities = [OccurrenceEntity::class], version = 2, exportSchema = true)
 abstract class JarvisDatabase : RoomDatabase() {
     abstract fun occurrences(): OccurrenceDao
 }

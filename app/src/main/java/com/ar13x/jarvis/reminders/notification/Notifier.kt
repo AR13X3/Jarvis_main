@@ -87,7 +87,7 @@ class Notifier @Inject constructor(
         val notification = NotificationCompat.Builder(context, CHANNEL_ID)
             .setSmallIcon(R.drawable.ic_notification)
             .setContentTitle(occurrence.title)
-            .setContentText("Due now")
+            .setContentText(occurrence.dueLine())
             .setCategory(NotificationCompat.CATEGORY_REMINDER)
             .setPriority(NotificationCompat.PRIORITY_HIGH)
             .setAutoCancel(true)
@@ -101,11 +101,84 @@ class Notifier @Inject constructor(
             // without it, this degrades to a heads-up and the contentIntent
             // still works. Nothing here has to branch on that.
             .setFullScreenIntent(fullScreen, true)
+            .apply { addNudgeActions(occurrence, notificationId) }
             .build()
 
         // The dedup id (plan §7.2): a push and a local alarm for the same
         // occurrence collapse into one notification rather than two.
         NotificationManagerCompat.from(context).notify(notificationId, notification)
+    }
+
+    /**
+     * The agent's question, answerable without opening the app.
+     *
+     * The reminder and the nudge are the same instant seen from two sides — the
+     * server says "your deadline passed", the app already says "this is due
+     * now" — so this extends the notification that already fires rather than
+     * adding a second kind. Two notifications for one moment would be the
+     * duplicate §7.2 spends its dedup id preventing.
+     *
+     * Only the first offered extension gets a button. Android shows three
+     * actions at most, "Done" has to be one of them, and a lock screen is not
+     * the place to choose between 15, 30 and 60 — the card in the session is,
+     * and "Open" leads there.
+     */
+    private fun NotificationCompat.Builder.addNudgeActions(
+        occurrence: OccurrenceEntity,
+        notificationId: Int,
+    ) {
+        addAction(
+            0,
+            "Done",
+            nudgeIntent(NudgeActionReceiver.ACTION_COMPLETE, occurrence, notificationId),
+        )
+
+        if (occurrence.canExtend) {
+            val minutes = occurrence.offeredMinutes.first()
+            addAction(
+                0,
+                if (minutes < 60) "+$minutes min" else "+1 hour",
+                nudgeIntent(
+                    NudgeActionReceiver.ACTION_EXTEND,
+                    occurrence,
+                    notificationId,
+                    minutes,
+                ),
+            )
+        }
+    }
+
+    private fun nudgeIntent(
+        action: String,
+        occurrence: OccurrenceEntity,
+        notificationId: Int,
+        minutes: Int = 0,
+    ): PendingIntent = PendingIntent.getBroadcast(
+        context,
+        // Unique per action AND per occurrence: sharing a request code would
+        // make "Done" and "+15" the same PendingIntent, and the second would
+        // silently reuse the first one's extras.
+        (notificationId * 8) + action.hashCode().and(0x7) + minutes,
+        Intent(context, NudgeActionReceiver::class.java).apply {
+            this.action = action
+            putExtra(NudgeActionReceiver.EXTRA_OCCURRENCE_ID, occurrence.occurrenceId)
+            putExtra(NudgeActionReceiver.EXTRA_NOTIFICATION_ID, notificationId)
+            putExtra(NudgeActionReceiver.EXTRA_MINUTES, minutes)
+        },
+        PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
+    )
+
+    /**
+     * Says how many chances are left, where the decision is actually made.
+     *
+     * "One more" is the difference between a deadline and a suggestion, and a
+     * lock screen is where most of these will be answered — so the count cannot
+     * live only on the card inside the app.
+     */
+    private fun OccurrenceEntity.dueLine(): String = when {
+        !canExtend -> "Due now — last chance before this is marked incomplete"
+        extensionsLeft == 1 -> "Due now — you can push this back once more"
+        else -> "Due now"
     }
 
     companion object {

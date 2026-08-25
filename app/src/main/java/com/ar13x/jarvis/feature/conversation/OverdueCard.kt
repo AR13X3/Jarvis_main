@@ -147,7 +147,7 @@ fun OverdueCard(
                 // Said plainly every time. Someone who cannot see the allowance
                 // draining has no reason to treat the last chance differently
                 // from the first.
-                text = remainingLine(component.extensionsLeft),
+                text = remainingLine(component.extensionsLeft, component.graceMinutes),
                 style = JarvisTheme.typography.bodySmall,
                 color = if (component.extensionsLeft == 0) {
                     colors.status.incomplete
@@ -161,10 +161,22 @@ fun OverdueCard(
     }
 }
 
-private fun remainingLine(left: Int): String = when (left) {
-    0 -> "No more extensions — if this isn't done, it'll be marked incomplete."
-    1 -> "You can push this back one more time."
-    else -> "You can push this back $left more times."
+/**
+ * The last line is a **countdown**, not a policy note.
+ *
+ * It used to read "if this isn't done, it'll be marked incomplete" — true, and
+ * open-ended, which was right when only a missed deadline could lapse a task.
+ * Under the timeout loop the user has a hard [graceMinutes] from this card
+ * appearing and then the server answers for them. Wording that reads like a
+ * general rule materially understates a running clock.
+ *
+ * The number comes from the server for the same reason the chips do: an app
+ * that hardcodes 15 is wrong the day it is tuned, and wrong silently.
+ */
+private fun remainingLine(left: Int, graceMinutes: Int): String = when (left) {
+    0 -> "No answer in $graceMinutes minutes and this is marked incomplete."
+    1 -> "No answer in $graceMinutes minutes and it pushes back once more, automatically."
+    else -> "No answer in $graceMinutes minutes and it pushes back automatically. $left left."
 }
 
 @Composable

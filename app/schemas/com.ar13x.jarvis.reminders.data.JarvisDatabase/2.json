@@ -1,0 +1,79 @@
+{
+  "formatVersion": 1,
+  "database": {
+    "version": 2,
+    "identityHash": "40799e3b4110de5e2bd5ef8c9c90823f",
+    "entities": [
+      {
+        "tableName": "upcoming_occurrence",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`occurrenceId` INTEGER NOT NULL, `taskId` INTEGER NOT NULL, `title` TEXT NOT NULL, `scheduledForMillis` INTEGER NOT NULL, `isPriority` INTEGER NOT NULL, `extensionsUsed` INTEGER NOT NULL, `extensionsAllowed` INTEGER NOT NULL, `graceMinutes` INTEGER NOT NULL, `extensionMinutes` TEXT NOT NULL, PRIMARY KEY(`occurrenceId`))",
+        "fields": [
+          {
+            "fieldPath": "occurrenceId",
+            "columnName": "occurrenceId",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "taskId",
+            "columnName": "taskId",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "title",
+            "columnName": "title",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "scheduledForMillis",
+            "columnName": "scheduledForMillis",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "isPriority",
+            "columnName": "isPriority",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "extensionsUsed",
+            "columnName": "extensionsUsed",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "extensionsAllowed",
+            "columnName": "extensionsAllowed",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "graceMinutes",
+            "columnName": "graceMinutes",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "extensionMinutes",
+            "columnName": "extensionMinutes",
+            "affinity": "TEXT",
+            "notNull": true
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": [
+            "occurrenceId"
+          ]
+        }
+      }
+    ],
+    "setupQueries": [
+      "CREATE TABLE IF NOT EXISTS room_master_table (id INTEGER PRIMARY KEY,identity_hash TEXT)",
+      "INSERT OR REPLACE INTO room_master_table (id,identity_hash) VALUES(42, '40799e3b4110de5e2bd5ef8c9c90823f')"
+    ]
+  }
+}
