@@ -2,6 +2,7 @@ package com.ar13x.jarvis.feature.update
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.ar13x.jarvis.core.update.ReleaseNote
 import com.ar13x.jarvis.core.update.SemVer
 import com.ar13x.jarvis.core.update.UpdateRepository
 import com.ar13x.jarvis.core.update.UpdateStatus
@@ -30,11 +31,27 @@ class UpdateViewModel @Inject constructor(
      */
     val checking: StateFlow<Boolean> = _checking.asStateFlow()
 
+    private val _whatsNew = MutableStateFlow<List<ReleaseNote>>(emptyList())
+    /** Populated when About asks. Empty means not loaded, or not reachable. */
+    val whatsNew: StateFlow<List<ReleaseNote>> = _whatsNew.asStateFlow()
+
+    /**
+     * Loaded on demand rather than kept fresh — About is opened deliberately,
+     * and a changelog nobody is looking at is not worth a background fetch.
+     */
+    fun loadWhatsNew() {
+        if (_whatsNew.value.isNotEmpty()) return
+        viewModelScope.launch { _whatsNew.value = repository.whatsNew() }
+    }
+
     fun checkNow() {
         if (_checking.value) return
         _checking.value = true
         viewModelScope.launch {
             repository.refresh(force = true)
+            // An explicit check should also refresh what it is offering to
+            // show, or the notes below the button contradict the button.
+            _whatsNew.value = repository.whatsNew()
             _checking.value = false
         }
     }

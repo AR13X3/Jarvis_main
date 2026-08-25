@@ -10,8 +10,23 @@ data class GithubRelease(
     /** Release notes. Becomes the text the banner shows, so it is written for the phone. */
     val body: String? = null,
     @SerialName("html_url") val htmlUrl: String? = null,
+    @SerialName("published_at") val publishedAt: String? = null,
     val draft: Boolean = false,
     val prerelease: Boolean = false,
+)
+
+/**
+ * One release, as About reads it.
+ *
+ * [current] marks the build actually installed — worth distinguishing, because
+ * "what am I running" and "what would I get" are different questions and the
+ * screen answers both.
+ */
+data class ReleaseNote(
+    val version: SemVer,
+    val notes: String,
+    val publishedAt: String?,
+    val current: Boolean = false,
 )
 
 /** A newer build, as far as the app knows. */

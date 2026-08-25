@@ -950,3 +950,33 @@ true, and open-ended, which was right when only a missed deadline could lapse a
 task. Under the timeout loop the user has a hard `grace_minutes` from the card
 appearing before the server answers for them. Wording that reads like a general
 rule materially understates a running clock, so it now states the number.
+
+### 8.10 About shows what changed, not just that something did
+
+The release notes only ever existed in the banner, capped at six wrapped lines
+with an ellipsis, and About said nothing about *what* was in an update.
+
+It now lists **every release at or above the installed build**, newest first —
+not just the latest. That distinction is the whole feature: a phone on `0.1.3`
+when `0.1.7` lands has missed three releases, and `releases/latest` describes
+only the last of them, so "what changed" would quietly hide two thirds of the
+answer. It reads `GET /releases` instead.
+
+The installed build is included and tagged, so the screen answers "what am I
+running" as well as "what would I get" — two different questions people bring to
+the same screen.
+
+Notes go through `asBannerNotes()` for the block-marker stripping (§8.9) but
+without the six-line cap. The banner has six lines; this has a screen, and
+reading them is the reason you came.
+
+Fetched on demand when About opens rather than kept warm: a changelog nobody is
+looking at is not worth a background request. It is also the one call in the app
+that works **off-tailnet**, so this section answers when the gateway cannot.
+
+The filtering lives in `toReleaseNotes()`, separate from the fetch, so it is
+testable without a network or an Android context — drafts, pre-releases,
+unparseable tags, ordering, and a build ahead of the channel all have cases. The
+assumed fields were also checked against the live payload rather than the
+documentation: all five published releases carry `tag_name`, `body`,
+`published_at`, `draft` and `prerelease`.

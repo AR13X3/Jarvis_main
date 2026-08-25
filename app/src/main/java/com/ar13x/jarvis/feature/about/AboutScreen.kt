@@ -31,6 +31,10 @@ import androidx.compose.runtime.getValue
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.ui.draw.clip
+import androidx.compose.runtime.LaunchedEffect
+import com.ar13x.jarvis.core.update.ReleaseNote
+import com.ar13x.jarvis.designsystem.component.toInlineMarkdown
+import com.ar13x.jarvis.feature.update.asBannerNotes
 import com.ar13x.jarvis.BuildConfig
 import com.ar13x.jarvis.core.update.UpdateStatus
 import com.ar13x.jarvis.feature.update.UpdateViewModel
@@ -40,6 +44,7 @@ import com.ar13x.jarvis.designsystem.component.CircleIconButton
 import com.ar13x.jarvis.designsystem.component.JarvisCard
 import com.ar13x.jarvis.designsystem.component.ScreenHeader
 import com.ar13x.jarvis.designsystem.component.brandWash
+import com.ar13x.jarvis.designsystem.theme.Corner
 import com.ar13x.jarvis.designsystem.theme.JarvisTheme
 import com.ar13x.jarvis.designsystem.theme.Space
 import com.ar13x.jarvis.designsystem.theme.tabularNums
@@ -71,6 +76,12 @@ fun AboutScreen(
 ) {
     val colors = JarvisTheme.colors
     val scroll = rememberScrollState()
+
+    // Fetched when the screen opens rather than kept warm: a changelog nobody
+    // is looking at is not worth a background request, and this is the one call
+    // in the app that works off-tailnet, so it answers even when the gateway
+    // does not.
+    LaunchedEffect(Unit) { updates.loadWhatsNew() }
 
     Column(
         modifier = modifier
@@ -105,6 +116,9 @@ fun AboutScreen(
                 status = updates.status.collectAsStateWithLifecycle().value,
                 checking = updates.checking.collectAsStateWithLifecycle().value,
                 onCheckNow = updates::checkNow,
+            )
+            WhatsNewSection(
+                notes = updates.whatsNew.collectAsStateWithLifecycle().value,
             )
             GatewayCard(
                 gatewayUrl = about.gatewayUrl.collectAsStateWithLifecycle().value,
@@ -208,6 +222,91 @@ private fun UpdateCard(
         }
     }
 }
+
+/**
+ * What changed, and what is changing.
+ *
+ * Every release at or above the installed build, newest first — not just the
+ * latest. Someone on `0.1.3` when `0.1.7` lands has missed three releases, and
+ * the newest one describes only the last of them; "what changed" should mean
+ * everything since the build in your hand.
+ *
+ * The installed version is marked, so the screen answers "what am I running" as
+ * well as "what would I get". Unreleased ones are shown in full rather than
+ * truncated — the banner has six lines to work with, this has a whole screen,
+ * and the point of coming here is to read them.
+ */
+@Composable
+private fun WhatsNewSection(notes: List<ReleaseNote>) {
+    if (notes.isEmpty()) return
+    val colors = JarvisTheme.colors
+
+    Column(verticalArrangement = Arrangement.spacedBy(Space.x2)) {
+        Text(
+            text = "WHAT'S NEW",
+            style = JarvisTheme.typography.labelSmall,
+            color = colors.inkMuted,
+            modifier = Modifier.padding(start = Space.x2, top = Space.x2),
+        )
+
+        notes.forEach { note ->
+            JarvisCard {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text(
+                        text = note.version.toString(),
+                        style = JarvisTheme.typography.titleMedium.tabularNums(),
+                        color = if (note.current) colors.inkMuted else colors.brandCore,
+                    )
+                    Spacer(Modifier.width(Space.x2))
+                    if (note.current) {
+                        Tag(text = "installed", tint = colors.inkMuted)
+                    } else {
+                        Tag(text = "not installed", tint = colors.brandCore)
+                    }
+                    Spacer(Modifier.weight(1f))
+                    note.publishedAt?.let { published ->
+                        Text(
+                            text = releaseDate(published),
+                            style = JarvisTheme.typography.bodySmall.tabularNums(),
+                            color = colors.inkMuted,
+                        )
+                    }
+                }
+
+                if (note.notes.isNotBlank()) {
+                    Spacer(Modifier.height(Space.x2))
+                    Text(
+                        // Same stripping the banner uses, without its six-line
+                        // cap: the body is authored on a web page and this is a
+                        // phone, but here there is room to show all of it.
+                        text = note.notes.asBannerNotes()
+                            .toInlineMarkdown(codeColor = colors.brandCore),
+                        style = JarvisTheme.typography.bodyMedium,
+                        color = colors.inkMuted,
+                    )
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun Tag(text: String, tint: androidx.compose.ui.graphics.Color) {
+    Box(
+        Modifier
+            .clip(Corner.Pill)
+            .background(tint.copy(alpha = 0.12f), Corner.Pill)
+            .padding(horizontal = Space.x2, vertical = 1.dp),
+    ) {
+        Text(text, style = JarvisTheme.typography.labelSmall, color = tint)
+    }
+}
+
+/** `2026-08-23T06:52:11Z` as the phone would say it. Raw string if it will not parse. */
+private fun releaseDate(published: String): String = runCatching {
+    DateTimeFormatter.ofPattern("d MMM", Locale.getDefault())
+        .format(Instant.parse(published).atZone(ZoneId.systemDefault()))
+}.getOrDefault("")
 
 @Composable
 private fun GatewayCard(gatewayUrl: String) {

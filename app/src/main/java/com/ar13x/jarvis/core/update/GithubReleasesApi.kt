@@ -3,6 +3,7 @@ package com.ar13x.jarvis.core.update
 import retrofit2.http.GET
 import retrofit2.http.Header
 import retrofit2.http.Path
+import retrofit2.http.Query
 
 /**
  * The releases repo (plan §10, §10.2) — public, and holding no code, so nothing
@@ -28,6 +29,23 @@ import retrofit2.http.Path
  * third party a credential it has no business holding.
  */
 interface GithubReleasesApi {
+
+    /**
+     * Every release, newest first.
+     *
+     * The About screen needs the *list*, not just the newest: someone on 0.1.3
+     * when 0.1.7 lands has missed three releases, and `latest` describes only
+     * the last of them. Reading "what changed" should mean everything since the
+     * build you are holding.
+     */
+    @GET("repos/{owner}/{repo}/releases")
+    suspend fun releases(
+        @Path("owner") owner: String = RELEASES_OWNER,
+        @Path("repo") repo: String = RELEASES_REPO,
+        @Query("per_page") perPage: Int = 20,
+        @Header("X-GitHub-Api-Version") apiVersion: String = "2022-11-28",
+        @Header("Accept") accept: String = "application/vnd.github+json",
+    ): List<GithubRelease>
 
     @GET("repos/{owner}/{repo}/releases/latest")
     suspend fun latestRelease(

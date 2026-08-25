@@ -90,6 +90,30 @@ class UpdateRepository @Inject constructor(
         }
     }
 
+    /**
+     * Every release at or above the installed build, newest first.
+     *
+     * Fetched on demand rather than on the daily cadence: About is opened
+     * deliberately and rarely, and someone reading it wants what is true now.
+     * It is also the one call in the app that works off-tailnet, so it answers
+     * even when the gateway does not.
+     *
+     * The installed version is included and marked [ReleaseNote.current], so the
+     * screen can answer "what am I running" as well as "what would I get". If
+     * this build is not on the list at all — a local build, or one pulled from
+     * the channel — the list is simply what is newer, which is still the honest
+     * answer.
+     *
+     * Failure returns empty rather than throwing. A changelog that could not be
+     * fetched is a blank section, not an error dialog on a diagnostics screen.
+     */
+    suspend fun whatsNew(): List<ReleaseNote> {
+        val installed = installed ?: return emptyList()
+
+        return runCatching { github.releases() }.getOrNull().orEmpty()
+            .toReleaseNotes(installed)
+    }
+
     suspend fun dismiss(version: SemVer) {
         store.dismiss(version)
         _status.value = computeStatus(store.remembered.first())
@@ -131,3 +155,32 @@ class UpdateRepository @Inject constructor(
         val CHECK_INTERVAL_MS = TimeUnit.DAYS.toMillis(1)
     }
 }
+
+/**
+ * The releases a build should show, newest first.
+ *
+ * Separated from the fetch so it can be tested without a network or an Android
+ * context — the filtering is where the behaviour is, and the call around it is
+ * one line.
+ *
+ * Drafts and pre-releases are excluded for the same reason the update check
+ * excludes them: the channel only ships finished releases, and Obtainium would
+ * not install one anyway. Anything older than the installed build is excluded
+ * because it is not news; the installed build itself is kept and marked, so the
+ * screen can answer "what am I running" as well as "what would I get".
+ */
+internal fun List<GithubRelease>.toReleaseNotes(installed: SemVer): List<ReleaseNote> = this
+    .asSequence()
+    .filterNot { it.draft || it.prerelease }
+    .mapNotNull { release ->
+        val version = SemVer.parseOrNull(release.tagName) ?: return@mapNotNull null
+        if (version < installed) return@mapNotNull null
+        ReleaseNote(
+            version = version,
+            notes = release.body.orEmpty().trim(),
+            publishedAt = release.publishedAt,
+            current = version == installed,
+        )
+    }
+    .sortedByDescending { it.version }
+    .toList()
