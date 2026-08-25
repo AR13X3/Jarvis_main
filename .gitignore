@@ -12,3 +12,6 @@ local.properties
 *.jks
 *.keystore
 keystore.properties
+tools/tracker/tracker.db
+tools/tracker/tracker.db-wal
+tools/tracker/tracker.db-shm
