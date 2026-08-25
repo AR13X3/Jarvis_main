@@ -90,6 +90,36 @@ class ChecklistTest {
     }
 
     /**
+     * The real invariant, and the one nobody wrote down: `hasChecklist` is only
+     * ever used to decide whether to draw what `checklistItems` returns, so the
+     * two disagreeing is the bug, whichever way round it happens.
+     *
+     * Every `hasChecklist` assertion before this one was a negative, and a
+     * function that always returned false passed all of them.
+     */
+    @Test
+    fun `hasChecklist agrees with checklistItems`() {
+        val cases = listOf(
+            description,
+            "- [ ] milk",
+            "Shopping:\n- [ ] milk",
+            "- [x] done\nand a trailing note",
+            "  + [X] indented last line",
+            "Just some prose.",
+            "Check the box [ ] on the form.",
+            "",
+        )
+
+        for (case in cases) {
+            assertEquals(
+                "hasChecklist disagreed with checklistItems for: " + case,
+                case.checklistItems().isNotEmpty(),
+                case.hasChecklist(),
+            )
+        }
+    }
+
+    /**
      * The agent can rewrite a description between the list being drawn and a
      * box being tapped. A stale index is a race, not a crash.
      */

@@ -64,8 +64,19 @@ fun String.toggleChecklistItem(line: Int): String {
     return lines.toMutableList().also { it[line] = rebuilt }.joinToString("\n")
 }
 
-/** True when there is anything to tick — drives whether the UI renders a list at all. */
-fun String.hasChecklist(): Boolean = CHECKBOX.containsMatchIn(this)
+/**
+ * True when there is anything to tick.
+ *
+ * Split into lines like [checklistItems] rather than searched with
+ * `containsMatchIn`, and deliberately: [CHECKBOX] is anchored, and without
+ * `MULTILINE` those anchors bind to the whole description rather than to each
+ * line. Searching it therefore answered true only when the description *was* a
+ * single bare checkbox line, and false for the ordinary case of a list with a
+ * sentence above it. Sharing the line-splitting is what stops the two functions
+ * from ever disagreeing again; the test pins that as one property rather than
+ * as two separate ones.
+ */
+fun String.hasChecklist(): Boolean = lineSequence().any(CHECKBOX::matches)
 
 /**
  * `- [ ] thing`, `* [x] thing`, `  + [X] thing`.
