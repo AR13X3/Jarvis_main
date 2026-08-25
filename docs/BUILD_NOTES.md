@@ -980,3 +980,44 @@ unparseable tags, ordering, and a build ahead of the channel all have cases. The
 assumed fields were also checked against the live payload rather than the
 documentation: all five published releases carry `tag_name`, `body`,
 `published_at`, `draft` and `prerelease`.
+
+## 11. Checklists inside a description
+
+**Shape A of the two considered, and the code chose it.** The expanded task row
+already renders `task.description` as text, so a checklist is not a new surface —
+it is making lines that already display become tappable. The alternative, a
+`tasks.checklist_items` table with its own endpoints and agent tools, is the
+right home if checklists become load-bearing, and this migrates into it, because
+parsing `- [ ]` lines into rows is a migration rather than a rewrite.
+
+It also formalises what was already happening. The conversation that prompted
+the feature built a list one clause at a time — "the warehouse job again", "and
+other Christmas casual jobs", "apply at David Jones Warehouse" — each costing a
+full conversational turn.
+
+**The rule the tests exist for: nothing that is not the toggled checkbox is
+touched.** The agent writes descriptions too, and this edits them in place, so a
+toggle that reformatted prose, normalised a bullet or lost indentation would be
+destroying the user's text to tick a box. `toggleChecklistItem` rewrites a single
+marker character and `ChecklistTest` asserts every other line survives byte for
+byte, that a double toggle returns the original exactly, and that a sentence
+merely containing `[ ]` stays prose.
+
+A stale index — the agent rewrote the description between the list being drawn
+and the tap landing — returns the description unchanged rather than throwing.
+That is a race, not a bug worth crashing on.
+
+**Direct, not proposed.** §5.4: AI-initiated mutations confirm, direct
+manipulation of something cheap and reversible does not. A tap cannot misparse,
+and tapping again undoes it exactly. No undo snackbar either, unlike priority —
+ticking again *is* the undo, it is under the thumb, and a snackbar per tick in a
+ten-item list is its own noise.
+
+### 11.1 Blocked on gw03
+
+`PATCH /tasks/{id}` accepts only `is_priority`. `PatchTaskBody` now carries an
+optional `description` — and `explicitNulls = false` matters here, because a
+PATCH transmitting `"description": null` would read as "clear it".
+
+Until gw03 accepts the field, **ticking fails cleanly** rather than silently
+doing nothing: the optimistic tick reverts and the failure is shown.

@@ -47,6 +47,17 @@ interface TaskRepository {
     suspend fun setPriority(taskId: Long, isPriority: Boolean): Task
 
     /**
+     * Rewrites a task's description — how a checklist item gets ticked.
+     *
+     * **Direct, not proposed**, and that is the §5.4 rule rather than an
+     * exception to it: AI-initiated mutations confirm, direct manipulation of a
+     * cheap reversible thing does not. A tap on a checkbox cannot misparse, and
+     * tapping it again undoes it exactly, which is what makes no-confirmation
+     * defensible here as it is for the priority toggle.
+     */
+    suspend fun updateDescription(taskId: Long, description: String): Task
+
+    /**
      * Cancel is confirmed from either path; it is not cheaply reversible.
      *
      * [scope] only means something for a recurring task — skipping this firing

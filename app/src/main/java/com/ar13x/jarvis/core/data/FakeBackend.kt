@@ -73,6 +73,13 @@ class FakeBackend @Inject constructor() {
 
     suspend fun task(id: Long): Task? = mutex.withLock { tasks[id] }
 
+    suspend fun updateDescription(id: Long, description: String): Task = mutex.withLock {
+        val existing = requireNotNull(tasks[id]) { "No task " + id }
+        val updated = existing.copy(description = description, updatedAt = Instant.now())
+        tasks[id] = updated
+        updated
+    }
+
     suspend fun setPriority(id: Long, isPriority: Boolean): Task = mutex.withLock {
         val existing = requireNotNull(tasks[id]) { "No task " + id }
         val updated = existing.copy(isPriority = isPriority, updatedAt = Instant.now())

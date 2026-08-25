@@ -45,6 +45,10 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.ar13x.jarvis.core.model.Task
+import androidx.compose.material.icons.rounded.Check
+import androidx.compose.ui.text.style.TextDecoration
+import com.ar13x.jarvis.core.ui.ChecklistItem
+import com.ar13x.jarvis.core.ui.checklistItems
 import com.ar13x.jarvis.core.ui.DueDateFormat
 import com.ar13x.jarvis.designsystem.component.CircleIconButton
 import com.ar13x.jarvis.designsystem.component.JarvisCard
@@ -96,6 +100,7 @@ fun TaskRow(
     showNextFire: Boolean = false,
     expanded: Boolean = false,
     onToggleExpand: () -> Unit = {},
+    onToggleChecklistItem: (Int) -> Unit = {},
 ) {
     val colors = JarvisTheme.colors
     val style = statusStyle(task.status)
@@ -173,10 +178,13 @@ fun TaskRow(
                                     .background(colors.hairline),
                             )
                             Spacer(Modifier.height(Space.x3))
-                            Text(
-                                text = task.description,
-                                style = JarvisTheme.typography.bodyMedium,
-                                color = colors.inkMuted,
+                            // A description that contains checkboxes becomes a
+                            // list you can tick. Everything else still renders
+                            // as the prose it is — the two are not exclusive,
+                            // and a description is usually both.
+                            DescriptionBody(
+                                description = task.description,
+                                onToggleItem = onToggleChecklistItem,
                             )
                         }
                     }
@@ -352,6 +360,114 @@ private fun OverduePill(modifier: Modifier = Modifier) {
     }
 }
 
+/**
+ * A description, with its checkbox lines made tappable.
+ *
+ * The prose around them is untouched and still shown — descriptions are
+ * typically a sentence *and* a list, as the one that prompted this feature was:
+ * "apply for the warehouse job again and other Christmas casual jobs" followed
+ * by the places to apply.
+ *
+ * Ticking rewrites only that line's marker (see `Checklist.kt`), so nothing the
+ * agent wrote is reformatted in order to tick a box.
+ */
+@Composable
+private fun DescriptionBody(
+    description: String,
+    onToggleItem: (Int) -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    val colors = JarvisTheme.colors
+    val items = remember(description) { description.checklistItems() }
+
+    if (items.isEmpty()) {
+        Text(
+            text = description,
+            style = JarvisTheme.typography.bodyMedium,
+            color = colors.inkMuted,
+            modifier = modifier,
+        )
+        return
+    }
+
+    val checklistLines = remember(items) { items.map { it.line }.toSet() }
+    val prose = remember(description, checklistLines) {
+        description.lines()
+            .filterIndexed { index, _ -> index !in checklistLines }
+            .joinToString(NEWLINE)
+            .trim()
+    }
+
+    Column(modifier) {
+        if (prose.isNotBlank()) {
+            Text(
+                text = prose,
+                style = JarvisTheme.typography.bodyMedium,
+                color = colors.inkMuted,
+            )
+            Spacer(Modifier.height(Space.x3))
+        }
+
+        val doneCount = items.count { it.done }
+        Text(
+            text = "$doneCount of ${items.size} done",
+            style = JarvisTheme.typography.labelSmall,
+            color = colors.inkMuted,
+        )
+        Spacer(Modifier.height(Space.x2))
+
+        items.forEach { item ->
+            ChecklistRow(item = item, onToggle = { onToggleItem(item.line) })
+        }
+    }
+}
+
+@Composable
+private fun ChecklistRow(item: ChecklistItem, onToggle: () -> Unit) {
+    val colors = JarvisTheme.colors
+
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(Corner.Sm)
+            .clickable(onClick = onToggle)
+            // A real touch target. A 16dp checkbox on a phone is a mis-tap
+            // waiting to happen, and a mis-tap here edits the task.
+            .padding(vertical = Space.x2, horizontal = Space.x1),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Box(
+            Modifier
+                .size(18.dp)
+                .clip(Corner.Xs)
+                .background(
+                    if (item.done) colors.brandCore else colors.surfaceSunk,
+                    Corner.Xs,
+                ),
+            contentAlignment = Alignment.Center,
+        ) {
+            if (item.done) {
+                Icon(
+                    Icons.Rounded.Check,
+                    contentDescription = null,
+                    tint = colors.onBrand,
+                    modifier = Modifier.size(12.dp),
+                )
+            }
+        }
+        Spacer(Modifier.width(Space.x3))
+        Text(
+            text = item.text,
+            style = JarvisTheme.typography.bodyMedium,
+            // Struck and muted when done, so the state survives colour-blindness
+            // and a dark theme — the same form-as-well-as-colour rule §6.2
+            // applies to cancelled versus incomplete.
+            textDecoration = if (item.done) TextDecoration.LineThrough else null,
+            color = if (item.done) colors.inkMuted else colors.ink,
+        )
+    }
+}
+
 @Composable
 private fun RecurrenceLine(text: String, modifier: Modifier = Modifier) {
     val colors = JarvisTheme.colors
@@ -474,3 +590,6 @@ private val ACTIONS_RESERVE = 62.dp
 
 /** Status dot plus its gutter, so metadata lines up under the title. */
 private val CONTENT_INDENT = 22.dp
+
+/** A literal newline. */
+private const val NEWLINE = "\n"

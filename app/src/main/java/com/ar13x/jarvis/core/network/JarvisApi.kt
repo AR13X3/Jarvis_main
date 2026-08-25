@@ -113,7 +113,21 @@ interface JarvisApi {
 // --- request bodies -----------------------------------------------------------
 
 @Serializable
-data class PatchTaskBody(@SerialName("is_priority") val isPriority: Boolean)
+/**
+ * Both optional, so one call can carry either.
+ *
+ * `explicitNulls = false` on the Json instance means an unset field is omitted
+ * rather than sent as null — which matters, because a `PATCH` that transmitted
+ * `"description": null` would read as "clear it" to any reasonable server.
+ *
+ * `description` is a contract addition — see the ask in the tracker. Until gw03
+ * accepts it, ticking a checkbox fails cleanly rather than silently doing
+ * nothing.
+ */
+data class PatchTaskBody(
+    @SerialName("is_priority") val isPriority: Boolean? = null,
+    val description: String? = null,
+)
 
 @Serializable
 data class CancelTaskBody(

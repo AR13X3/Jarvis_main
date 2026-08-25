@@ -6,6 +6,7 @@ import com.ar13x.jarvis.core.data.TaskRepository
 import com.ar13x.jarvis.core.model.CancelScope
 import com.ar13x.jarvis.core.data.toFailureReason
 import com.ar13x.jarvis.core.model.Task
+import com.ar13x.jarvis.core.ui.toggleChecklistItem
 import com.ar13x.jarvis.core.ui.LoadState
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.Job
@@ -54,6 +55,8 @@ class TaskListViewModel @Inject constructor(
             }
             is TaskListEvent.SetRange -> applyFilters(_state.value.filters.copy(range = event.range))
             TaskListEvent.ClearFilters -> applyFilters(TaskFilters())
+
+            is TaskListEvent.ToggleChecklistItem -> toggleChecklistItem(event.task, event.line)
 
             is TaskListEvent.ToggleExpand -> _state.update { state ->
                 val next = if (event.taskId in state.expandedIds) {
@@ -200,6 +203,45 @@ class TaskListViewModel @Inject constructor(
         }
     }
 
+    /**
+     * Ticks a checklist item, optimistically.
+     *
+     * Same shape as [togglePriority] and for the same reason: the tap is
+     * instant, the round trip is not, and a checkbox that waits ~4s to move
+     * feels broken. On failure the description is put back exactly as it was and
+     * the reason is shown — there is no queue (§3.5).
+     *
+     * No undo snackbar, unlike priority. Ticking again *is* the undo, it is
+     * right there under the thumb, and a snackbar for every tick in a ten-item
+     * list would be its own kind of noise.
+     */
+    private fun toggleChecklistItem(task: Task, line: Int) {
+        val updated = task.description.toggleChecklistItem(line)
+        // Unchanged means a stale index — the agent rewrote the description
+        // between this list being drawn and the tap landing. Doing nothing is
+        // correct; the next reload will show what it actually says now.
+        if (updated == task.description) return
+
+        _state.update { state ->
+            state.copy(content = state.content.mapContent { it.withDescription(task.id, updated) })
+        }
+
+        viewModelScope.launch {
+            runCatching { tasks.updateDescription(task.id, updated) }
+                .onSuccess { reload() }
+                .onFailure { error ->
+                    _state.update { state ->
+                        state.copy(
+                            content = state.content.mapContent {
+                                it.withDescription(task.id, task.description)
+                            },
+                            transientFailure = error.toFailureReason(),
+                        )
+                    }
+                }
+        }
+    }
+
     private fun undoPriority() {
         val undo = _state.value.undo ?: return
         _state.update { state ->
@@ -296,5 +338,16 @@ private fun LoadState<TaskListContent>.mapContent(
 
 private fun TaskListContent.withPriority(taskId: Long, isPriority: Boolean): TaskListContent {
     fun List<Task>.patch() = map { if (it.id == taskId) it.copy(isPriority = isPriority) else it }
+    return copy(priority = priority.patch(), recurring = recurring.patch(), all = all.patch())
+}
+
+/**
+ * The same optimistic patch as [withPriority], for a ticked checklist item.
+ *
+ * A task appears in more than one section, so all three have to be patched or
+ * the same task shows ticked in Overdue and unticked in All.
+ */
+private fun TaskListContent.withDescription(taskId: Long, description: String): TaskListContent {
+    fun List<Task>.patch() = map { if (it.id == taskId) it.copy(description = description) else it }
     return copy(priority = priority.patch(), recurring = recurring.patch(), all = all.patch())
 }

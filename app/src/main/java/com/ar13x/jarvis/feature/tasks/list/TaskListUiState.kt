@@ -201,6 +201,12 @@ sealed interface TaskListEvent {
 
     data class ToggleExpand(val taskId: Long) : TaskListEvent
 
+    /**
+     * Ticking a checklist item inside a description (§5.4: direct manipulation
+     * of something cheap and reversible does not confirm).
+     */
+    data class ToggleChecklistItem(val task: Task, val line: Int) : TaskListEvent
+
     data class ToggleStatusFilter(val status: TaskStatus) : TaskListEvent
     data class SetRange(val range: DateRange) : TaskListEvent
     data object ClearFilters : TaskListEvent

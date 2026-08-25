@@ -45,6 +45,11 @@ class RemoteTaskRepository @Inject constructor(
         )
     }
 
+    override suspend fun updateDescription(taskId: Long, description: String): Task =
+        gatewayCall(mutating = true) {
+            api.patchTask(taskId, PatchTaskBody(description = description)).readTask(json)
+        }
+
     override suspend fun setPriority(taskId: Long, isPriority: Boolean): Task =
         gatewayCall(mutating = true) {
             api.patchTask(taskId, PatchTaskBody(isPriority)).readTask(json)

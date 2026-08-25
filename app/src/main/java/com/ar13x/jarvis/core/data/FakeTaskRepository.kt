@@ -81,6 +81,11 @@ class FakeTaskRepository @Inject constructor(
         return page(filtered, page)
     }
 
+    override suspend fun updateDescription(taskId: Long, description: String): Task {
+        delay(FakeBackend.WRITE_LATENCY_MS)
+        return backend.updateDescription(taskId, description)
+    }
+
     override suspend fun setPriority(taskId: Long, isPriority: Boolean): Task {
         delay(FakeBackend.WRITE_LATENCY_MS)
         return backend.setPriority(taskId, isPriority)

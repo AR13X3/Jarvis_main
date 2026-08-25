@@ -333,6 +333,9 @@ private fun Row_(
         showNextFire = showNextFire,
         expanded = task.id in state.expandedIds,
         onToggleExpand = { onEvent(TaskListEvent.ToggleExpand(task.id)) },
+        onToggleChecklistItem = { line ->
+            onEvent(TaskListEvent.ToggleChecklistItem(task, line))
+        },
         modifier = modifier.padding(horizontal = Space.Gutter),
     )
 }
