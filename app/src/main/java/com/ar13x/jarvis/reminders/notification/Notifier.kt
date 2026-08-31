@@ -148,6 +148,27 @@ class Notifier @Inject constructor(
         }
     }
 
+    /**
+     * One action button, addressed so that it cannot be confused with another.
+     *
+     * **The discriminator is the data URI, not the request code** — the same
+     * lesson `AlarmScheduler` already records: `PendingIntent` equality compares
+     * the intent by `filterEquals`, which looks at action, data and component
+     * and ignores extras entirely. Two buttons that compare equal collapse into
+     * one, and `FLAG_UPDATE_CURRENT` silently rewrites the survivor's extras —
+     * so "Done" on tonight's reminder would complete a different occurrence.
+     *
+     * The arithmetic this replaces tried to carve request codes into eight-wide
+     * slots per notification. It had two faults. `notificationId * 8` overflows
+     * `Int` — the id is a 31-bit hash, so `2147483647 * 8` is `-8`, not a slot.
+     * And the offset added within a slot reaches 67 (`0..7` for the action plus
+     * up to 60 for the minutes), overrunning the eight-wide slot into the next
+     * eight occurrences' space. Both are unlikely to bite, and both fail
+     * silently as the wrong task being marked done from a lock screen.
+     *
+     * With the URI carrying the identity, the request code only has to be
+     * stable, so it is the same key the alarm uses.
+     */
     private fun nudgeIntent(
         action: String,
         occurrence: OccurrenceEntity,
@@ -155,12 +176,10 @@ class Notifier @Inject constructor(
         minutes: Int = 0,
     ): PendingIntent = PendingIntent.getBroadcast(
         context,
-        // Unique per action AND per occurrence: sharing a request code would
-        // make "Done" and "+15" the same PendingIntent, and the second would
-        // silently reuse the first one's extras.
-        (notificationId * 8) + action.hashCode().and(0x7) + minutes,
+        AlarmScheduler.alarmKey(occurrence.occurrenceId),
         Intent(context, NudgeActionReceiver::class.java).apply {
             this.action = action
+            data = android.net.Uri.parse(nudgeKey(occurrence.occurrenceId, action, minutes))
             putExtra(NudgeActionReceiver.EXTRA_OCCURRENCE_ID, occurrence.occurrenceId)
             putExtra(NudgeActionReceiver.EXTRA_NOTIFICATION_ID, notificationId)
             putExtra(NudgeActionReceiver.EXTRA_MINUTES, minutes)
@@ -186,3 +205,14 @@ class Notifier @Inject constructor(
         const val EXTRA_TASK_ID = "task_id"
     }
 }
+
+/**
+ * The identity of one nudge button: which occurrence, which action, and for an
+ * extension, how long.
+ *
+ * A plain string rather than a `Uri`, and a top-level function, so the property
+ * that matters — that no two buttons which should differ ever collide — is
+ * testable without a device. `Uri.parse` is a stub in unit tests.
+ */
+fun nudgeKey(occurrenceId: Long, action: String, minutes: Int): String =
+    "jarvis://nudge/" + occurrenceId + "/" + action + "/" + minutes
