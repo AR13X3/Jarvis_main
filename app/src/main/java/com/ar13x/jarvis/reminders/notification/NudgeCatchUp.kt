@@ -56,13 +56,25 @@ class NudgeCatchUp @Inject constructor(
         alarms.cancel(pendingIntent(occurrenceId))
     }
 
+    /**
+     * The identity is the data URI, for the third time in this package.
+     *
+     * `PendingIntent` equality ignores extras, so an occurrence id carried only
+     * in an extra does not distinguish anything: two catch-ups would collapse
+     * and `cancel` would stop the wrong one. The request code cannot carry it
+     * either — `occurrenceId.toInt()` truncates, so two ids 2^32 apart become
+     * the same alarm.
+     *
+     * The offset this replaces was defending against colliding with the
+     * reminder's own alarms, which cannot happen: those name a different
+     * receiver, and `filterEquals` compares the component.
+     */
     private fun pendingIntent(occurrenceId: Long): PendingIntent = PendingIntent.getBroadcast(
         context,
-        // Distinct from the reminder's own request codes, or cancelling one
-        // would silently cancel the other.
-        REQUEST_OFFSET + occurrenceId.toInt(),
+        AlarmScheduler.alarmKey(occurrenceId),
         Intent(context, NudgeCatchUpReceiver::class.java).apply {
             action = ACTION_CATCH_UP
+            data = android.net.Uri.parse(catchUpKey(occurrenceId))
             putExtra(AlarmScheduler.EXTRA_OCCURRENCE_ID, occurrenceId)
         },
         PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
@@ -78,6 +90,8 @@ class NudgeCatchUp @Inject constructor(
         private const val SLACK_MILLIS = 90_000L
 
         /** Keeps catch-up request codes out of the reminders' range. */
-        private const val REQUEST_OFFSET = 1_000_000
     }
 }
+
+/** Which occurrence a catch-up belongs to. A string so it is testable off-device. */
+fun catchUpKey(occurrenceId: Long): String = "jarvis://catchup/" + occurrenceId

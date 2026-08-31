@@ -1,6 +1,7 @@
 package com.ar13x.jarvis.reminders
 
 import com.ar13x.jarvis.reminders.notification.NudgeActionReceiver
+import com.ar13x.jarvis.reminders.notification.catchUpKey
 import com.ar13x.jarvis.reminders.notification.nudgeKey
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNotEquals
@@ -82,5 +83,27 @@ class NudgeActionIdentityTest {
     @Test
     fun `ids eight apart do not collide`() {
         assertNotEquals(nudgeKey(1000, extend, 60), nudgeKey(1008, complete, 0))
+    }
+
+    // --- the catch-up alarm, same rule ----------------------------------------
+
+    @Test
+    fun `catch-ups for different occurrences are different`() {
+        assertNotEquals(catchUpKey(42), catchUpKey(43))
+    }
+
+    /**
+     * The catch-up used to be keyed by `occurrenceId.toInt()`, which truncates.
+     * Two ids 2^32 apart became one alarm, and cancelling either stopped both.
+     */
+    @Test
+    fun `catch-up keys survive ids that do not fit in an Int`() {
+        val id = 42L
+        assertNotEquals(catchUpKey(id), catchUpKey(id + (1L shl 32)))
+    }
+
+    @Test
+    fun `a catch-up is never confused with a nudge button`() {
+        assertNotEquals(catchUpKey(42), nudgeKey(42, complete, 0))
     }
 }
