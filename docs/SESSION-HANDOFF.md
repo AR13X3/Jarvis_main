@@ -146,6 +146,11 @@ If a claim rests on something you did not check, say so.
   inline-only.
 - **Writing a Kotlin `"\n"` through a shell heredoc or Python silently becomes a
   real newline** and breaks the build. Use the Edit tool for string literals.
+- **`PendingIntent` equality ignores extras** — it compares action, data and
+  component. An id carried only in an extra distinguishes nothing, so two
+  intents collapse and `FLAG_UPDATE_CURRENT` rewrites the survivor's extras.
+  This was got wrong three times in one package; `BUILD_NOTES` §14 states the
+  rule and the four ways it failed.
 - **The Room mirror is derived data.** Destructive migration is deliberate; a
   schema bump costs one refresh.
 - **Version codes are derived arithmetically** — `maj * 10_000 + min * 100 +

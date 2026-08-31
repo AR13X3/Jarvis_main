@@ -1146,3 +1146,46 @@ composer should look like the one line of text it is.
 
 Shortened, **and** capped at one line with an ellipsis. The cap is the part that
 lasts: it stops the next placeholder anyone writes from doing this again.
+
+---
+
+## 14. `PendingIntent` identity — the rule this codebase broke three times
+
+**`PendingIntent` equality ignores extras.** Two intents are the same intent if
+`Intent.filterEquals` says so, and that compares action, **data**, type,
+package, component and categories. Extras are not consulted at all.
+
+So an identifier carried only in an extra distinguishes nothing. Two
+`PendingIntent`s that compare equal collapse into one, and
+`FLAG_UPDATE_CURRENT` rewrites the survivor's extras — which means the *second*
+thing to be scheduled silently takes over the first's identity, and cancelling
+either cancels both.
+
+`AlarmScheduler` already knew this and says so in a comment. It was still got
+wrong twice more, in the same package, by people who had read that comment:
+
+| where | what it keyed on | what went wrong |
+|---|---|---|
+| `AlarmScheduler` | occurrence id, in the data URI | correct, and the source of the rule |
+| the alarm's *request code* | `notificationId(taskId, fireAt)` | includes the fire time, so a rescheduled reminder could not replace its own alarm. **Two alarms fired.** |
+| nudge action buttons | `(notificationId * 8) + hash + minutes` | `* 8` overflows `Int`; the offset reaches 67 and overruns its 8-wide slot. Done on one reminder could complete another. |
+| the catch-up alarm | `REQUEST_OFFSET + occurrenceId.toInt()` | truncates a `Long`; ids 2^32 apart share an alarm |
+
+**The rule, stated once so it does not have to be rediscovered:**
+
+1. **Put the identity in the data URI**, as `jarvis://<kind>/<id>/...`. That is
+   the only part of the intent that is both free-form and compared.
+2. **The request code only has to be stable**, never unique. Use
+   `AlarmScheduler.alarmKey(occurrenceId)` and stop thinking about it.
+3. **Never build a request code out of arithmetic.** Every scheme above was
+   arithmetic, and every one of them overflowed, truncated, or overran.
+4. **Never key an alarm on anything that can change while it is armed.** A
+   fire time is the obvious trap: the whole point of rescheduling is that it
+   changes.
+
+Note that a notification id and an alarm id want *opposite* properties — the
+first must change with the fire time so a push and a local alarm for one firing
+collapse; the second must not, or a reschedule cannot replace itself. They were
+one function. They are now `notificationId` and `alarmKey`, and
+`AlarmIdentityTest` asserts the two against each other precisely because
+merging them back looks like a tidy-up.
