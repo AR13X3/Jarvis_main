@@ -105,7 +105,17 @@ class RoutineViewModel @Inject constructor(
     val state: StateFlow<RoutineUiState> = _state.asStateFlow()
 
     private val now = MutableStateFlow(LocalDateTime.now())
-    private var pickedByUser = false
+
+    /**
+     * The day the user chose, and the routine day that was running when they
+     * chose it.
+     *
+     * Both, because a choice should outlast a scroll but not outlast the day.
+     * Sticking to it forever means browsing to Friday on a Tuesday leaves the
+     * tab on Friday tomorrow, and the tab exists to answer "what now" — so the
+     * pick is dropped as soon as a different day starts running.
+     */
+    private var picked: Pair<DayOfWeek, LocalDate?>? = null
 
     init {
         combine(repository.routine(), repository.starts(), now) { routine, starts, at ->
@@ -123,15 +133,10 @@ class RoutineViewModel @Inject constructor(
     }
 
     fun select(weekday: DayOfWeek) {
-        pickedByUser = true
+        val routine = _state.value.routine
+        picked = weekday to routine?.logicalDayAt(now.value)?.date
         _state.value = _state.value.copy(selected = weekday)
-        _state.value.routine?.let { recompute(it, lastStarts, now.value) }
-    }
-
-    /** Anchors the pager back on whatever day is actually running. */
-    fun selectToday() {
-        pickedByUser = false
-        _state.value.routine?.let { recompute(it, lastStarts, now.value) }
+        routine?.let { recompute(it, lastStarts, now.value) }
     }
 
     fun start(row: SlotRow) {
@@ -157,8 +162,15 @@ class RoutineViewModel @Inject constructor(
         // opening the tab at 00:30 on a Saturday should land on Friday, which is
         // the day still in progress, not on an empty Saturday.
         val anchor = running ?: next
-        val selected = if (pickedByUser) _state.value.selected
-        else anchor?.day?.weekday ?: at.dayOfWeek
+
+        val selection = resolveSelection(
+            picked = picked,
+            runningDate = running?.date,
+            anchorWeekday = anchor?.day?.weekday,
+            fallback = at.dayOfWeek,
+        )
+        picked = selection.picked
+        val selected = selection.weekday
 
         val logical = logicalDayFor(routine, selected, anchor?.date ?: at.toLocalDate())
 
@@ -229,4 +241,38 @@ internal fun dayView(
         )
     }
     return DayView(logical, isToday, rows)
+}
+
+/** A resolved day choice, and the pick that survived resolving it. */
+internal data class Selection(
+    val weekday: DayOfWeek,
+    val picked: Pair<DayOfWeek, LocalDate?>?,
+)
+
+/**
+ * Which day the pager should show.
+ *
+ * A choice should outlast a scroll but **not** outlast the day. Keeping it
+ * forever means browsing to Friday on a Tuesday leaves the tab on Friday for the
+ * rest of the week, and the tab exists to answer "what now" — so a pick made
+ * while a different routine day was running has expired and is dropped.
+ *
+ * Pure, and separate from the ViewModel, because the interesting cases are all
+ * about time passing and testing them through a coroutine and a live clock would
+ * prove much less.
+ */
+internal fun resolveSelection(
+    picked: Pair<DayOfWeek, LocalDate?>?,
+    runningDate: LocalDate?,
+    anchorWeekday: DayOfWeek?,
+    fallback: DayOfWeek,
+): Selection {
+    // A pick taken while nothing was running carries no date and cannot expire
+    // on its own; the next running day retires it.
+    val live = picked?.takeIf { (_, on) -> on != null && on == runningDate }
+    return Selection(
+        weekday = live?.first ?: picked?.takeIf { runningDate == null }?.first
+            ?: anchorWeekday ?: fallback,
+        picked = live ?: picked?.takeIf { runningDate == null },
+    )
 }
