@@ -800,19 +800,24 @@ Add `min_supported_app` to the gateway's contract (§13).
 
 Run this every time; it is short precisely so it actually gets run.
 
-1. Bump `appVersionName` in `app/build.gradle.kts`.
+1. Bump `appVersionName` in `app/build.gradle.kts`, and **commit it** — a build
+   from a dirty tree names a commit that does not contain it (`BUILD_NOTES` §8.8).
 2. Update `CHANGELOG.md` in the **releases** repo — the entry becomes the GitHub
    release body, which becomes the text the in-app banner shows. Write it for
    the person holding the phone.
-3. `./gradlew assembleRelease` — signed with the **same keystore as every prior
-   release** (§10, stable signing key).
-4. Verify: `versionCode` strictly greater than last; APK signature matches
-   (`apksigner verify --print-certs`) — a mismatch here fails the install on
-   device with a message that does not explain itself.
-5. `gh release create v1.4.0 --repo AR13X3/jarvis-releases -F notes.md jarvis-v1.4.0.apk`
-6. Confirm Obtainium sees it and installs **in place** over the previous build.
+3. `bash tools/release.sh` — builds, verifies and tags. It refuses a dirty tree,
+   an existing tag, a `versionCode` that does not beat the published one, a
+   signing cert that differs from every prior release, and an APK that does not
+   embed the commit it names. Then it **stops**: publishing is a human step.
+4. `gh release create v1.4.0 --repo AR13X3/Jarvis_2.0 -F notes.md jarvis-v1.4.0.apk`
+   — the script prints this line filled in.
+5. Confirm Obtainium sees it and installs **in place** over the previous build.
    An install that asks to uninstall first means the signature changed — stop
    and fix it, do not accept the uninstall.
+
+Steps 3 and 4 were one manual sequence until 2026-09-01. The tag was the last
+item and was skipped on four of the first nine releases, so the checks it
+depended on are now enforced rather than remembered.
 
 ---
 
