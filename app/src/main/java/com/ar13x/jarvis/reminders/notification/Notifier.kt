@@ -60,7 +60,11 @@ class Notifier @Inject constructor(
 
         val open = PendingIntent.getActivity(
             context,
-            occurrence.taskId.toInt(),
+            // Per task, not per occurrence, and deliberately: every firing of a
+            // recurring reminder should open the same task, and the extras are
+            // identical, so sharing one PendingIntent is correct rather than a
+            // collision. `alarmKey` only to avoid `toInt()` truncating an id.
+            AlarmScheduler.alarmKey(occurrence.taskId),
             Intent(context, MainActivity::class.java).apply {
                 flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
                 putExtra(EXTRA_TASK_ID, occurrence.taskId)
