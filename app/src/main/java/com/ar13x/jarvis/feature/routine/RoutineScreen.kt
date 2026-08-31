@@ -20,6 +20,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.rounded.BarChart
 import androidx.compose.material.icons.rounded.Check
 import androidx.compose.material.icons.rounded.ExpandLess
 import androidx.compose.material.icons.rounded.ExpandMore
@@ -41,6 +42,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.ar13x.jarvis.core.model.RoutineDay
 import com.ar13x.jarvis.core.model.SlotKind
 import com.ar13x.jarvis.core.model.durationMinutes
+import com.ar13x.jarvis.designsystem.component.CircleIconButton
 import com.ar13x.jarvis.designsystem.theme.Corner
 import com.ar13x.jarvis.designsystem.theme.JarvisTheme
 import com.ar13x.jarvis.designsystem.theme.Space
@@ -63,6 +65,7 @@ import java.util.Locale
  */
 @Composable
 fun RoutineScreen(
+    onOpenWeek: () -> Unit,
     modifier: Modifier = Modifier,
     viewModel: RoutineViewModel = hiltViewModel(),
 ) {
@@ -96,6 +99,7 @@ fun RoutineScreen(
                     started = day.startedCount,
                     tracked = day.trackedTotal,
                     unrecorded = day.unrecordedCount,
+                    onOpenWeek = onOpenWeek,
                 )
             }
 
@@ -195,7 +199,13 @@ private fun DayPager(
 }
 
 @Composable
-private fun DayHeading(day: RoutineDay, started: Int, tracked: Int, unrecorded: Int) {
+private fun DayHeading(
+    day: RoutineDay,
+    started: Int,
+    tracked: Int,
+    unrecorded: Int,
+    onOpenWeek: () -> Unit,
+) {
     val colors = JarvisTheme.colors
     Column(
         Modifier.padding(
@@ -225,7 +235,16 @@ private fun DayHeading(day: RoutineDay, started: Int, tracked: Int, unrecorded: 
                 text = shortTime(day.startsAt.toString()) + " – " + shortTime(day.endsAt.toString()),
                 style = JarvisTheme.typography.bodySmall.tabularNums(),
                 color = colors.inkMuted,
+                modifier = Modifier.padding(end = Space.x2),
             )
+            CircleIconButton(onClick = onOpenWeek, diameter = 32.dp) {
+                Icon(
+                    Icons.Rounded.BarChart,
+                    contentDescription = "Where the hours go",
+                    tint = colors.inkMuted,
+                    modifier = Modifier.size(17.dp),
+                )
+            }
         }
         Spacer(Modifier.height(Space.x2))
         Text(

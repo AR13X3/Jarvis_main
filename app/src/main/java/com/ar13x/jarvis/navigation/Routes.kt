@@ -26,6 +26,9 @@ sealed interface Route
 
 @Serializable data object RoutineDayView : Route
 
+/** The week's shape and totals — "where the hours go" (v2 plan §4.1). */
+@Serializable data object RoutineWeek : Route
+
 @Serializable data object TaskList : Route
 
 /** Tapping a row opens *that task's* persistent session (plan §5.3). */

@@ -45,6 +45,7 @@ import com.ar13x.jarvis.core.update.UpdateStatus
 import com.ar13x.jarvis.feature.about.AboutScreen
 import com.ar13x.jarvis.feature.chat.ChatScreen
 import com.ar13x.jarvis.feature.routine.RoutineScreen
+import com.ar13x.jarvis.feature.routine.RoutineWeekScreen
 import com.ar13x.jarvis.feature.tasks.list.TaskListScreen
 import com.ar13x.jarvis.feature.tasks.session.SessionScreen
 import com.ar13x.jarvis.feature.update.UpdateRequiredScreen
@@ -242,7 +243,10 @@ private fun JarvisNavHost(
 
                 navigation<RoutineGraph>(startDestination = RoutineDayView) {
                     composable<RoutineDayView> {
-                        RoutineScreen()
+                        RoutineScreen(onOpenWeek = { navController.navigate(RoutineWeek) })
+                    }
+                    composable<RoutineWeek> {
+                        RoutineWeekScreen(onBack = { navController.popBackStack() })
                     }
                 }
 
