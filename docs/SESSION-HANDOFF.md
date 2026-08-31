@@ -19,14 +19,17 @@ Rewritten 2026-09-01. Paste §0 into a new session; it points at everything else
 > curl -s https://gw03.tail9662e3.ts.net/tracker/api/items
 > ```
 >
-> Everything is committed and pushed, 144 tests green, `v0.1.10` published.
+> Everything is committed and pushed, 196 tests green, `v0.1.10` published —
+> and **several fixes and the whole routine feature are unreleased**, so what is
+> on the phone is behind the repo.
 > **Never publish a release without asking me first.**
 
 ---
 
 ## 1. What this is
 
-A personal task-and-reminder app. Two tabs — **Tasks** and **Chat** — talking to
+A personal task-and-reminder app, becoming a life-management one — see
+`jarvis-v2-plan.md`. Three tabs: **Tasks**, **Routine** and **Chat**, talking to
 an agent gateway. You talk to it in natural language; it proposes, you confirm,
 and nothing is written until you do.
 
@@ -168,25 +171,33 @@ Nine releases — `0.1.1`–`0.1.10`, with `0.1.4` deliberately skipped — all
 installing in place on one key. Phone on `0.1.10`, verified with `adb`.
 
 **Complete:** the plan through Phase F, plus voice, the Overdue section, the
-follow-up loop with lock-screen answers, checklists, and unfinished-task
-recovery. 144 tests.
+follow-up loop with lock-screen answers, checklists, unfinished-task recovery,
+and the **routine** — day view and week view, against a fixture. 196 tests.
 
-**Waiting on gw03:** teach the model to write checklists as `- [ ]` lines — a
-prompt change, no contract change (tracker #54). Until then the format works but
-is undiscoverable, because the natural phrasing produces a numbered list the
-parser does not accept.
+**Unreleased, and it is now a lot.** `0.1.10` predates the routine tab and four
+fixes, three of which are the `PendingIntent` identity bugs in §7. Whether that
+earns a release is Joy's call, but the gap is wider than usual.
 
-**Open on joy:** tracker #50 — with voice on, the phone *speaks* replies it never
-shows. `send()` renders from the refreshed history but speaks straight from the
-POST body, so the two disagree whenever the server's copy does. Not urgent now
-that failed turns persist, and the render-from-history design is right and stays.
-Read the board rather than this paragraph; it is the state, this is the summary.
+**Next, and the whole shape of it:** `docs/jarvis-v2-plan.md` — reminders,
+routines, tasks, a dashboard and summaries. Agreed with Joy, **not yet agreed
+with gw03**, which is what tracker item 60 asks for. Read it before building
+anything in that direction; almost all of it is gw03's, and the `task` →
+`reminder` rename is deliberately first because it never gets cheaper.
+
+**Waiting on gw03:** the v2 review (60), the routine contract (62), and a
+low-severity `due_date` ask (63).
+
+**Waiting on Joy:** the FCM measurement, still never started; which routine slots
+are *tracked* versus *scaffold* — a considered guess today, and it decides what
+the dashboard can say; and whether the 12-hour times in the routine want an
+am/pm marker.
 
 **Accepted, not fixed:** "Charge my watch" lapses every night. The loop is
-correct; the task is at a time Joy does not answer. Joy has decided that is fine.
-Do not reopen it unprompted.
+correct; the task is at a time Joy does not answer. Do not reopen it unprompted.
 
-**Every bug that mattered today was found by using the app on a real phone**, not
-by a test — an empty turn rendering as nothing, a lost conversation, stale
-buttons, a wrapping placeholder. The tests are worth having and have caught real
-things, but they do not find these.
+**Every bug that mattered on 31 August was found by using the app on a real
+phone**, not by a test — an empty turn rendering as nothing, a lost
+conversation, stale buttons, a wrapping placeholder. Every bug found on 1
+September was found by *reading*, and the tests could not have caught them
+either, because the code they guarded was not the code that ran. Both halves of
+that are worth keeping.
