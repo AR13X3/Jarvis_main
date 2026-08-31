@@ -80,7 +80,7 @@ class AlarmScheduler @Inject constructor(
         }
         return PendingIntent.getBroadcast(
             context,
-            notificationId(occurrence.taskId, occurrence.scheduledForMillis),
+            alarmKey(occurrence.occurrenceId),
             intent,
             flags or PendingIntent.FLAG_IMMUTABLE,
         )
@@ -99,6 +99,29 @@ class AlarmScheduler @Inject constructor(
          * `occurrence_id` on purpose — the push may not know the occurrence id,
          * but it certainly knows which task and when.
          */
+        /**
+         * The identity of an occurrence's **alarm**, stable for its whole life.
+         *
+         * Deliberately not [notificationId], which was doing this job and is
+         * built from the fire time. The two want opposite things and cannot be
+         * one number:
+         *
+         * - a *notification* id must change with the time, so a push and a local
+         *   alarm for the same firing collapse and a later firing is a new one;
+         * - an *alarm* id must **not**, or moving a reminder cannot replace its
+         *   own alarm.
+         *
+         * With the time in the request code, rescheduling 11:00 to 11:30 built a
+         * different `PendingIntent`, so `FLAG_UPDATE_CURRENT` had nothing to
+         * update and `reconcile` never cancelled the old one — it is still in
+         * `current`, by the same occurrence id. Both alarms stayed armed and the
+         * reminder fired twice, once at a time the user had already moved.
+         *
+         * `AlarmDedupTest` pins the time-varying half; [AlarmIdentityTest] pins
+         * this one.
+         */
+        fun alarmKey(occurrenceId: Long): Int = (occurrenceId.hashCode()) and 0x7FFFFFFF
+
         fun notificationId(taskId: Long, fireAtMillis: Long): Int {
             var hash = taskId.hashCode()
             hash = 31 * hash + fireAtMillis.hashCode()
