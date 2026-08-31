@@ -574,20 +574,30 @@ standing credential for every private repo on the account onto the phone.
 build, so it is worth getting right once rather than renaming later: an older
 APK in the field keeps checking whatever repo it was compiled against.
 
-### 8.6 Phase F, as it actually stands
+### 8.6 Phase F — complete
 
-Four releases are published: `v0.1.1`, `v0.1.2`, `v0.1.3`, `v0.1.5`. `0.1.4` was
-built and deliberately **skipped** — `0.1.5` supersedes it, and spending an
-install on a metadata-only build buys nothing.
+Both done-whens verified on hardware, 2026-09-01.
 
-| done-when | state |
+| done-when | evidence |
 |---|---|
-| an update installs **in place** over a prior build | **verified** on device, `0.1.1` over `0.1.0` through Obtainium, no uninstall prompt |
-| the older build shows the **banner** before you install it | **not yet seen** |
+| an update installs **in place** over a prior build | verified early — `0.1.1` over `0.1.0` through Obtainium, no uninstall prompt |
+| the older build shows the **banner** before you install it | **verified** — phone on `0.1.7`, `0.1.8` published, About → Check now, banner appeared with the release notes |
 
-The second half has been testable since `0.1.5` shipped alongside `0.1.3` in the
-field, and "Check now" on the About screen removes the 24h wait. It is the last
-unproven step of the phase, and it is about ten seconds of work on a device.
+The second one took eight releases to test, and not because it was hard. It was
+**structurally untestable almost all of the time**: the banner only fires when
+the installed build is behind a published one, and the phone was normally on the
+newest thing there was. Downgrading is not a route — Android blocks a
+`versionCode` downgrade, and uninstalling would take the pairing and local state
+with it.
+
+So the window is exactly the interval between publishing a release and
+installing it. Worth knowing for anything similar: **the test had to be run
+deliberately in that gap, and every previous release closed the gap before
+anyone thought to look.**
+
+Nine releases published: `v0.1.1`, `0.1.2`, `0.1.3`, `0.1.5`, `0.1.6`, `0.1.7`,
+`0.1.8`. `0.1.4` was built and deliberately skipped — `0.1.5` superseded it, and
+spending an install on a metadata-only build buys nothing.
 
 ### 8.7 Fixed — the pairing screen's URL field now does something
 
