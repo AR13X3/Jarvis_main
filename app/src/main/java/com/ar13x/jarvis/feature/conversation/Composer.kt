@@ -34,6 +34,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.scale
 import androidx.compose.ui.graphics.SolidColor
+import androidx.compose.ui.text.input.KeyboardCapitalization
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.unit.dp
 import com.ar13x.jarvis.core.model.TaskStatus
@@ -94,8 +96,17 @@ fun Composer(
                 JarvisTheme.typography.bodyLarge.copy(color = colors.ink),
             ),
             cursorBrush = SolidColor(colors.brandCore),
-            keyboardOptions = KeyboardOptions(imeAction = ImeAction.Send),
-            keyboardActions = KeyboardActions(onSend = { if (canSend) onSend() }),
+            // Enter inserts a line, it does not send.
+            //
+            // ImeAction.Send put a send key where the newline key lives, so a
+            // multi-line message was impossible — and the field is explicitly
+            // sized to grow to four lines, which only makes sense if you can
+            // reach them. Sending is the button beside the field; it is always
+            // visible and cannot be hit by accident mid-sentence.
+            keyboardOptions = KeyboardOptions(
+                imeAction = ImeAction.Default,
+                capitalization = KeyboardCapitalization.Sentences,
+            ),
             modifier = Modifier
                 .weight(1f)
                 // Height follows the text. A single line should look like a
@@ -113,6 +124,12 @@ fun Composer(
                             text = if (listening) "Listening…" else placeholder,
                             style = JarvisTheme.typography.bodyLarge,
                             color = if (listening) colors.brandCore else colors.inkMuted,
+                            // One line, always. An empty composer should look
+                            // like one line of text because that is all it is —
+                            // a placeholder long enough to wrap made the empty
+                            // state twice the height it had earned.
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
                         )
                     }
                     field()

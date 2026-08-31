@@ -83,7 +83,9 @@ fun SessionScreen(
         onMic = onMic,
         onOpenTask = onOpenTask,
         onCreateTask = onCreateTask,
-        placeholder = if (task == null) "What should I remind you about?" else "Ask or change something…",
+        // Short enough not to wrap on a phone. The old one ran to two
+        // lines, which made an empty composer twice the height it needed.
+        placeholder = if (task == null) "Remind me to…" else "Ask or change…",
         modifier = modifier,
         header = {
             SessionHeader(

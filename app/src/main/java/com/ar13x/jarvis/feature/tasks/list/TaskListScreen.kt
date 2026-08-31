@@ -41,6 +41,11 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.ModalBottomSheet
+import androidx.compose.material3.rememberModalBottomSheetState
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
@@ -109,6 +114,7 @@ fun TaskListScreen(
     )
 }
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun TaskListScreen(
     state: TaskListUiState,
@@ -122,6 +128,8 @@ fun TaskListScreen(
     val colors = JarvisTheme.colors
     val listState = rememberLazyListState()
     val snackbars = remember { SnackbarHostState() }
+    var showDrafts by remember { mutableStateOf(false) }
+    val draftSheet = rememberModalBottomSheetState()
     val readiness = rememberReminderReadiness()
 
     // The gateway owns all state (parent plan §2.1), so the list is only ever a
@@ -138,6 +146,22 @@ fun TaskListScreen(
     val appContext = LocalContext.current.applicationContext
     LifecycleEventEffect(Lifecycle.Event.ON_RESUME) {
         OccurrenceRefreshWorker.enqueueNow(appContext)
+    }
+
+    if (showDrafts) {
+        ModalBottomSheet(
+            onDismissRequest = { showDrafts = false },
+            sheetState = draftSheet,
+            containerColor = colors.surface,
+        ) {
+            UnfinishedSheet(
+                drafts = state.drafts,
+                onPick = { id ->
+                    showDrafts = false
+                    onOpenDraft(id)
+                },
+            )
+        }
     }
 
     UndoSnackbarEffect(state, onEvent, snackbars)
@@ -161,7 +185,8 @@ fun TaskListScreen(
                     onEvent = onEvent,
                     onOpenTask = onOpenTask,
                     onNewSession = onNewSession,
-                    onOpenDraft = onOpenDraft,
+                    drafts = state.drafts,
+                    onOpenDrafts = { showDrafts = true },
                     onAbout = onAbout,
                 )
             }
@@ -202,7 +227,8 @@ private fun TaskList(
     onEvent: (TaskListEvent) -> Unit,
     onOpenTask: (Long) -> Unit,
     onNewSession: () -> Unit,
-    onOpenDraft: (String) -> Unit,
+    drafts: List<SessionSummary>,
+    onOpenDrafts: () -> Unit,
     onAbout: () -> Unit,
 ) {
     val showSections = content.showsSections(state.filters)
@@ -221,7 +247,13 @@ private fun TaskList(
         verticalArrangement = Arrangement.spacedBy(Space.x2),
     ) {
         item(key = "header") {
-            TasksHeader(content = content, onNewSession = onNewSession, onAbout = onAbout)
+            TasksHeader(
+                content = content,
+                draftCount = drafts.size,
+                onNewSession = onNewSession,
+                onOpenDrafts = onOpenDrafts,
+                onAbout = onAbout,
+            )
         }
 
         // Above the reminder card: being on a build the gateway may already
@@ -258,23 +290,6 @@ private fun TaskList(
         if (showSections) {
             // Sections with no rows are hidden, not shown empty — three empty
             // headers on first launch is noise (plan §5.2).
-
-            // Above Overdue, and above everything: these are the only rows the
-            // task list cannot otherwise reach. An overdue task is at least
-            // visible elsewhere; an unconfirmed conversation is not a task at
-            // all, so if it is not here it is nowhere.
-            if (state.drafts.isNotEmpty()) {
-                item(key = "h-drafts") { SectionHeader("Unfinished") }
-                items(state.drafts, key = { "draft-" + it.id }) { draft ->
-                    DraftRow(
-                        draft = draft,
-                        onOpen = { onOpenDraft(draft.id) },
-                        modifier = Modifier
-                            .padding(horizontal = Space.Gutter)
-                            .animateItem(),
-                    )
-                }
-            }
 
             // Above everything, because it is the only section that is already
             // costing you something. A task set for 6:40 must not look
@@ -369,7 +384,9 @@ private fun Row_(
 @Composable
 private fun TasksHeader(
     content: TaskListContent,
+    draftCount: Int,
     onNewSession: () -> Unit,
+    onOpenDrafts: () -> Unit,
     onAbout: () -> Unit,
 ) {
     val colors = JarvisTheme.colors
@@ -400,6 +417,7 @@ private fun TasksHeader(
             headline = "What needs\ndoing today?",
             centred = true,
             leading = {
+              Row(verticalAlignment = Alignment.CenterVertically) {
                 // The + is a brand-filled circle and the only saturated element
                 // in the list, so the eye lands on it immediately (plan §6.7).
                 CircleIconButton(
@@ -414,6 +432,20 @@ private fun TasksHeader(
                         modifier = Modifier.size(22.dp),
                     )
                 }
+                // Only when there is something behind it. A permanent button
+                // that is usually empty teaches you to stop pressing it, and
+                // this one exists precisely for the times you need it.
+                if (draftCount > 0) {
+                    Spacer(Modifier.width(Space.x2))
+                    CircleIconButton(onClick = onOpenDrafts, diameter = 40.dp) {
+                        Text(
+                            text = draftCount.toString(),
+                            style = JarvisTheme.typography.labelLarge.tabularNums(),
+                            color = colors.inkMuted,
+                        )
+                    }
+                }
+              }
             },
             trailing = {
                 // A ghost circle, not a second saturated one: the + is the only
@@ -915,4 +947,48 @@ private fun DraftRow(
 private fun draftSubtitle(draft: SessionSummary): String {
     val turns = if (draft.messageCount == 1) "1 message" else draft.messageCount.toString() + " messages"
     return turns + " · not created yet"
+}
+
+/**
+ * Task conversations that never became tasks.
+ *
+ * Behind an affordance rather than in the list. It began as a section at the top
+ * and that was wrong for the ordinary case: these are recovery, not work, and a
+ * standing section pushed the actual list down every day to serve the rare day
+ * something was abandoned. Same shape the Chat tab uses for its history, for the
+ * same reason.
+ *
+ * The header button appears only when there is something in here, so an empty
+ * sheet is unreachable rather than disappointing.
+ */
+@Composable
+private fun UnfinishedSheet(
+    drafts: List<SessionSummary>,
+    onPick: (String) -> Unit,
+) {
+    val colors = JarvisTheme.colors
+
+    Column(Modifier.padding(bottom = Space.x8)) {
+        Text(
+            text = "UNFINISHED",
+            style = JarvisTheme.typography.labelSmall,
+            color = colors.inkMuted,
+            modifier = Modifier.padding(horizontal = Space.Gutter, vertical = Space.x3),
+        )
+        Text(
+            text = "Task conversations you started and never confirmed.",
+            style = JarvisTheme.typography.bodySmall,
+            color = colors.inkMuted,
+            modifier = Modifier.padding(horizontal = Space.Gutter),
+        )
+        Spacer(Modifier.height(Space.x3))
+
+        drafts.forEach { draft ->
+            DraftRow(
+                draft = draft,
+                onOpen = { onPick(draft.id) },
+                modifier = Modifier.padding(horizontal = Space.Gutter, vertical = Space.x1),
+            )
+        }
+    }
 }

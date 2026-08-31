@@ -1099,3 +1099,50 @@ nudging in one session do not silence each other.
 Worth telling gw03 that marking the superseded card `Extended` server-side would
 be more correct for history and for any other client, but the app no longer
 depends on it.
+
+## 13. UX corrections from real use
+
+Three things a day of actually using the app surfaced. None were caught by the
+144 tests, and none could have been.
+
+### 13.1 Unfinished moved out of the list
+
+It shipped in `0.1.9` as a section pinned above Overdue, on the reasoning that a
+draft is reachable from nowhere else so it must be visible. That reasoning holds
+and the placement still did not: drafts are **recovery, not work**, and a
+standing section pushed the actual list down every day to serve the rare day
+something was abandoned.
+
+It is now a sheet behind a header button — the same shape the Chat tab uses for
+its history, for the same reason. The button carries the count and **appears
+only when there is something behind it**, so an empty sheet is unreachable
+rather than disappointing.
+
+### 13.2 Enter writes a line; the button sends
+
+`ImeAction.Send` put a send key where the newline key lives, so a multi-line
+message was impossible — while the field is explicitly sized to grow to four
+lines, which only makes sense if you can reach them.
+
+Sending is the button beside the field: always visible, and impossible to hit by
+accident mid-sentence. This is the standard trade for a composer that is allowed
+to be more than one line, and the field was already the second kind.
+
+### 13.3 Messages can be copied
+
+Bubbles were plain `Text`, so nothing in a conversation could be copied — an
+address, a time, a name the agent had got right all had to be retyped.
+
+Wrapped **per bubble** rather than once around the stream. A single
+`SelectionContainer` over a `LazyColumn` only holds the composed window, so a
+drag that scrolls past the edge loses the selection, and under `reverseLayout`
+it selects in an order nobody expects.
+
+### 13.4 The placeholder no longer wraps
+
+"What should I remind you about?" ran to two lines on a phone, so an empty
+composer was twice the height it had earned — against §6.4's rule that an empty
+composer should look like the one line of text it is.
+
+Shortened, **and** capped at one line with an ellipsis. The cap is the part that
+lasts: it stops the next placeholder anyone writes from doing this again.

@@ -19,6 +19,7 @@ import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Text
+import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
@@ -39,6 +40,19 @@ import com.ar13x.jarvis.designsystem.theme.Space
 import androidx.compose.runtime.LaunchedEffect
 
 /** User right, agent left (plan §5.3). */
+/**
+ * Long-press selects and copies.
+ *
+ * Bubbles were plain [Text], so nothing in a conversation could be copied — an
+ * address, a time, a name the agent had got right all had to be retyped.
+ *
+ * Wrapped **per bubble** rather than once around the stream: a single
+ * [SelectionContainer] over a `LazyColumn` only ever holds the composed window,
+ * so a drag that scrolls past the edge loses the selection, and in a
+ * `reverseLayout` list it selects in an order nobody expects. Per bubble, a
+ * long-press gives handles inside that message and the list keeps scrolling
+ * normally.
+ */
 @Composable
 fun MessageBubble(
     message: Message,
@@ -83,17 +97,21 @@ fun MessageBubble(
             // emphasis, and silently restyling what someone wrote is worse
             // than showing an asterisk.
             if (fromUser) {
-                Text(
-                    text = message.text,
-                    style = JarvisTheme.typography.bodyLarge,
-                    color = colors.onBrand,
-                )
+                SelectionContainer {
+                    Text(
+                        text = message.text,
+                        style = JarvisTheme.typography.bodyLarge,
+                        color = colors.onBrand,
+                    )
+                }
             } else {
-                Text(
-                    text = message.text.toInlineMarkdown(codeColor = colors.brandDeep),
-                    style = JarvisTheme.typography.bodyLarge,
-                    color = colors.ink,
-                )
+                SelectionContainer {
+                    Text(
+                        text = message.text.toInlineMarkdown(codeColor = colors.brandDeep),
+                        style = JarvisTheme.typography.bodyLarge,
+                        color = colors.ink,
+                    )
+                }
             }
         }
     }
