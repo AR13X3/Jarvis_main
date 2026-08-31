@@ -49,6 +49,10 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.platform.LocalContext
 import androidx.core.content.ContextCompat
 import androidx.compose.runtime.getValue
+import androidx.compose.material.icons.rounded.ErrorOutline
+import com.ar13x.jarvis.core.model.MessageRole
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.width
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.remember
@@ -240,6 +244,19 @@ private fun MessageItem(
     ) {
         if (message.text.isNotBlank()) {
             Arrival(key = message.id) { MessageBubble(message) }
+        } else if (message.role == MessageRole.Assistant && message.components.isEmpty()) {
+            // An agent turn with no prose AND no cards used to render as
+            // literally nothing: no bubble, no card, no error, no gap. The
+            // request had succeeded, so there was no failure to report either —
+            // the screen simply looked as though the message had never been
+            // sent.
+            //
+            // Seen in the field: a still-unbound session with a pending
+            // proposal was asked to change the not-yet-created task, and the
+            // turn came back empty. §8.2's rule is that a failure names its
+            // cause; silence names nothing, and is the one outcome the user
+            // cannot tell apart from a bug in the app.
+            Arrival(key = message.id) { EmptyTurn() }
         }
 
         message.components.forEachIndexed { index, component ->
@@ -508,6 +525,42 @@ fun rememberMicAction(
             hasPermission -> onToggleMic()
             listening -> onToggleMic()
             else -> request.launch(Manifest.permission.RECORD_AUDIO)
+        }
+    }
+}
+
+/**
+ * The agent said nothing at all.
+ *
+ * Rendered in the agent's own position and styling so the stream still reads as
+ * a conversation with a turn in it — because there *was* a turn, it just
+ * carried nothing. Saying so is the whole job: an empty reply the user can see
+ * is a thing they can act on, and an empty reply they cannot is indistinguishable
+ * from the app having eaten their message.
+ */
+@Composable
+private fun EmptyTurn(modifier: Modifier = Modifier) {
+    val colors = JarvisTheme.colors
+    Row(modifier = modifier.fillMaxWidth().padding(horizontal = Space.Gutter)) {
+        Row(
+            modifier = Modifier
+                .clip(Corner.Lg)
+                .background(colors.surfaceSunk, Corner.Lg)
+                .padding(horizontal = Space.x4, vertical = Space.x3),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Icon(
+                Icons.Rounded.ErrorOutline,
+                contentDescription = null,
+                tint = colors.status.incomplete,
+                modifier = Modifier.size(16.dp),
+            )
+            Spacer(Modifier.width(Space.x2))
+            Text(
+                text = "Jarvis didn’t answer that. Try asking again.",
+                style = JarvisTheme.typography.bodyMedium,
+                color = colors.inkMuted,
+            )
         }
     }
 }
