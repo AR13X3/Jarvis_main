@@ -148,23 +148,34 @@ If a claim rests on something you did not check, say so.
   real newline** and breaks the build. Use the Edit tool for string literals.
 - **The Room mirror is derived data.** Destructive migration is deliberate; a
   schema bump costs one refresh.
-- **Version codes are derived arithmetically**, so `0.1.10` (10010… rendered
-  `110`) correctly beats `0.1.9` (109). As *strings* it would not. `SemVerTest`
-  pins this and `0.1.10` was the first release where it mattered.
+- **Version codes are derived arithmetically** — `maj * 10_000 + min * 100 +
+  patch` — so `0.1.10` is `110` and correctly beats `0.1.9` at `109`. Compared as
+  *strings* it would not. `SemVerTest` pins this and `0.1.10` was the first
+  release where it mattered.
+- **Tagging is the step that keeps getting skipped.** `v0.1.7`–`v0.1.10` were all
+  published without a tag in the source repo and tagged after the fact. When you
+  do fix it, take the commit from the published APK's `classes.dex`, not from a
+  note about what was built.
 
 ## 8. Where things stand
 
-Ten releases, all installing in place on one key. Phone on `0.1.9`; `0.1.10` is
-published and not yet installed.
+Nine releases — `0.1.1`–`0.1.10`, with `0.1.4` deliberately skipped — all
+installing in place on one key. Phone on `0.1.10`, verified with `adb`.
 
 **Complete:** the plan through Phase F, plus voice, the Overdue section, the
 follow-up loop with lock-screen answers, checklists, and unfinished-task
 recovery. 144 tests.
 
 **Waiting on gw03:** teach the model to write checklists as `- [ ]` lines — a
-prompt change, no contract change. Until then the format works but is
-undiscoverable, because the natural phrasing produces a numbered list the parser
-does not accept.
+prompt change, no contract change (tracker #54). Until then the format works but
+is undiscoverable, because the natural phrasing produces a numbered list the
+parser does not accept.
+
+**Open on joy:** tracker #50 — with voice on, the phone *speaks* replies it never
+shows. `send()` renders from the refreshed history but speaks straight from the
+POST body, so the two disagree whenever the server's copy does. Not urgent now
+that failed turns persist, and the render-from-history design is right and stays.
+Read the board rather than this paragraph; it is the state, this is the summary.
 
 **Accepted, not fixed:** "Charge my watch" lapses every night. The loop is
 correct; the task is at a time Joy does not answer. Joy has decided that is fine.
