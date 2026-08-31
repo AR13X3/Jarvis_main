@@ -2,6 +2,7 @@ package com.ar13x.jarvis.feature.conversation
 
 import androidx.compose.runtime.Immutable
 import com.ar13x.jarvis.core.model.FailureReason
+import com.ar13x.jarvis.core.model.AgentComponent
 import com.ar13x.jarvis.core.model.Message
 import com.ar13x.jarvis.core.model.MessageRole
 import com.ar13x.jarvis.core.model.SessionSummary
@@ -136,6 +137,30 @@ data class ConversationUiState(
         get() = buildList {
             optimistic?.let { add(it) }
             addAll(history.dataOrNull.orEmpty().asReversed())
+        }
+
+    /**
+     * The one overdue card per occurrence still worth answering.
+     *
+     * The loop asks up to three times about the same occurrence, and the server
+     * only marks a card resolved when the *user* answers it. An auto-extension
+     * supersedes the previous question without resolving it — so scrolling back
+     * showed three identical cards all offering live buttons, when only the
+     * newest referred to a deadline that still existed. Tapping an old one asked
+     * the server to extend an occurrence it had already moved.
+     *
+     * [stream] is newest-first, so the first card seen for an occurrence is the
+     * live one and everything after it is history.
+     */
+    val liveOverdue: Map<Long, OptionsKey>
+        get() = buildMap {
+            stream.forEach { message ->
+                message.components.forEachIndexed { index, component ->
+                    if (component is AgentComponent.Overdue) {
+                        putIfAbsent(component.occurrenceId, OptionsKey(message.id, index))
+                    }
+                }
+            }
         }
 
     /** Nothing said yet — the screen shows its oversized headline instead. */

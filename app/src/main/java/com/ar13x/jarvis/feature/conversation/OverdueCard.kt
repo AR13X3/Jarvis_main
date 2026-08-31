@@ -55,13 +55,21 @@ import com.ar13x.jarvis.designsystem.theme.tabularNums
 @Composable
 fun OverdueCard(
     component: AgentComponent.Overdue,
+    /**
+     * A later card has replaced this one.
+     *
+     * The server resolves a card only when the user answers it, so an
+     * auto-extension leaves the question it replaced looking live forever. Its
+     * buttons are worse than useless — they act on a deadline that has moved.
+     */
+    superseded: Boolean = false,
     busy: Boolean,
     onComplete: () -> Unit,
     onExtend: (Int) -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val colors = JarvisTheme.colors
-    val resolved = component.resolution != null
+    val resolved = component.resolution != null || superseded
 
     JarvisCard(
         modifier = modifier.fillMaxWidth(),
@@ -92,13 +100,16 @@ fun OverdueCard(
                 color = colors.inkMuted,
             )
             Spacer(Modifier.weight(1f))
-            if (resolved) ResolutionLabel(component.resolution!!)
+            // A superseded card carries no resolution of its own — it was
+            // never answered, it was overtaken — and "pushed back" is exactly
+            // what happened to it.
+            if (resolved) ResolutionLabel(component.resolution ?: OverdueResolution.Extended)
         }
 
         Spacer(Modifier.height(Space.x3))
 
         Text(
-            text = when (component.resolution) {
+            text = when (component.resolution ?: OverdueResolution.Extended.takeIf { superseded }) {
                 OverdueResolution.Completed -> "You marked this done."
                 OverdueResolution.Extended -> "Pushed back."
                 OverdueResolution.Lapsed -> "This one lapsed. You can still pick it up."

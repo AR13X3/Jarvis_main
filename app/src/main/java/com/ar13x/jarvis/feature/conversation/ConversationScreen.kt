@@ -296,6 +296,10 @@ private fun MessageItem(
                 is AgentComponent.Overdue -> Arrival(key = "overdue-" + component.occurrenceId) {
                     OverdueCard(
                         component = component,
+                        // Only the newest card for an occurrence is answerable;
+                        // the loop asks three times and the earlier questions
+                        // are about a deadline that has already moved.
+                        superseded = state.liveOverdue[component.occurrenceId] != key,
                         busy = state.resolvingOverdue == component.occurrenceId,
                         onComplete = {
                             onEvent(ConversationEvent.CompleteOccurrence(component.occurrenceId))

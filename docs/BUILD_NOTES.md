@@ -1070,3 +1070,32 @@ every press left a row server-side. It now reuses an abandoned empty unbound
 session first — the same rule the general session already followed. The Chat
 tab's `+` is also now hidden in an empty conversation, where it was a visual
 no-op that still created a session on every tap.
+
+### 10.6 Superseded nudge cards kept their buttons
+
+Seen on device once the loop ran for real: scrolling a task session showed three
+overdue cards for the same occurrence, each offering *Yes it's done* and the
+three push-back chips, when only the newest referred to a deadline that still
+existed.
+
+The cause is a gap between two correct behaviours. The server resolves a card
+when the **user** answers it — `Completed`, `Extended`, `Lapsed`. An
+**auto-extension** does not answer a card, it *overtakes* it, so the question it
+replaced keeps `resolution = null` and renders live forever.
+
+It is not only untidy. Those buttons act on an occurrence whose deadline has
+already moved, so the older cards are worse than inert — they are wrong.
+
+Fixed in presentation rather than by waiting on the contract: `liveOverdue` maps
+each occurrence to the newest card that mentions it, and every earlier one
+renders as `Extended` — settled, no buttons, still readable in history, which is
+what §5.3 asks of a resolved card.
+
+`stream` is newest-first, so `putIfAbsent` keeps the right one; that is the whole
+implementation and it is the sort of thing that inverts silently under a later
+refactor, so `SupersededNudgeTest` pins it — including that two occurrences
+nudging in one session do not silence each other.
+
+Worth telling gw03 that marking the superseded card `Extended` server-side would
+be more correct for history and for any other client, but the app no longer
+depends on it.
