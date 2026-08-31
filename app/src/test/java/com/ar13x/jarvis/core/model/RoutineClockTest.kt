@@ -96,67 +96,6 @@ class RoutineClockTest {
         assertEquals(friday.plusDays(1).atTime(8, 0), next.startsAt)
     }
 
-    // --- splitting around now -------------------------------------------------
-
-    @Test
-    fun `the day splits around the current slot`() {
-        val at = monday.atTime(14, 48)
-        val logical = routine.logicalDayAt(at)!!
-
-        val progress = splitAround(logical, at)
-
-        assertEquals("mon-gym", progress.current?.id)
-        assertEquals(
-            listOf("mon-wake", "mon-reskill", "mon-lunch", "mon-webdev"),
-            progress.past.map { it.id },
-        )
-        assertEquals("mon-shower", progress.upcoming.first().id)
-        assertEquals(5, progress.trackedTotal)
-    }
-
-    @Test
-    fun `every slot is accounted for exactly once`() {
-        val at = monday.atTime(14, 48)
-        val logical = routine.logicalDayAt(at)!!
-
-        val progress = splitAround(logical, at)
-        val seen = progress.past + listOfNotNull(progress.current) + progress.upcoming
-
-        assertEquals(logical.day.slots.size, seen.size)
-        assertEquals(logical.day.slots.map { it.id }.toSet(), seen.map { it.id }.toSet())
-    }
-
-    @Test
-    fun `a day in the future is entirely upcoming`() {
-        // What lets the pager show Thursday while it is still Monday.
-        val thursday = LogicalDay(monday.plusDays(3), routine.day(DayOfWeek.THURSDAY)!!)
-
-        val progress = splitAround(thursday, monday.atTime(14, 48))
-
-        assertTrue(progress.past.isEmpty())
-        assertNull(progress.current)
-        assertEquals(thursday.day.slots.size, progress.upcoming.size)
-    }
-
-    @Test
-    fun `a day in the past is entirely past`() {
-        val progress = splitAround(
-            LogicalDay(monday, routine.day(DayOfWeek.MONDAY)!!),
-            monday.plusDays(2).atTime(9, 0),
-        )
-
-        assertTrue(progress.upcoming.isEmpty())
-        assertNull(progress.current)
-    }
-
-    @Test
-    fun `the current slot is found even when it crosses midnight`() {
-        val at = friday.plusDays(1).atTime(0, 5)
-        val logical = routine.logicalDayAt(at)!!
-
-        assertEquals("fri-speedway", splitAround(logical, at).current?.id)
-    }
-
     // --- day length -----------------------------------------------------------
 
     @Test

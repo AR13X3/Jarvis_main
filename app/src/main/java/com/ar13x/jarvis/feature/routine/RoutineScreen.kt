@@ -1,6 +1,5 @@
 package com.ar13x.jarvis.feature.routine
 
-import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable

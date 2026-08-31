@@ -94,45 +94,6 @@ fun Routine.nextDayAfter(now: LocalDateTime): LogicalDay? {
     return null
 }
 
-/**
- * A day split around the present moment — the shape the day view renders.
- *
- * Upcoming comes first on screen, so the split is the screen's structure rather
- * than a filter applied to it.
- */
-data class DayProgress(
-    val logical: LogicalDay,
-    val past: List<RoutineSlot>,
-    val current: RoutineSlot?,
-    val upcoming: List<RoutineSlot>,
-) {
-    val trackedTotal: Int get() = logical.day.trackedSlots.size
-}
-
-/**
- * Splits [logical]'s slots around [now].
- *
- * A day in the past is entirely past and a day in the future is entirely
- * upcoming, so this answers correctly for any day of the week rather than only
- * for today — which is what lets the pager show Thursday on a Monday.
- */
-fun splitAround(logical: LogicalDay, now: LocalDateTime): DayProgress {
-    val past = mutableListOf<RoutineSlot>()
-    val upcoming = mutableListOf<RoutineSlot>()
-    var current: RoutineSlot? = null
-
-    for (slot in logical.day.slots) {
-        val start = logical.startOf(slot)
-        val end = logical.endOf(slot)
-        when {
-            !now.isBefore(start) && now.isBefore(end) -> current = slot
-            end <= now -> past += slot
-            else -> upcoming += slot
-        }
-    }
-    return DayProgress(logical, past, current, upcoming)
-}
-
 // --- template arithmetic ------------------------------------------------------
 
 /** Minutes per category across one day. */

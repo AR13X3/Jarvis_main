@@ -140,4 +140,64 @@ class DayViewTest {
         assertEquals("mon-gym", view.current?.slot?.id)
         assertEquals("mon-shower", view.upcoming.first().slot.id)
     }
+
+    // --- splitting the day ----------------------------------------------------
+    //
+    // These moved here from RoutineClockTest, which was testing a `splitAround`
+    // that production code never called while `dayView` reimplemented the same
+    // logic beside it. Two implementations, and the tests were guarding the one
+    // that could not break anything.
+
+    @Test
+    fun `the day splits around the current slot`() {
+        val view = rowsAt(at(14, 48), emptyList())
+
+        assertEquals(
+            listOf("mon-wake", "mon-reskill", "mon-lunch", "mon-webdev"),
+            view.past.map { it.slot.id },
+        )
+        assertEquals("mon-gym", view.current?.slot?.id)
+    }
+
+    @Test
+    fun `every slot is accounted for exactly once`() {
+        val view = rowsAt(at(14, 48), emptyList())
+        val seen = view.past + listOfNotNull(view.current) + view.upcoming
+
+        assertEquals(day.day.slots.size, seen.size)
+        assertEquals(day.day.slots.map { it.id }.toSet(), seen.map { it.slot.id }.toSet())
+    }
+
+    @Test
+    fun `a day in the future is entirely upcoming`() {
+        // What lets the pager show Thursday while it is still Monday.
+        val thursday = LogicalDay(
+            monday.plusDays(3),
+            RoutineFixture.theWeek.day(DayOfWeek.THURSDAY)!!,
+        )
+
+        val view = dayView(thursday, emptyList(), at(14, 48), isToday = false)
+
+        assertTrue(view.past.isEmpty())
+        assertNull(view.current)
+        assertEquals(thursday.day.slots.size, view.upcoming.size)
+    }
+
+    @Test
+    fun `a day in the past is entirely past`() {
+        val view = dayView(day, emptyList(), monday.plusDays(2).atTime(9, 0), isToday = false)
+
+        assertTrue(view.upcoming.isEmpty())
+        assertNull(view.current)
+    }
+
+    @Test
+    fun `the current slot is found even when it crosses midnight`() {
+        val friday = LocalDate.of(2026, 9, 11)
+        val logical = LogicalDay(friday, RoutineFixture.theWeek.day(DayOfWeek.FRIDAY)!!)
+
+        val view = dayView(logical, emptyList(), friday.plusDays(1).atTime(0, 5), isToday = true)
+
+        assertEquals("fri-speedway", view.current?.slot?.id)
+    }
 }
