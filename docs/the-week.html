@@ -1,0 +1,376 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#12161c">
+<title>The week</title>
+<style>
+:root{
+  --ink:#e8e6e1;
+  --ink-dim:#8d938f;
+  --ink-faint:#5b6169;
+  --bg:#12161c;
+  --panel:#1a1f27;
+  --line:#262c36;
+  --speedway:#4a7ea8;
+  --reskill:#c26a3e;
+  --uni:#3f8f74;
+  --webdev:#b08a34;
+  --gym:#a35d78;
+  --clothing:#7a6bc4;
+  --life:#4c525c;
+  --free:#2f3742;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{
+  background:var(--bg);
+  color:var(--ink);
+  font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;
+  font-size:15px;
+  line-height:1.5;
+  padding:22px 18px 48px;
+  -webkit-font-smoothing:antialiased;
+  max-width:560px;
+  margin:0 auto;
+}
+.eyebrow{
+  font-size:11px;
+  letter-spacing:.16em;
+  text-transform:uppercase;
+  color:var(--ink-faint);
+  margin-bottom:6px;
+}
+h1{
+  font-size:26px;
+  font-weight:500;
+  letter-spacing:-.02em;
+  margin-bottom:4px;
+}
+.sub{font-size:13px;color:var(--ink-dim);margin-bottom:26px}
+
+.split{
+  display:flex;
+  gap:10px;
+  margin-bottom:30px;
+}
+.split div{
+  flex:1;
+  background:var(--panel);
+  border-radius:10px;
+  padding:13px 14px;
+}
+.split .n{
+  font-size:27px;
+  font-weight:500;
+  letter-spacing:-.03em;
+  font-variant-numeric:tabular-nums;
+  line-height:1.1;
+}
+.split .l{font-size:11px;color:var(--ink-dim);margin-top:3px}
+
+h2{
+  font-size:11px;
+  letter-spacing:.16em;
+  text-transform:uppercase;
+  color:var(--ink-faint);
+  font-weight:500;
+  margin:0 0 14px;
+  padding-bottom:8px;
+  border-bottom:1px solid var(--line);
+}
+
+.day{margin-bottom:20px}
+.dayhead{
+  display:flex;
+  justify-content:space-between;
+  align-items:baseline;
+  margin-bottom:7px;
+}
+.dayname{font-size:15px;font-weight:500}
+.daynote{font-size:12px;color:var(--ink-dim)}
+.bar{
+  display:flex;
+  height:9px;
+  border-radius:5px;
+  overflow:hidden;
+  gap:1.5px;
+  margin-bottom:9px;
+}
+.bar span{display:block}
+
+.rows{display:flex;flex-direction:column;gap:4px}
+.row{
+  display:flex;
+  align-items:center;
+  gap:9px;
+  font-size:13.5px;
+}
+.dot{width:8px;height:8px;border-radius:2px;flex:none}
+.name{flex:1;color:var(--ink-dim)}
+.hrs{
+  font-variant-numeric:tabular-nums;
+  color:var(--ink);
+  font-weight:500;
+  min-width:38px;
+  text-align:right;
+}
+
+.totals{margin-top:34px}
+.trow{
+  display:flex;
+  align-items:center;
+  gap:10px;
+  padding:9px 0;
+  border-bottom:1px solid var(--line);
+  font-size:14.5px;
+}
+.trow:last-child{border-bottom:none}
+.trow .name{color:var(--ink)}
+.trow .hrs{font-size:16px;min-width:52px}
+.pct{font-size:11.5px;color:var(--ink-faint);min-width:34px;text-align:right;font-variant-numeric:tabular-nums}
+
+footer{
+  margin-top:32px;
+  padding-top:16px;
+  border-top:1px solid var(--line);
+  font-size:12.5px;
+  color:var(--ink-faint);
+  line-height:1.65;
+}
+
+.slot{
+  display:flex;
+  align-items:flex-start;
+  gap:10px;
+  padding:7px 0;
+  border-bottom:1px solid var(--line);
+  font-size:14px;
+}
+.slot:last-child{border-bottom:none}
+.time{
+  font-variant-numeric:tabular-nums;
+  color:var(--ink-faint);
+  font-size:12.5px;
+  min-width:78px;
+  flex:none;
+  padding-top:2px;
+  letter-spacing:-.01em;
+}
+.what{flex:1;color:var(--ink)}
+.tick{width:3px;border-radius:2px;flex:none;align-self:stretch;min-height:18px}
+.day{margin-bottom:26px}
+</style>
+</head>
+<body>
+
+<p class="eyebrow">The week</p>
+<h1>Where the hours go</h1>
+<p class="sub">120 waking hours. Uni 4:30&ndash;8pm Mon &amp; Tue, online Wed. Reskill meetings 9&ndash;11pm Mon&ndash;Thu. Speedway 2:30pm&ndash;midnight Fri&ndash;Sun.</p>
+
+<div class="split">
+  <div><div class="n">76.5</div><div class="l">Committed</div></div>
+  <div><div class="n">20.25</div><div class="l">Life upkeep</div></div>
+  <div><div class="n">23.25</div><div class="l">Free &amp; buffer</div></div>
+</div>
+
+<h2>Weekly totals</h2>
+<div class="totals" style="margin-top:0">
+  <div class="trow"><span class="dot" style="background:var(--speedway)"></span><span class="name">Speedway</span><span class="hrs">31.5</span><span class="pct">26%</span></div>
+  <div class="trow"><span class="dot" style="background:var(--free)"></span><span class="name">Free, buffer, calls</span><span class="hrs">23.25</span><span class="pct">19%</span></div>
+  <div class="trow"><span class="dot" style="background:var(--life)"></span><span class="name">Life upkeep</span><span class="hrs">20.25</span><span class="pct">17%</span></div>
+  <div class="trow"><span class="dot" style="background:var(--reskill)"></span><span class="name">Reskill / CBAI</span><span class="hrs">20</span><span class="pct">17%</span></div>
+  <div class="trow"><span class="dot" style="background:var(--uni)"></span><span class="name">Uni</span><span class="hrs">10</span><span class="pct">8%</span></div>
+  <div class="trow"><span class="dot" style="background:var(--webdev)"></span><span class="name">Web dev</span><span class="hrs">9</span><span class="pct">8%</span></div>
+  <div class="trow"><span class="dot" style="background:var(--gym)"></span><span class="name">Gym</span><span class="hrs">6</span><span class="pct">5%</span></div>
+</div>
+
+<h2 style="margin-top:34px">Hour by hour</h2>
+
+<div class="day">
+  <div class="dayhead"><span class="dayname">Monday</span><span class="daynote">8:00 &ndash; 1:00 &middot; 17h</span></div>
+  <div class="bar">
+    <span style="width:4.41%;background:var(--life)"></span>
+    <span style="width:17.65%;background:var(--reskill)"></span>
+    <span style="width:2.94%;background:var(--life)"></span>
+    <span style="width:11.76%;background:var(--webdev)"></span>
+    <span style="width:8.82%;background:var(--gym)"></span>
+    <span style="width:2.94%;background:var(--life)"></span>
+    <span style="width:1.47%;background:var(--life)"></span>
+    <span style="width:20.59%;background:var(--uni)"></span>
+    <span style="width:2.94%;background:var(--life)"></span>
+    <span style="width:2.94%;background:var(--free)"></span>
+    <span style="width:11.76%;background:var(--reskill)"></span>
+    <span style="width:11.76%;background:var(--free)"></span>
+  </div>
+  <div class="slot"><span class="tick" style="background:var(--life)"></span><span class="time">8:00&ndash;8:45</span><span class="what">Wake, shower, breakfast</span></div>
+  <div class="slot"><span class="tick" style="background:var(--reskill)"></span><span class="time">8:45&ndash;11:45</span><span class="what">Reskill / CBAI &mdash; block 1</span></div>
+  <div class="slot"><span class="tick" style="background:var(--life)"></span><span class="time">11:45&ndash;12:15</span><span class="what">Lunch</span></div>
+  <div class="slot"><span class="tick" style="background:var(--webdev)"></span><span class="time">12:15&ndash;2:15</span><span class="what">Web dev</span></div>
+  <div class="slot"><span class="tick" style="background:var(--gym)"></span><span class="time">2:15&ndash;3:45</span><span class="what">Gym</span></div>
+  <div class="slot"><span class="tick" style="background:var(--life)"></span><span class="time">3:45&ndash;4:15</span><span class="what">Shower, snack</span></div>
+  <div class="slot"><span class="tick" style="background:var(--life)"></span><span class="time">4:15&ndash;4:30</span><span class="what">Get ready to leave</span></div>
+  <div class="slot"><span class="tick" style="background:var(--uni)"></span><span class="time">4:30&ndash;8:00</span><span class="what">Uni (incl. travel)</span></div>
+  <div class="slot"><span class="tick" style="background:var(--life)"></span><span class="time">8:00&ndash;8:30</span><span class="what">Dinner</span></div>
+  <div class="slot"><span class="tick" style="background:var(--free)"></span><span class="time">8:30&ndash;9:00</span><span class="what">Breather</span></div>
+  <div class="slot"><span class="tick" style="background:var(--reskill)"></span><span class="time">9:00&ndash;11:00</span><span class="what">Reskill &mdash; meetings + daily report</span></div>
+  <div class="slot"><span class="tick" style="background:var(--free)"></span><span class="time">11:00&ndash;1:00</span><span class="what">Free</span></div>
+</div>
+
+<div class="day">
+  <div class="dayhead"><span class="dayname">Tuesday</span><span class="daynote">8:00 &ndash; 1:00 &middot; 17h</span></div>
+  <div class="bar">
+    <span style="width:4.41%;background:var(--life)"></span>
+    <span style="width:17.65%;background:var(--reskill)"></span>
+    <span style="width:2.94%;background:var(--life)"></span>
+    <span style="width:11.76%;background:var(--webdev)"></span>
+    <span style="width:8.82%;background:var(--gym)"></span>
+    <span style="width:2.94%;background:var(--life)"></span>
+    <span style="width:1.47%;background:var(--life)"></span>
+    <span style="width:20.59%;background:var(--uni)"></span>
+    <span style="width:2.94%;background:var(--life)"></span>
+    <span style="width:2.94%;background:var(--free)"></span>
+    <span style="width:11.76%;background:var(--reskill)"></span>
+    <span style="width:11.76%;background:var(--free)"></span>
+  </div>
+  <div class="slot"><span class="tick" style="background:var(--life)"></span><span class="time">8:00&ndash;8:45</span><span class="what">Wake, shower, breakfast</span></div>
+  <div class="slot"><span class="tick" style="background:var(--reskill)"></span><span class="time">8:45&ndash;11:45</span><span class="what">Reskill / CBAI &mdash; block 1</span></div>
+  <div class="slot"><span class="tick" style="background:var(--life)"></span><span class="time">11:45&ndash;12:15</span><span class="what">Lunch</span></div>
+  <div class="slot"><span class="tick" style="background:var(--webdev)"></span><span class="time">12:15&ndash;2:15</span><span class="what">Web dev</span></div>
+  <div class="slot"><span class="tick" style="background:var(--gym)"></span><span class="time">2:15&ndash;3:45</span><span class="what">Gym</span></div>
+  <div class="slot"><span class="tick" style="background:var(--life)"></span><span class="time">3:45&ndash;4:15</span><span class="what">Shower, snack</span></div>
+  <div class="slot"><span class="tick" style="background:var(--life)"></span><span class="time">4:15&ndash;4:30</span><span class="what">Get ready to leave</span></div>
+  <div class="slot"><span class="tick" style="background:var(--uni)"></span><span class="time">4:30&ndash;8:00</span><span class="what">Uni (incl. travel)</span></div>
+  <div class="slot"><span class="tick" style="background:var(--life)"></span><span class="time">8:00&ndash;8:30</span><span class="what">Dinner</span></div>
+  <div class="slot"><span class="tick" style="background:var(--free)"></span><span class="time">8:30&ndash;9:00</span><span class="what">Breather</span></div>
+  <div class="slot"><span class="tick" style="background:var(--reskill)"></span><span class="time">9:00&ndash;11:00</span><span class="what">Reskill &mdash; meetings + daily report</span></div>
+  <div class="slot"><span class="tick" style="background:var(--free)"></span><span class="time">11:00&ndash;1:00</span><span class="what">Calls</span></div>
+</div>
+
+<div class="day">
+  <div class="dayhead"><span class="dayname">Wednesday</span><span class="daynote">8:00 &ndash; 1:00 &middot; 17h &middot; buffer day</span></div>
+  <div class="bar">
+    <span style="width:4.41%;background:var(--life)"></span>
+    <span style="width:1.47%;background:var(--life)"></span>
+    <span style="width:17.65%;background:var(--uni)"></span>
+    <span style="width:2.94%;background:var(--life)"></span>
+    <span style="width:17.65%;background:var(--reskill)"></span>
+    <span style="width:8.82%;background:var(--gym)"></span>
+    <span style="width:2.94%;background:var(--life)"></span>
+    <span style="width:17.65%;background:var(--free)"></span>
+    <span style="width:2.94%;background:var(--life)"></span>
+    <span style="width:11.76%;background:var(--reskill)"></span>
+    <span style="width:11.76%;background:var(--free)"></span>
+  </div>
+  <div class="slot"><span class="tick" style="background:var(--life)"></span><span class="time">8:00&ndash;8:45</span><span class="what">Wake, shower, breakfast</span></div>
+  <div class="slot"><span class="tick" style="background:var(--life)"></span><span class="time">8:45&ndash;9:00</span><span class="what">Set up for class</span></div>
+  <div class="slot"><span class="tick" style="background:var(--uni)"></span><span class="time">9:00&ndash;12:00</span><span class="what">Uni &mdash; online</span></div>
+  <div class="slot"><span class="tick" style="background:var(--life)"></span><span class="time">12:00&ndash;12:30</span><span class="what">Lunch</span></div>
+  <div class="slot"><span class="tick" style="background:var(--reskill)"></span><span class="time">12:30&ndash;3:30</span><span class="what">Reskill / CBAI &mdash; block 1</span></div>
+  <div class="slot"><span class="tick" style="background:var(--gym)"></span><span class="time">3:30&ndash;5:00</span><span class="what">Gym</span></div>
+  <div class="slot"><span class="tick" style="background:var(--life)"></span><span class="time">5:00&ndash;5:30</span><span class="what">Shower, snack</span></div>
+  <div class="slot"><span class="tick" style="background:var(--free)"></span><span class="time">5:30&ndash;8:30</span><span class="what">Buffer &mdash; keep empty</span></div>
+  <div class="slot"><span class="tick" style="background:var(--life)"></span><span class="time">8:30&ndash;9:00</span><span class="what">Dinner</span></div>
+  <div class="slot"><span class="tick" style="background:var(--reskill)"></span><span class="time">9:00&ndash;11:00</span><span class="what">Reskill &mdash; meetings + daily report</span></div>
+  <div class="slot"><span class="tick" style="background:var(--free)"></span><span class="time">11:00&ndash;1:00</span><span class="what">Buffer / free</span></div>
+</div>
+
+<div class="day">
+  <div class="dayhead"><span class="dayname">Thursday</span><span class="daynote">10:00 &ndash; 1:00 &middot; 15h &middot; day off</span></div>
+  <div class="bar">
+    <span style="width:6.67%;background:var(--life)"></span>
+    <span style="width:6.67%;background:var(--reskill)"></span>
+    <span style="width:3.33%;background:var(--life)"></span>
+    <span style="width:30.00%;background:var(--free)"></span>
+    <span style="width:10.00%;background:var(--life)"></span>
+    <span style="width:6.67%;background:var(--life)"></span>
+    <span style="width:10.00%;background:var(--free)"></span>
+    <span style="width:13.33%;background:var(--reskill)"></span>
+    <span style="width:13.33%;background:var(--free)"></span>
+  </div>
+  <div class="slot"><span class="tick" style="background:var(--life)"></span><span class="time">10:00&ndash;11:00</span><span class="what">Sleep in, wake slow, breakfast</span></div>
+  <div class="slot"><span class="tick" style="background:var(--reskill)"></span><span class="time">11:00&ndash;12:00</span><span class="what">Reskill &mdash; catch-up, prep for tonight</span></div>
+  <div class="slot"><span class="tick" style="background:var(--life)"></span><span class="time">12:00&ndash;12:30</span><span class="what">Lunch</span></div>
+  <div class="slot"><span class="tick" style="background:var(--free)"></span><span class="time">12:30&ndash;5:00</span><span class="what">Football / drawing / friends</span></div>
+  <div class="slot"><span class="tick" style="background:var(--life)"></span><span class="time">5:00&ndash;6:30</span><span class="what">Batch cook &mdash; covers Thu to Sun</span></div>
+  <div class="slot"><span class="tick" style="background:var(--life)"></span><span class="time">6:30&ndash;7:30</span><span class="what">Dinner, shower</span></div>
+  <div class="slot"><span class="tick" style="background:var(--free)"></span><span class="time">7:30&ndash;9:00</span><span class="what">Free</span></div>
+  <div class="slot"><span class="tick" style="background:var(--reskill)"></span><span class="time">9:00&ndash;11:00</span><span class="what">Reskill &mdash; meetings + daily report</span></div>
+  <div class="slot"><span class="tick" style="background:var(--free)"></span><span class="time">11:00&ndash;1:00</span><span class="what">Calls</span></div>
+</div>
+
+<div class="day">
+  <div class="dayhead"><span class="dayname">Friday</span><span class="daynote">8:00 &ndash; 2:00 &middot; 18h</span></div>
+  <div class="bar">
+    <span style="width:4.17%;background:var(--life)"></span>
+    <span style="width:11.11%;background:var(--reskill)"></span>
+    <span style="width:5.56%;background:var(--webdev)"></span>
+    <span style="width:4.17%;background:var(--life)"></span>
+    <span style="width:6.94%;background:var(--free)"></span>
+    <span style="width:58.33%;background:var(--speedway)"></span>
+    <span style="width:4.17%;background:var(--life)"></span>
+    <span style="width:5.56%;background:var(--free)"></span>
+  </div>
+  <div class="slot"><span class="tick" style="background:var(--life)"></span><span class="time">8:00&ndash;8:45</span><span class="what">Wake, shower, breakfast</span></div>
+  <div class="slot"><span class="tick" style="background:var(--reskill)"></span><span class="time">8:45&ndash;10:45</span><span class="what">Reskill / CBAI &mdash; morning block</span></div>
+  <div class="slot"><span class="tick" style="background:var(--webdev)"></span><span class="time">10:45&ndash;11:45</span><span class="what">Web dev</span></div>
+  <div class="slot"><span class="tick" style="background:var(--life)"></span><span class="time">11:45&ndash;12:30</span><span class="what">Lunch</span></div>
+  <div class="slot"><span class="tick" style="background:var(--free)"></span><span class="time">12:30&ndash;1:45</span><span class="what">Free</span></div>
+  <div class="slot"><span class="tick" style="background:var(--speedway)"></span><span class="time">1:45&ndash;12:15</span><span class="what">Speedway (leave 1:45, shift 2:30&ndash;12:00)</span></div>
+  <div class="slot"><span class="tick" style="background:var(--life)"></span><span class="time">12:15&ndash;1:00</span><span class="what">Shower, late food</span></div>
+  <div class="slot"><span class="tick" style="background:var(--free)"></span><span class="time">1:00&ndash;2:00</span><span class="what">Wind-down</span></div>
+</div>
+
+<div class="day">
+  <div class="dayhead"><span class="dayname">Saturday</span><span class="daynote">8:00 &ndash; 2:00 &middot; 18h</span></div>
+  <div class="bar">
+    <span style="width:2.78%;background:var(--life)"></span>
+    <span style="width:8.33%;background:var(--gym)"></span>
+    <span style="width:11.11%;background:var(--webdev)"></span>
+    <span style="width:5.56%;background:var(--life)"></span>
+    <span style="width:4.17%;background:var(--free)"></span>
+    <span style="width:58.33%;background:var(--speedway)"></span>
+    <span style="width:4.17%;background:var(--life)"></span>
+    <span style="width:5.56%;background:var(--free)"></span>
+  </div>
+  <div class="slot"><span class="tick" style="background:var(--life)"></span><span class="time">8:00&ndash;8:30</span><span class="what">Wake, breakfast</span></div>
+  <div class="slot"><span class="tick" style="background:var(--gym)"></span><span class="time">8:30&ndash;10:00</span><span class="what">Gym</span></div>
+  <div class="slot"><span class="tick" style="background:var(--webdev)"></span><span class="time">10:00&ndash;12:00</span><span class="what">Web dev</span></div>
+  <div class="slot"><span class="tick" style="background:var(--life)"></span><span class="time">12:00&ndash;1:00</span><span class="what">Lunch</span></div>
+  <div class="slot"><span class="tick" style="background:var(--free)"></span><span class="time">1:00&ndash;1:45</span><span class="what">Free</span></div>
+  <div class="slot"><span class="tick" style="background:var(--speedway)"></span><span class="time">1:45&ndash;12:15</span><span class="what">Speedway (leave 1:45, shift 2:30&ndash;12:00)</span></div>
+  <div class="slot"><span class="tick" style="background:var(--life)"></span><span class="time">12:15&ndash;1:00</span><span class="what">Shower, late food</span></div>
+  <div class="slot"><span class="tick" style="background:var(--free)"></span><span class="time">1:00&ndash;2:00</span><span class="what">Wind-down</span></div>
+</div>
+
+<div class="day">
+  <div class="dayhead"><span class="dayname">Sunday</span><span class="daynote">8:00 &ndash; 2:00 &middot; 18h</span></div>
+  <div class="bar">
+    <span style="width:2.78%;background:var(--life)"></span>
+    <span style="width:11.11%;background:var(--life)"></span>
+    <span style="width:11.11%;background:var(--webdev)"></span>
+    <span style="width:6.94%;background:var(--life)"></span>
+    <span style="width:58.33%;background:var(--speedway)"></span>
+    <span style="width:2.78%;background:var(--life)"></span>
+    <span style="width:6.94%;background:var(--free)"></span>
+  </div>
+  <div class="slot"><span class="tick" style="background:var(--life)"></span><span class="time">8:00&ndash;8:30</span><span class="what">Wake, breakfast</span></div>
+  <div class="slot"><span class="tick" style="background:var(--life)"></span><span class="time">8:30&ndash;10:30</span><span class="what">Batch cook &mdash; big batch, covers Mon to Wed</span></div>
+  <div class="slot"><span class="tick" style="background:var(--webdev)"></span><span class="time">10:30&ndash;12:30</span><span class="what">Web dev</span></div>
+  <div class="slot"><span class="tick" style="background:var(--life)"></span><span class="time">12:30&ndash;1:45</span><span class="what">Lunch, get ready</span></div>
+  <div class="slot"><span class="tick" style="background:var(--speedway)"></span><span class="time">1:45&ndash;12:15</span><span class="what">Speedway (leave 1:45, shift 2:30&ndash;12:00)</span></div>
+  <div class="slot"><span class="tick" style="background:var(--life)"></span><span class="time">12:15&ndash;12:45</span><span class="what">Shower, late food</span></div>
+  <div class="slot"><span class="tick" style="background:var(--free)"></span><span class="time">12:45&ndash;2:00</span><span class="what">Wind-down</span></div>
+</div>
+
+<footer>
+Reskill 20h/week. Meetings 9&ndash;11pm Mon&ndash;Thu; Mon/Tue/Wed add a 3h day block, Thursday adds 1h, Friday is 2h in the morning only.<br>
+Thursday is the day off &mdash; wake at 10 to pay down sleep debt, football from 12:30. The 9pm meeting is the one thing that intrudes.<br>
+Wednesday's 5:30&ndash;8:30 and 11&ndash;1 are buffer. Spend them on overruns, not new work.<br>
+Speedway nights give about 6 hours' sleep, three in a row. That is the hardest stretch.<br>
+Two cooks: Sunday 8:30&ndash;10:30 covers Mon to Wed, Thursday 5&ndash;6:30 covers Thu to Sun. Freeze the Sat and Sun portions on Thursday and move them down the night before.<br>
+Not yet placed: uni assessment weeks, 10&ndash;15h. Wednesday's buffer is the only place it can come from.
+</footer>
+
+</body>
+</html>
