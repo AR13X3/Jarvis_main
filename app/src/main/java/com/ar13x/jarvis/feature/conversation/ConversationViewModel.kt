@@ -328,19 +328,36 @@ class ConversationViewModel @Inject constructor(
             )
         }
 
+        // Captured before the send so the reply can be told from the turn before
+        // it. Ids are the gateway's and monotonic, which is a more reliable
+        // "newest" than list position.
+        val newestBefore = _state.value.newestAssistantId
+
         viewModelScope.launch {
             runCatching { agent.send(sessionId, text) }
-                .onSuccess { response ->
+                .onSuccess {
                     // The server now holds both turns, so the optimistic copy is
                     // dropped in the same update that installs the real history —
                     // clearing it first would blink the message out and back.
                     refreshHistory(sessionId, clearOptimistic = true)
 
-                    // Spoken from the response rather than from the refreshed
-                    // history: the response is the turn that just happened, and
-                    // reading the newest message off the list would speak the
-                    // wrong thing on any turn the server rewrote.
-                    if (_state.value.speakReplies) voice.speak(response.toUtterance())
+                    // Spoken from the refreshed history rather than from the
+                    // response body, so that what is heard is what is on screen.
+                    // The screen renders persisted history; speaking the response
+                    // instead meant the two disagreed whenever the server's copy
+                    // differed from what it returned — and once, when a turn was
+                    // not persisted at all, it would have read out an apology
+                    // over a blank screen.
+                    //
+                    // Silence when nothing new arrived is the point, not a gap:
+                    // a failed refresh or an unpersisted turn both leave the
+                    // screen unchanged, and voice should say as much as the
+                    // screen does.
+                    val state = _state.value
+                    val reply = state.newestAssistantMessage()
+                    if (state.speakReplies && reply != null && reply.id != newestBefore) {
+                        voice.speak(reply.toUtterance())
+                    }
                 }
                 .onFailure { error ->
                     _state.update {

@@ -2,6 +2,7 @@ package com.ar13x.jarvis.core.voice
 
 import com.ar13x.jarvis.core.model.AgentComponent
 import com.ar13x.jarvis.core.model.AgentResponse
+import com.ar13x.jarvis.core.model.Message
 import com.ar13x.jarvis.core.model.ProposalAction
 import com.ar13x.jarvis.core.ui.DueDateFormat
 
@@ -24,7 +25,22 @@ import com.ar13x.jarvis.core.ui.DueDateFormat
  * Markdown is stripped rather than rendered: `**Tuesday**` should be heard as
  * Tuesday, not as asterisks.
  */
-fun AgentResponse.toUtterance(): String {
+fun AgentResponse.toUtterance(): String = utterance(text, components)
+
+/**
+ * The same, for a turn as the server persisted it.
+ *
+ * This is the overload that should be reached for. The reply that was *spoken*
+ * has to be the reply that was *rendered*, and the screen renders persisted
+ * history — so speaking the POST body instead means the two disagree whenever
+ * the server's copy differs from what it returned. That is not hypothetical: a
+ * turn once produced an apology in the response that was never persisted, and
+ * with spoken replies on, Jarvis would have said it aloud while the screen
+ * showed nothing at all.
+ */
+fun Message.toUtterance(): String = utterance(text, components)
+
+private fun utterance(text: String, components: List<AgentComponent>): String {
     val parts = mutableListOf<String>()
 
     text.stripMarkdown().takeIf { it.isNotBlank() }?.let(parts::add)

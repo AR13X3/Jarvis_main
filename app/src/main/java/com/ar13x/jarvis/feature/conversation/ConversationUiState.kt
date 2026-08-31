@@ -133,6 +133,21 @@ data class ConversationUiState(
      * Newest first, because the list is `reverseLayout` (§5.3). The optimistic
      * message is newer than anything the server has returned, so it leads.
      */
+    /**
+     * The newest assistant turn the server has persisted, or null.
+     *
+     * Chosen by id rather than by list position: ordering is a rendering
+     * concern and has been reversed at least once, whereas gateway ids only
+     * ever go up.
+     */
+    fun newestAssistantMessage(): Message? =
+        history.dataOrNull.orEmpty()
+            .filter { it.role == MessageRole.Assistant }
+            .maxByOrNull { it.id }
+
+    val newestAssistantId: Long?
+        get() = newestAssistantMessage()?.id
+
     val stream: List<Message>
         get() = buildList {
             optimistic?.let { add(it) }
