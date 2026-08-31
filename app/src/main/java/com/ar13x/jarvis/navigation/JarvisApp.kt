@@ -44,6 +44,7 @@ import com.ar13x.jarvis.feature.onboarding.TokenScreen
 import com.ar13x.jarvis.core.update.UpdateStatus
 import com.ar13x.jarvis.feature.about.AboutScreen
 import com.ar13x.jarvis.feature.chat.ChatScreen
+import com.ar13x.jarvis.feature.routine.RoutineScreen
 import com.ar13x.jarvis.feature.tasks.list.TaskListScreen
 import com.ar13x.jarvis.feature.tasks.session.SessionScreen
 import com.ar13x.jarvis.feature.update.UpdateRequiredScreen
@@ -96,6 +97,7 @@ private fun JarvisTabs() {
 
     val currentTab = when {
         backStackEntry?.destination?.hierarchy?.any { it.hasRoute(ChatGraph::class) } == true -> JarvisTab.Chat
+        backStackEntry?.destination?.hierarchy?.any { it.hasRoute(RoutineGraph::class) } == true -> JarvisTab.Routine
         else -> JarvisTab.Tasks
     }
 
@@ -130,6 +132,7 @@ private fun JarvisTabs() {
 private fun NavHostController.switchTab(tab: JarvisTab) {
     val target: Route = when (tab) {
         JarvisTab.Tasks -> TasksGraph
+        JarvisTab.Routine -> RoutineGraph
         JarvisTab.Chat -> ChatGraph
     }
     navigate(target) {
@@ -234,6 +237,12 @@ private fun JarvisNavHost(
                                 onCreateTask = { seed -> navController.navigate(NewSession(seed)) },
                             )
                         }
+                    }
+                }
+
+                navigation<RoutineGraph>(startDestination = RoutineDayView) {
+                    composable<RoutineDayView> {
+                        RoutineScreen()
                     }
                 }
 

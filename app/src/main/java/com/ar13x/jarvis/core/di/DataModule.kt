@@ -1,6 +1,8 @@
 package com.ar13x.jarvis.core.di
 
 import com.ar13x.jarvis.core.data.AgentRepository
+import com.ar13x.jarvis.core.data.FakeRoutineRepository
+import com.ar13x.jarvis.core.data.RoutineRepository
 import com.ar13x.jarvis.core.data.TaskRepository
 import com.ar13x.jarvis.core.network.RemoteAgentRepository
 import com.ar13x.jarvis.core.network.RemoteTaskRepository
@@ -33,4 +35,16 @@ abstract class DataModule {
     @Binds
     @Singleton
     abstract fun bindAgentRepository(impl: RemoteAgentRepository): AgentRepository
+
+    /**
+     * Still a fake, and visibly so.
+     *
+     * The routine template, its versions and the start log are all gateway state
+     * in the v2 plan, and none of those routes exist yet. This binding is the
+     * one place that changes when they do — the same seam the two above went
+     * through in phase D.
+     */
+    @Binds
+    @Singleton
+    abstract fun bindRoutineRepository(impl: FakeRoutineRepository): RoutineRepository
 }

@@ -18,8 +18,10 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.ChatBubbleOutline
 import androidx.compose.material.icons.outlined.ChecklistRtl
+import androidx.compose.material.icons.outlined.Schedule
 import androidx.compose.material.icons.rounded.ChatBubble
 import androidx.compose.material.icons.rounded.Checklist
+import androidx.compose.material.icons.rounded.Schedule
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -40,13 +42,14 @@ import com.ar13x.jarvis.designsystem.theme.Space
 
 enum class JarvisTab(val label: String) {
     Tasks("Tasks"),
+    Routine("Routine"),
     Chat("Chat"),
 }
 
 val JarvisBottomBarHeight = 64.dp
 
 /**
- * Two destinations, Tasks first (plan §5.1).
+ * Three destinations, Tasks first (plan §5.1, extended by v2 plan §4).
  *
  * Hand-built rather than Material's `NavigationBar` for one reason: M3's bar
  * paints a tonal surface and an indicator pill from its own colour roles, both
@@ -125,6 +128,7 @@ private fun TabItem(
             Icon(
                 imageVector = when (tab) {
                     JarvisTab.Tasks -> if (selected) Icons.Rounded.Checklist else Icons.Outlined.ChecklistRtl
+                    JarvisTab.Routine -> if (selected) Icons.Rounded.Schedule else Icons.Outlined.Schedule
                     JarvisTab.Chat -> if (selected) Icons.Rounded.ChatBubble else Icons.Outlined.ChatBubbleOutline
                 },
                 contentDescription = tab.label,

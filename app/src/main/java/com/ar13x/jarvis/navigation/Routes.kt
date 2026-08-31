@@ -14,6 +14,18 @@ sealed interface Route
 
 @Serializable data object ChatGraph : Route
 
+/**
+ * The routine (v2 plan §4).
+ *
+ * Its own tab rather than a screen inside Tasks: a routine is not a list of
+ * things to do, it is where the hours already go, and the two answer different
+ * questions. Placement is called out as open in v2 plan §9 -- three tabs plus
+ * chat is a design-system decision, not a routing one.
+ */
+@Serializable data object RoutineGraph : Route
+
+@Serializable data object RoutineDayView : Route
+
 @Serializable data object TaskList : Route
 
 /** Tapping a row opens *that task's* persistent session (plan §5.3). */
