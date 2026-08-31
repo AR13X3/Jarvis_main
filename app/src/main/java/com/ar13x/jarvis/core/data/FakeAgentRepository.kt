@@ -57,6 +57,11 @@ class FakeAgentRepository @Inject constructor(
         return PagedSessions(sessions = backend.generalSessions(), page = 1, hasMore = false)
     }
 
+    override suspend fun taskSessions(page: Int): PagedSessions {
+        delay(FakeBackend.READ_LATENCY_MS)
+        return PagedSessions(sessions = backend.taskSessions(), page = page, hasMore = false)
+    }
+
     override suspend fun messages(sessionId: String, before: Long?, limit: Int): PagedMessages {
         delay(FakeBackend.READ_LATENCY_MS)
         val all = backend.messages(sessionId)

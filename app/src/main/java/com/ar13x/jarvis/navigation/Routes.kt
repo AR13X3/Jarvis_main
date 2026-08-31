@@ -37,6 +37,13 @@ sealed interface Route
      * server scopes tools per session is the app's problem to hide, not theirs.
      */
     val seed: String? = null,
+    /**
+     * An unfinished draft to resume, rather than a new session.
+     *
+     * A task conversation that was never confirmed leaves no task, so nothing
+     * in the list pointed at it and backing out lost it. This is the way back.
+     */
+    val sessionId: String? = null,
 ) : Route
 
 @Serializable data object Chat : Route

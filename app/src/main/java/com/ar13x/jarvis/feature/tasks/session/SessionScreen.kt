@@ -61,10 +61,11 @@ fun SessionScreen(
     onCreateTask: (String) -> Unit,
     modifier: Modifier = Modifier,
     seed: String? = null,
+    draftSessionId: String? = null,
     viewModel: ConversationViewModel = hiltViewModel(),
 ) {
-    val target = remember(taskId, seed) {
-        if (taskId == null) SessionTarget.NewTask(seed) else SessionTarget.Bound(taskId)
+    val target = remember(taskId, seed, draftSessionId) {
+        if (taskId == null) SessionTarget.NewTask(seed, draftSessionId) else SessionTarget.Bound(taskId)
     }
     LaunchedEffect(target) { viewModel.start(target) }
 

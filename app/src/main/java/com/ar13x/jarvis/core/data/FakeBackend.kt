@@ -140,14 +140,19 @@ class FakeBackend @Inject constructor() {
     suspend fun session(id: String): Session? = mutex.withLock { sessions[id] }
 
     /** Newest first, with a title taken from the first thing the user said. */
-    suspend fun generalSessions(): List<SessionSummary> = mutex.withLock {
+    suspend fun taskSessions(): List<SessionSummary> = summaries(SessionKind.Task)
+
+    suspend fun generalSessions(): List<SessionSummary> = summaries(SessionKind.General)
+
+    private suspend fun summaries(kind: SessionKind): List<SessionSummary> = mutex.withLock {
         sessions.values
-            .filter { it.kind == SessionKind.General }
+            .filter { it.kind == kind }
             .map { session ->
                 val turns = history[session.id].orEmpty()
                 SessionSummary(
                     id = session.id,
                     kind = session.kind,
+                    taskId = session.taskId,
                     title = turns.firstOrNull { it.role == MessageRole.User }
                         ?.text?.take(60),
                     updatedAt = turns.lastOrNull()?.createdAt ?: session.updatedAt,

@@ -35,6 +35,17 @@ interface AgentRepository {
      */
     suspend fun generalSessions(page: Int = 1): PagedSessions
 
+    /**
+     * Task-kind sessions, bound and unbound alike.
+     *
+     * The ones that matter are the **unbound** ones with messages in them: a
+     * conversation about a task that was never confirmed, so no task exists and
+     * nothing in the task list points at it. Before this, backing out of one
+     * lost it — the session survived on the server and became unreachable,
+     * which is the worst of both.
+     */
+    suspend fun taskSessions(page: Int = 1): PagedSessions
+
     /** Paged backwards through history via `before`. */
     suspend fun messages(sessionId: String, before: Long? = null, limit: Int = 30): PagedMessages
 

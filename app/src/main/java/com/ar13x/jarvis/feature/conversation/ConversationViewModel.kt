@@ -185,6 +185,39 @@ class ConversationViewModel @Inject constructor(
      * generated far faster. Nothing is lost by reusing one: an empty
      * conversation has no content to distinguish it from another empty one.
      */
+    /**
+     * Resume a draft, reuse an abandoned blank one, or start fresh — in that
+     * order.
+     *
+     * The middle case is the same anti-litter rule the general session already
+     * follows: every press of `+` used to create a session server-side, so a
+     * few idle presses left a few empty rows. Reusing an untouched one means the
+     * `+` is free until something is actually said.
+     */
+    private suspend fun openNewTask(sessionId: String?): Session {
+        if (sessionId != null) {
+            return Session(
+                id = sessionId,
+                kind = SessionKind.Task,
+                createdAt = Instant.now(),
+                updatedAt = Instant.now(),
+            )
+        }
+        val reusable = runCatching { agent.taskSessions() }.getOrNull()
+            ?.sessions
+            ?.firstOrNull { it.taskId == null && it.isEmpty }
+        return if (reusable != null) {
+            Session(
+                id = reusable.id,
+                kind = SessionKind.Task,
+                createdAt = reusable.updatedAt,
+                updatedAt = reusable.updatedAt,
+            )
+        } else {
+            agent.createSession(SessionKind.Task, taskId = null)
+        }
+    }
+
     private suspend fun openGeneral(sessionId: String?): Session {
         if (sessionId != null) {
             return Session(
@@ -214,7 +247,7 @@ class ConversationViewModel @Inject constructor(
         runCatching {
             val session: Session = when (target) {
                 is SessionTarget.Bound -> agent.sessionForTask(target.taskId)
-                is SessionTarget.NewTask -> agent.createSession(SessionKind.Task, taskId = null)
+                is SessionTarget.NewTask -> openNewTask(target.sessionId)
                 is SessionTarget.General -> openGeneral(target.sessionId)
             }
             // A bound session's task is fetched separately: the session says

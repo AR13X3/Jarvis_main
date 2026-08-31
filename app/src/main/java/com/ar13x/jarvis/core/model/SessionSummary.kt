@@ -26,6 +26,15 @@ data class SessionSummary(
     @SerialName("updated_at") val updatedAt: Instant,
     @SerialName("message_count") val messageCount: Int = 0,
 ) {
+    /**
+     * A task conversation that never became a task.
+     *
+     * Unbound means the create proposal was never confirmed; having messages
+     * means real work went into it. Both halves matter — an unbound session with
+     * nothing in it is just the `+` being pressed, and is not worth showing.
+     */
+    val isUnfinishedTask: Boolean
+        get() = kind == SessionKind.Task && taskId == null && messageCount > 0
     /** Nothing was ever said in it, so there is nothing to go back to. */
     val isEmpty: Boolean get() = messageCount == 0
 }

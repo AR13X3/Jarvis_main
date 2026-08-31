@@ -1031,3 +1031,42 @@ PATCH transmitting `"description": null` would read as "clear it".
 
 Until gw03 accepts the field, **ticking fails cleanly** rather than silently
 doing nothing: the optimistic tick reverts and the failure is shown.
+
+## 12. Unfinished task conversations
+
+**The bug was data-shaped.** Tapping `+` in the Tasks tab opens an unbound
+session. Talk to it, refine a proposal, decline to confirm, press back — and the
+conversation is gone. Not deleted: the session sits on the server intact, and
+nothing in the app points at it, because the task list shows *tasks* and no task
+was ever created. Unreachable is indistinguishable from lost.
+
+Fixed with what the contract already had. `GET /sessions?kind=task` exists and
+`SessionSummary` carries `task_id` and `message_count`, so a draft is exactly:
+
+    kind == Task && taskId == null && messageCount > 0
+
+Nothing was needed from gw03.
+
+**Both halves of that predicate matter.** Too narrow and drafts stay lost; too
+wide and the section fills with the empty sessions that pressing `+` creates.
+`UnfinishedTaskTest` pins all four cases.
+
+**Shown as a section, not hidden behind an affordance.** The Chat tab reaches its
+history through a button, which is fine there because the Chat tab always opens
+*something*. A task draft is different: nothing else in the app hints it exists,
+so a control you would have to already know about does not solve "I lost it". It
+sits above Overdue for the same reason — Overdue rows are at least visible
+elsewhere in the list; these are visible nowhere else at all.
+
+`DraftRow` is deliberately **not** a `TaskRow`: no status, no due date, no
+cancel. It is not a task, and dressing it as one would promise something that
+does not exist. The title is the server's, derived from the first thing said,
+which is the only honest label available before a proposal is confirmed.
+
+### 12.1 The `+` stopped littering, in both tabs
+
+Opening a new task session used to call `createSession` unconditionally, so
+every press left a row server-side. It now reuses an abandoned empty unbound
+session first — the same rule the general session already followed. The Chat
+tab's `+` is also now hidden in an empty conversation, where it was a visual
+no-op that still created a session on every tap.

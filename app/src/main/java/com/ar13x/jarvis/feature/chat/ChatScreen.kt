@@ -96,7 +96,7 @@ fun ChatScreen(
                 speaking = state.speaking,
                 onToggleSpeak = { viewModel.onEvent(ConversationEvent.ToggleSpeakReplies) },
                 onStopSpeaking = { viewModel.onEvent(ConversationEvent.StopSpeaking) },
-                showTitle = !state.isEmpty,
+                hasConversation = !state.isEmpty,
                 onHistory = {
                     showHistory = true
                     viewModel.onEvent(ConversationEvent.LoadConversations)
@@ -135,7 +135,14 @@ fun ChatScreen(
 
 @Composable
 private fun ChatHeader(
-    showTitle: Boolean,
+    /**
+     * Whether anything has been said yet.
+     *
+     * Drives both the title and the `+`, because they answer the same question.
+     * In an empty conversation the oversized headline is already the header, and
+     * "new conversation" is a no-op — you are in one.
+     */
+    hasConversation: Boolean,
     onHistory: () -> Unit,
     onNew: () -> Unit,
     speakReplies: Boolean,
@@ -162,7 +169,7 @@ private fun ChatHeader(
         Spacer(Modifier.size(Space.x3))
         // The oversized headline is the header in the empty state, so a title
         // here would only compete with it.
-        if (showTitle) {
+        if (hasConversation) {
             Text("Jarvis", style = JarvisTheme.typography.titleLarge, color = colors.ink)
         }
         Spacer(Modifier.weight(1f))
@@ -174,14 +181,28 @@ private fun ChatHeader(
             onToggle = onToggleSpeak,
             onStop = onStopSpeaking,
         )
-        Spacer(Modifier.size(Space.x2))
-        CircleIconButton(onClick = onNew, diameter = 40.dp, background = colors.brandCore) {
-            Icon(
-                Icons.Rounded.Add,
-                contentDescription = "New conversation",
-                tint = colors.onBrand,
-                modifier = Modifier.size(20.dp),
-            )
+        // Hidden in an empty conversation, where it is a no-op that looks like
+        // a reload — you are already in a new conversation, so it swaps one
+        // blank screen for another identical one.
+        //
+        // It is not merely useless there: every tap calls `newGeneralSession()`
+        // and creates a row server-side, which is the litter gw03 asked us to
+        // filter out of the history list with `message_count = 0`. Not offering
+        // the tap is better than filtering its result.
+        //
+        // Kept once something has been said, where it is the only way back to a
+        // fresh chat from a conversation opened out of history — switching tabs
+        // preserves state (§5.1), so it would otherwise be a dead end.
+        if (hasConversation) {
+            Spacer(Modifier.size(Space.x2))
+            CircleIconButton(onClick = onNew, diameter = 40.dp, background = colors.brandCore) {
+                Icon(
+                    Icons.Rounded.Add,
+                    contentDescription = "New conversation",
+                    tint = colors.onBrand,
+                    modifier = Modifier.size(20.dp),
+                )
+            }
         }
     }
 }

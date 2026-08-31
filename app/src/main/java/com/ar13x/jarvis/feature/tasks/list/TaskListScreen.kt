@@ -15,6 +15,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
@@ -62,6 +63,9 @@ import com.ar13x.jarvis.core.model.TaskStatus
 import com.ar13x.jarvis.core.ui.LoadState
 import com.ar13x.jarvis.designsystem.component.BrandBackdrop
 import com.ar13x.jarvis.designsystem.component.CircleIconButton
+import androidx.compose.material.icons.automirrored.rounded.Chat
+import com.ar13x.jarvis.core.model.SessionSummary
+import androidx.compose.ui.text.style.TextOverflow
 import com.ar13x.jarvis.designsystem.component.JarvisCard
 import com.ar13x.jarvis.designsystem.component.JarvisChip
 import com.ar13x.jarvis.designsystem.component.ScreenHeader
@@ -88,6 +92,7 @@ private const val PREFETCH_ROWS = 5
 fun TaskListScreen(
     onOpenTask: (Long) -> Unit,
     onNewSession: () -> Unit,
+    onOpenDraft: (String) -> Unit,
     onAbout: () -> Unit,
     modifier: Modifier = Modifier,
     viewModel: TaskListViewModel = hiltViewModel(),
@@ -98,6 +103,7 @@ fun TaskListScreen(
         onEvent = viewModel::onEvent,
         onOpenTask = onOpenTask,
         onNewSession = onNewSession,
+        onOpenDraft = onOpenDraft,
         onAbout = onAbout,
         modifier = modifier,
     )
@@ -109,6 +115,7 @@ fun TaskListScreen(
     onEvent: (TaskListEvent) -> Unit,
     onOpenTask: (Long) -> Unit,
     onNewSession: () -> Unit,
+    onOpenDraft: (String) -> Unit,
     onAbout: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
@@ -154,6 +161,7 @@ fun TaskListScreen(
                     onEvent = onEvent,
                     onOpenTask = onOpenTask,
                     onNewSession = onNewSession,
+                    onOpenDraft = onOpenDraft,
                     onAbout = onAbout,
                 )
             }
@@ -194,6 +202,7 @@ private fun TaskList(
     onEvent: (TaskListEvent) -> Unit,
     onOpenTask: (Long) -> Unit,
     onNewSession: () -> Unit,
+    onOpenDraft: (String) -> Unit,
     onAbout: () -> Unit,
 ) {
     val showSections = content.showsSections(state.filters)
@@ -249,6 +258,23 @@ private fun TaskList(
         if (showSections) {
             // Sections with no rows are hidden, not shown empty — three empty
             // headers on first launch is noise (plan §5.2).
+
+            // Above Overdue, and above everything: these are the only rows the
+            // task list cannot otherwise reach. An overdue task is at least
+            // visible elsewhere; an unconfirmed conversation is not a task at
+            // all, so if it is not here it is nowhere.
+            if (state.drafts.isNotEmpty()) {
+                item(key = "h-drafts") { SectionHeader("Unfinished") }
+                items(state.drafts, key = { "draft-" + it.id }) { draft ->
+                    DraftRow(
+                        draft = draft,
+                        onOpen = { onOpenDraft(draft.id) },
+                        modifier = Modifier
+                            .padding(horizontal = Space.Gutter)
+                            .animateItem(),
+                    )
+                }
+            }
 
             // Above everything, because it is the only section that is already
             // costing you something. A task set for 6:40 must not look
@@ -837,4 +863,56 @@ private fun DueTodayCount(
             color = colors.ink.copy(alpha = 0.72f),
         )
     }
+}
+
+/**
+ * A task conversation that never became a task.
+ *
+ * Deliberately not a `TaskRow`: it has no status, no due date and no cancel,
+ * because it is not a task — it is a conversation that was heading towards one.
+ * Dressing it as a task row would promise a thing that does not exist, and the
+ * whole point of the section is that these are *not* in the list yet.
+ *
+ * The title is the server's, derived from the first thing said, which is the
+ * only honest label available before a proposal is confirmed.
+ */
+@Composable
+private fun DraftRow(
+    draft: SessionSummary,
+    onOpen: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    val colors = JarvisTheme.colors
+
+    JarvisCard(modifier = modifier.fillMaxWidth(), onClick = onOpen, contentPadding = Space.x4) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Icon(
+                Icons.AutoMirrored.Rounded.Chat,
+                contentDescription = null,
+                tint = colors.inkMuted,
+                modifier = Modifier.size(15.dp),
+            )
+            Spacer(Modifier.width(Space.x3))
+            Column(Modifier.weight(1f)) {
+                Text(
+                    text = draft.title ?: "Unfinished conversation",
+                    style = JarvisTheme.typography.titleMedium,
+                    color = colors.ink,
+                    maxLines = 2,
+                    overflow = TextOverflow.Ellipsis,
+                )
+                Spacer(Modifier.height(2.dp))
+                Text(
+                    text = draftSubtitle(draft),
+                    style = JarvisTheme.typography.bodySmall.tabularNums(),
+                    color = colors.inkMuted,
+                )
+            }
+        }
+    }
+}
+
+private fun draftSubtitle(draft: SessionSummary): String {
+    val turns = if (draft.messageCount == 1) "1 message" else draft.messageCount.toString() + " messages"
+    return turns + " · not created yet"
 }

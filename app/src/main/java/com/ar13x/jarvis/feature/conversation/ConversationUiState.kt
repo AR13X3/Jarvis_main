@@ -28,7 +28,17 @@ sealed interface SessionTarget {
      *
      * [seed] is sent automatically once the session exists.
      */
-    data class NewTask(val seed: String? = null) : SessionTarget
+    data class NewTask(
+        val seed: String? = null,
+        /**
+         * Resume this session instead of starting one.
+         *
+         * Set when re-entering an unfinished draft from the task list. Without
+         * it every entry created a fresh session, which is how a conversation
+         * could be abandoned and never found again.
+         */
+        val sessionId: String? = null,
+    ) : SessionTarget
 
     /**
      * The Chat tab (§5.4).

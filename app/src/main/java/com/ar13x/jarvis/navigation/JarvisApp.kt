@@ -205,6 +205,7 @@ private fun JarvisNavHost(
                             TaskListScreen(
                                 onOpenTask = { taskId -> navController.navigate(TaskSession(taskId)) },
                                 onNewSession = { navController.navigate(NewSession()) },
+                                onOpenDraft = { id -> navController.navigate(NewSession(sessionId = id)) },
                                 onAbout = { navController.navigate(About) },
                             )
                         }
@@ -227,6 +228,7 @@ private fun JarvisNavHost(
                             SessionScreen(
                                 taskId = null,
                                 seed = entry.toRoute<NewSession>().seed,
+                                draftSessionId = entry.toRoute<NewSession>().sessionId,
                                 onBack = navController::popBackStack,
                                 onOpenTask = { id -> navController.navigate(TaskSession(id)) },
                                 onCreateTask = { seed -> navController.navigate(NewSession(seed)) },

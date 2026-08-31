@@ -38,6 +38,9 @@ class RemoteAgentRepository @Inject constructor(
     override suspend fun generalSessions(page: Int): PagedSessions =
         gatewayCall { api.sessions(kind = SessionKind.General.wireName(), page = page) }
 
+    override suspend fun taskSessions(page: Int): PagedSessions =
+        gatewayCall { api.sessions(kind = SessionKind.Task.wireName(), page = page) }
+
     override suspend fun messages(sessionId: String, before: Long?, limit: Int): PagedMessages =
         gatewayCall { api.messages(sessionId, before, limit) }
 

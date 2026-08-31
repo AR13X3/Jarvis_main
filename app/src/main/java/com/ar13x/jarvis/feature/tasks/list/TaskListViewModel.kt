@@ -2,6 +2,7 @@ package com.ar13x.jarvis.feature.tasks.list
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.ar13x.jarvis.core.data.AgentRepository
 import com.ar13x.jarvis.core.data.TaskRepository
 import com.ar13x.jarvis.core.model.CancelScope
 import com.ar13x.jarvis.core.data.toFailureReason
@@ -20,6 +21,7 @@ import javax.inject.Inject
 @HiltViewModel
 class TaskListViewModel @Inject constructor(
     private val tasks: TaskRepository,
+    private val agent: AgentRepository,
 ) : ViewModel() {
 
     private val _state = MutableStateFlow(TaskListUiState())
@@ -57,6 +59,10 @@ class TaskListViewModel @Inject constructor(
             TaskListEvent.ClearFilters -> applyFilters(TaskFilters())
 
             is TaskListEvent.ToggleChecklistItem -> toggleChecklistItem(event.task, event.line)
+
+            // Navigation is the screen's job; the event exists so the list can
+            // clear the draft optimistically once it is opened.
+            is TaskListEvent.OpenDraft -> Unit
 
             is TaskListEvent.ToggleExpand -> _state.update { state ->
                 val next = if (event.taskId in state.expandedIds) {
@@ -101,6 +107,8 @@ class TaskListViewModel @Inject constructor(
                     appendFailure = null,
                 )
             }
+            loadDrafts()
+
             val filters = _state.value.filters
             runCatching {
                 if (filters.isEmpty) {
@@ -131,6 +139,26 @@ class TaskListViewModel @Inject constructor(
                     }
                 }
             }
+        }
+    }
+
+    /**
+     * Unfinished task conversations, fetched beside the list rather than with
+     * it.
+     *
+     * Deliberately its own request and its own failure: drafts are a recovery
+     * path, and a gateway that cannot list sessions must not take the task list
+     * down with it. On failure the section is simply absent, which is the same
+     * thing the user saw before it existed.
+     */
+    private fun loadDrafts() {
+        viewModelScope.launch {
+            val drafts = runCatching { agent.taskSessions() }.getOrNull()
+                ?.sessions
+                ?.filter { it.isUnfinishedTask }
+                ?.sortedByDescending { it.updatedAt }
+                .orEmpty()
+            _state.update { it.copy(drafts = drafts) }
         }
     }
 

@@ -3,6 +3,7 @@ package com.ar13x.jarvis.feature.tasks.list
 import androidx.compose.runtime.Immutable
 import com.ar13x.jarvis.core.model.CancelScope
 import com.ar13x.jarvis.core.model.FailureReason
+import com.ar13x.jarvis.core.model.SessionSummary
 import com.ar13x.jarvis.core.model.Task
 import java.time.Instant
 import com.ar13x.jarvis.core.model.TaskStatus
@@ -28,6 +29,15 @@ data class TaskListUiState(
     /** Drives the undo snackbar after a priority toggle. */
     val undo: UndoPriority? = null,
     val transientFailure: FailureReason? = null,
+
+    /**
+     * Task conversations that never became tasks.
+     *
+     * Unbound sessions with messages in them. Nothing in the task list points
+     * at these — there is no task yet — so before this they were unreachable
+     * the moment you backed out, despite still existing on the server.
+     */
+    val drafts: List<SessionSummary> = emptyList(),
     /**
      * Which rows are showing their description.
      *
@@ -206,6 +216,9 @@ sealed interface TaskListEvent {
      * of something cheap and reversible does not confirm).
      */
     data class ToggleChecklistItem(val task: Task, val line: Int) : TaskListEvent
+
+    /** Re-enter an unfinished task conversation. */
+    data class OpenDraft(val sessionId: String) : TaskListEvent
 
     data class ToggleStatusFilter(val status: TaskStatus) : TaskListEvent
     data class SetRange(val range: DateRange) : TaskListEvent
