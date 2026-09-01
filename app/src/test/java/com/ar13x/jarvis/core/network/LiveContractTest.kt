@@ -77,8 +77,19 @@ class LiveContractTest {
         val known = domain.categories.map { it.id }.toSet()
         assertTrue(domain.days.flatMap { it.slots }.all { it.categoryId in known })
 
-        // Still not served (tracker 109), which is why `drifted` stays unknown.
-        assertEquals(null, domain.driftToleranceMinutes)
+        // Tracker 109 SHIPPED on 2026-09-02, and this assertion was the wrong
+        // way round the moment it did: it still said "still not served" and
+        // asserted null. It is skipped without a live body, so it would have sat
+        // there being backwards until somebody ran it with one — which is the
+        // §3 pattern exactly, a gateway capability the app believes is missing
+        // being invisible because nothing fails.
+        //
+        // The DTO was already written to accept it, so nothing else changed.
+        val tolerance = domain.driftToleranceMinutes
+        assertTrue(
+            "drift_threshold_minutes is served now (tracker 109): " + tolerance,
+            tolerance != null && tolerance > 0,
+        )
     }
 
     /**

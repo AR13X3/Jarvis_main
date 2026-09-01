@@ -42,10 +42,19 @@ data class RoutineDto(
     val categories: List<RoutineCategoryDto> = emptyList(),
     val days: List<RoutineDayDto> = emptyList(),
     /**
-     * Asked for in tracker 109 and **not yet served**. Present here so the day
-     * it ships it needs no client change: `SlotRow.drifted` is already null
-     * until a tolerance arrives, so the app degrades to "no verdict" rather
-     * than to a number it invented.
+     * Asked for in tracker 109 and **served since 2026-09-02**.
+     *
+     * It was written here before it existed, precisely so that the day it
+     * shipped needed no client change — and it did not. Worth keeping as a
+     * record of the shape that worked: `SlotRow.drifted` is null until a
+     * tolerance arrives, so the app degraded to "no verdict" rather than to a
+     * number it invented, and then started giving verdicts on its own.
+     *
+     * **Still nullable, and that is gw03's decision rather than an oversight.**
+     * They left it with no schema default on purpose: a default would republish
+     * 15 as a constant readable straight out of a cached `openapi.json`, which
+     * is a hardcoded threshold wearing the contract's clothes. `null` can
+     * therefore only ever mean "this gateway did not tell you".
      */
     @SerialName("drift_threshold_minutes") val driftThresholdMinutes: Int? = null,
 ) {
