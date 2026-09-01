@@ -19,10 +19,14 @@ Rewritten 2026-09-01. Paste §0 into a new session; it points at everything else
 > curl -s https://gw03.tail9662e3.ts.net/tracker/api/items
 > ```
 >
-> Everything is committed and pushed, 196 tests green, `v0.1.10` published —
-> and **several fixes and the whole routine feature are unreleased**, so what is
-> on the phone is behind the repo.
+> Everything is committed and pushed, 238 tests green, `v0.1.10` published —
+> and **several fixes, the whole routine feature and the dashboard are
+> unreleased**, so what is on the phone is well behind the repo.
 > **Never publish a release without asking me first.**
+>
+> Pull `openapi.json` from `https://gw03.tail9662e3.ts.net/api/openapi.json`
+> before writing any DTO. **Note the `/api` prefix** — the bare `/openapi.json`
+> on that host is a different app on port 8420 and will mislead you badly.
 
 ---
 
@@ -149,6 +153,13 @@ If a claim rests on something you did not check, say so.
   inline-only.
 - **Writing a Kotlin `"\n"` through a shell heredoc or Python silently becomes a
   real newline** and breaks the build. Use the Edit tool for string literals.
+- **Python on this machine opens files as cp1252, not UTF-8.** `json.load(open(p))`
+  on the served `openapi.json` mangles every `§` and `—` into two characters, and
+  a diff against gw03's copy then reports ~56 differing values that do not exist.
+  Always `open(p, encoding='utf-8')`. The tell, when it happens: *every* differing
+  leaf is a prose `description` and no structural key differs — real transport
+  corruption does not politely confine itself to prose. This nearly became a false
+  bug report against gw03; see tracker 111.
 - **`PendingIntent` equality ignores extras** — it compares action, data and
   component. An id carried only in an extra distinguishes nothing, so two
   intents collapse and `FLAG_UPDATE_CURRENT` rewrites the survivor's extras.
@@ -172,25 +183,54 @@ installing in place on one key. Phone on `0.1.10`, verified with `adb`.
 
 **Complete:** the plan through Phase F, plus voice, the Overdue section, the
 follow-up loop with lock-screen answers, checklists, unfinished-task recovery,
-and the **routine** — day view and week view, against a fixture. 196 tests.
+the **routine** — day view and week view, against a fixture — and the
+**dashboard**. 238 tests.
 
-**Unreleased, and it is now a lot.** `0.1.10` predates the routine tab and four
-fixes, three of which are the `PendingIntent` identity bugs in §7. Whether that
-earns a release is Joy's call, but the gap is wider than usual.
+**Unreleased, and it is now a lot.** `0.1.10` predates the routine tab, the
+dashboard, and four fixes, three of which are the `PendingIntent` identity bugs
+in §7. Whether that earns a release is Joy's call, but the gap is wider than
+usual.
 
-**Next, and the whole shape of it:** `docs/jarvis-v2-plan.md` — reminders,
-routines, tasks, a dashboard and summaries. Agreed with Joy, **not yet agreed
-with gw03**, which is what tracker item 60 asks for. Read it before building
-anything in that direction; almost all of it is gw03's, and the `task` →
-`reminder` rename is deliberately first because it never gets cheaper.
+**The v2 plan is no longer "not yet agreed" — six of its seven steps are BUILT.**
+`docs/jarvis-v2-plan.md` §8 carries the build state per step. The gateway shipped
+steps 2–6 overnight on 2026-09-01 (event table, dashboard numbers, routines,
+to-dos, summaries); only attachments are unstarted. **Read the §8 list rather
+than the prose around it** — and note the banner at the top of that document,
+which is now the staleness rule itself: the plan has pointed at a breaking change
+twice, both times because the reasoning was sound and the premise had expired.
+Re-derive any costed claim against the served `openapi.json` and the real DTOs.
 
-**Waiting on gw03:** the v2 review (60), the routine contract (62), and a
-low-severity `due_date` ask (63).
+**Waiting on gw03** (tracker 108, 109, 110):
+- the **accepted-failure flag** — `Task.accepted_failure`, `FailingTask.accepted`,
+  and `accepted_failure` on `PatchTaskBody`. The app half is built and tested; it
+  lands with no further app change.
+- **`drift_threshold_minutes` on `Routine`** — it is on `DashboardPolicy` only,
+  which is authenticated and network-only, while §4.2 requires the routine tab to
+  render offline from the cached routine.
+- **the `SummaryFacts` verb vocabulary** — `reminders` and `todos` are
+  `map<string, SummaryCount>` and the legal keys are in no schema. Do not write
+  summary parsing until this is answered; guessing the key strings would show up
+  as a zero on a screen, which reads exactly like a true zero.
 
 **Waiting on Joy:** the FCM measurement, still never started; which routine slots
 are *tracked* versus *scaffold* — a considered guess today, and it decides what
-the dashboard can say; and whether the 12-hour times in the routine want an
-am/pm marker.
+the dashboard can say; whether the 12-hour times in the routine want an am/pm
+marker; **where the dashboard lives** (tracker 116 — it is parked in the Routine
+graph, and a fourth tab is hers to call); and the four decisions in tracker 103,
+including off-machine backups.
+
+**Not built, and each for a stated reason:** attachments (step 7, called last);
+per-week routine overrides (§9 calls them agreed and never specified them, so
+there is nothing to build to); routine import by agent (§4.7); agent *tools* for
+to-dos and summaries — the model can read them but cannot create a to-do, and
+adding tools changes both the agreed tool-scope table and the live conversational
+surface, so it is a joint decision.
+
+**The app is still on a fake routine repository.** `GET /routine`,
+`/routine/now` and `/routine/starts` all exist on the gateway now; `DataModule`
+still binds `FakeRoutineRepository`. Nothing persists across process death, by
+design, but that is the largest remaining gap between the app and reality — and
+it is the swap the two other repositories already went through in phase D.
 
 **Accepted, not fixed:** "Charge my watch" lapses every night. The loop is
 correct; the task is at a time Joy does not answer. Do not reopen it unprompted.
