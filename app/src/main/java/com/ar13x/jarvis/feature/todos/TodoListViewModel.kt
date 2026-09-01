@@ -131,6 +131,35 @@ class TodoListViewModel @Inject constructor(
         }
     }
 
+    /**
+     * Creates and shows it immediately, without a round trip to reload the list.
+     *
+     * Prepended rather than re-fetched: the new to-do is the server's own
+     * response, so this is not an optimistic guess -- it is the created row,
+     * placed where the person who just typed it will look. A full reload would
+     * also drop it straight back out of view whenever the current filter
+     * excludes it, which is the wrong feedback for "I just added that".
+     */
+    fun create(title: String, description: String, tags: List<String>) {
+        viewModelScope.launch {
+            try {
+                val created = repository.create(
+                    title = title,
+                    description = description.takeIf { it.isNotBlank() },
+                    tags = tags,
+                )
+                _state.update { current ->
+                    current.copy(
+                        content = current.content.mapList { listOf(created) + it },
+                        tags = (current.tags + created.tags).distinct().sorted(),
+                    )
+                }
+            } catch (e: Exception) {
+                _state.update { it.copy(transientFailure = e.toFailureReason()) }
+            }
+        }
+    }
+
     fun dismissFailure() = _state.update { it.copy(transientFailure = null) }
 
     private fun applyFilters(change: (TodoFilters) -> TodoFilters) {

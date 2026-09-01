@@ -20,13 +20,20 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.ArrowBack
+import androidx.compose.material.icons.rounded.Add
 import androidx.compose.material.icons.rounded.Check
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
+import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
@@ -62,6 +69,7 @@ import java.time.format.DateTimeFormatter
  * same row as the status filters, over the same ordering, so the two cannot
  * drift apart.
  */
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun TodoListScreen(
     onBack: () -> Unit,
@@ -70,13 +78,31 @@ fun TodoListScreen(
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
     val colors = JarvisTheme.colors
+    var composing by remember { mutableStateOf(false) }
+    val sheet = rememberModalBottomSheetState()
+
+    if (composing) {
+        ModalBottomSheet(
+            onDismissRequest = { composing = false },
+            sheetState = sheet,
+            containerColor = colors.surface,
+        ) {
+            NewTodoSheet(
+                onCreate = { title, description, tags ->
+                    composing = false
+                    viewModel.create(title, description, tags)
+                },
+                onCancel = { composing = false },
+            )
+        }
+    }
 
     Column(
         Modifier
             .fillMaxSize()
             .background(colors.ground),
     ) {
-        Header(onBack)
+        Header(onBack, onNew = { composing = true })
         Filters(state, viewModel)
 
         state.transientFailure?.let { reason ->
@@ -143,7 +169,7 @@ fun TodoListScreen(
 }
 
 @Composable
-private fun Header(onBack: () -> Unit) {
+private fun Header(onBack: () -> Unit, onNew: () -> Unit) {
     val colors = JarvisTheme.colors
     Row(
         Modifier
@@ -162,6 +188,19 @@ private fun Header(onBack: () -> Unit) {
         }
         Spacer(Modifier.width(Space.x3))
         Text("To-dos", style = JarvisTheme.typography.titleLarge, color = colors.ink)
+        Spacer(Modifier.weight(1f))
+        // The one saturated element on this screen, same as the + on the task
+        // list. Capture is the thing this screen is for -- most of these are
+        // notes with nowhere to go yet -- so it should be the easiest thing
+        // to hit.
+        CircleIconButton(onClick = onNew, diameter = 40.dp, background = colors.brandCore) {
+            Icon(
+                Icons.Rounded.Add,
+                contentDescription = "New to-do",
+                tint = colors.onBrand,
+                modifier = Modifier.size(20.dp),
+            )
+        }
     }
 }
 

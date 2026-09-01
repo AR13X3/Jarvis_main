@@ -162,6 +162,52 @@ class TodoListViewModelTest {
     }
 
     @Test
+    fun `a created to-do appears immediately, even under a filter that excludes it`() =
+        runTest(dispatcher) {
+            // The feedback that matters: someone just typed it, so it has to be
+            // visible. A reload would drop it straight back out whenever the
+            // current filter excludes it, which reads as the add having failed.
+            val vm = viewModel()
+            advanceUntilIdle()
+            vm.toggleBacklog()
+            advanceUntilIdle()
+            vm.toggleTag("Uni")
+            advanceUntilIdle()
+
+            vm.create("Ask gw03 about the weekday base", "", listOf("Reskill"))
+            advanceUntilIdle()
+
+            assertEquals("Ask gw03 about the weekday base", vm.state.value.content.titles.first())
+        }
+
+    @Test
+    fun `a new tag joins the filter row`() = runTest(dispatcher) {
+        val vm = viewModel()
+        advanceUntilIdle()
+        assertFalse("Speedway" in vm.state.value.tags)
+
+        vm.create("Book the Friday shift swap", "", listOf("Speedway"))
+        advanceUntilIdle()
+
+        assertTrue("Speedway" in vm.state.value.tags)
+    }
+
+    @Test
+    fun `a created to-do is undated, which is what the backlog is`() = runTest(dispatcher) {
+        // The capture sheet has no date field on purpose (§5.2): an undated
+        // to-do is the ordinary case, not a half-finished one.
+        val vm = viewModel()
+        advanceUntilIdle()
+
+        vm.create("Place the CBAI review", "", emptyList())
+        advanceUntilIdle()
+
+        val created = (vm.state.value.content as LoadState.Ready).data.first()
+        assertTrue(created.isUndated)
+        assertFalse(created.hasReminders)
+    }
+
+    @Test
     fun `advancing never reaches cancelled`() = runTest(dispatcher) {
         // Cancelling is a decision, not a step, and it must not be reachable by
         // tapping past `done`. It lives on the detail screen.
