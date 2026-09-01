@@ -9,8 +9,8 @@ Rewritten 2026-09-01. Paste §0 into a new session; it points at everything else
 > You are continuing work on the **Jarvis Android app** in
 > `C:\Users\ahmed\Code\Jarvis`. Read `docs/SESSION-HANDOFF.md` first — it covers
 > how this project works, who the other parties are, and the traps. Then
-> `docs/BUILD_NOTES.md` for the how, and `docs/jarvis-app-plan.md` as the
-> authority on anything about the app itself.
+> `docs/BUILD_NOTES.md` for the how, `docs/jarvis-app-plan.md` as the authority
+> on the app itself, and `docs/jarvis-v2-plan.md` for where it is going.
 >
 > **Read the live tracker before doing anything.** It is the source of truth for
 > state; the documents are for reasoning.
@@ -19,15 +19,27 @@ Rewritten 2026-09-01. Paste §0 into a new session; it points at everything else
 > curl -s https://gw03.tail9662e3.ts.net/tracker/api/items
 > ```
 >
-> Everything is committed and pushed, 290 tests green, `v0.1.10` published —
-> **`v0.1.12` is published and the repo is clean at that tag** — the dashboard,
-> to-dos, the routine tab on real gateway data, and the overdue-card fix all
-> shipped 2026-09-02.
-> **Never publish a release without asking me first.**
+> **§9 is your brief.** Joy has asked for four changes before the next release.
+> Read it, then confirm the scope of the Jira-style work before building all of
+> it — that one is the only open-ended item.
+>
+> As of 2026-09-02: `v0.1.12` published, 290 tests green, tree clean. **Verify
+> that rather than believing it** — sessions overlap here and this line goes
+> stale within the hour.
+>
+> **Never publish a release without asking me first.** Building, tagging and
+> verifying unprompted is fine; `gh release create` is not. Use
+> `bash tools/release.sh`, which refuses a dirty tree, a duplicate tag, a
+> versionCode that does not beat the published one, a changed signing cert, and
+> an APK that does not embed the commit it names.
 >
 > Pull `openapi.json` from `https://gw03.tail9662e3.ts.net/api/openapi.json`
 > before writing any DTO. **Note the `/api` prefix** — the bare `/openapi.json`
-> on that host is a different app on port 8420 and will mislead you badly.
+> on that host is a different app and will mislead you badly.
+>
+> After §9, keep going: test the app on the phone for bugs, and carry on with
+> `jarvis-v2-plan.md` §8. Bugs found by using the app have consistently been the
+> ones that mattered.
 
 ---
 
@@ -289,3 +301,107 @@ conversation, stale buttons, a wrapping placeholder. Every bug found on 1
 September was found by *reading*, and the tests could not have caught them
 either, because the code they guarded was not the code that ran. Both halves of
 that are worth keeping.
+
+---
+
+## 9. Joy's brief for the next session
+
+Given 2026-09-02, after `v0.1.12`. Four changes, then carry on.
+
+**Confirm scope on the third before building all of it.** The other three are
+well-defined; that one is a direction, not a specification.
+
+### 9.1 Five tabs, icons only
+
+Dashboard and To-dos become **their own tabs**. Today both are nested screens —
+`TodoList` hangs off the Tasks graph via `onTodos`, and `DashboardRoute` off
+`onOpenDashboard`. Joy wants them at the top level.
+
+That makes five: **Tasks, To-dos, Routine, Dashboard, Chat.** Five labelled tabs
+will not fit, so the bar goes **icon-only** — Joy's words: "to make sure all of
+the tabs fit, use only icons".
+
+`JarvisBottomBar` already iterates `JarvisTab.entries` and picks an icon per tab,
+so the enum and the icon `when` are most of it. Dropping the label means the
+`contentDescription` becomes the only name a screen reader gets — keep it, and
+keep the touch target at its current size rather than shrinking to match the
+smaller cell.
+
+### 9.2 A to-do's deadline is the deadline — delete the reminder link
+
+Joy: *"To-dos can have deadline, remove the reminder pointing thing, it is doing
+work twice."*
+
+**Read that precisely.** To-dos already carry `starts_at`, `due_at`, `starts_on`
+and `due_date` — the deadline exists and works. The thing to remove is the
+**to-do → reminder link** shipped in `395df72`, where a to-do could point at
+Tasks that chase it. Two mechanisms now answer "when is this due", they have to
+be kept consistent, and Joy is right that it is duplicate work.
+
+Do **not** add a deadline field. It is already there.
+
+This reverses **v2 plan §5.1**, which argued a to-do *has* tasks so that only one
+domain owns nagging. That argument was about not building a second nagging
+engine, and deleting the link does not rebuild one — a to-do with a `due_at`
+simply is not chased. Update §5.1 rather than leaving the plan contradicting the
+code, and tell gw03: the link has a gateway table (`todos.todo_tasks`) and they
+should not keep serving something nothing reads.
+
+### 9.3 Labels, the way Jira and Trello do them
+
+Joy: *"The labelling system is not proper, make it like jira-trello. we also need
+more jira-trello functionalities in to-do."*
+
+Today `Todo.tags` is `List<String>` — free text, typed fresh each time, no
+colour, no reuse, nothing stopping `uni` and `Uni` being different labels. That
+is the "not proper" part.
+
+What Jira and Trello actually do, and what makes them feel different: a label is
+a **first-class object** with a name and a colour, defined once on a board and
+**picked from a set** rather than typed. That alone fixes the drift and gives the
+dashboard something it can group by reliably.
+
+**Beyond labels, this is a direction and not a spec.** Ask Joy which of these
+matter before building any of them — the whole list is a large amount of work
+and some of it may not be wanted:
+
+- priority, as a field rather than the existing boolean star
+- ordering within a status, so a column has a top
+- sub-tasks, distinct from the checklist that already exists in the description
+- a parent or epic, for grouping several to-dos under one piece of work
+- comments or an activity trail on a to-do
+- due-soon and overdue treatment on the list
+
+Joy was explicit earlier that there is **no dragging and no board columns**
+(v2 plan §5). Check whether that still holds before designing anything that
+assumes a board — "more jira-trello functionalities" may have changed it.
+
+### 9.4 Routine notifications
+
+Joy: *"I am not getting any notifications for routines, we need those as well."*
+
+There is no routine notification path at all. Nothing fires when a tracked slot
+begins, so the day view only works if you are already looking at it — which
+defeats the point of tracking adherence.
+
+The machinery exists and should be reused rather than rebuilt: `AlarmScheduler`
+arms exact alarms, `Notifier` posts them, `BootReceiver` re-arms after a reboot
+or an app update. What is new is *what* to arm — the tracked slots of the current
+routine day — and it is the same shape as the occurrence mirror.
+
+Two things to get right, both of which this codebase has already paid for once:
+
+- **`BUILD_NOTES` §14.** `PendingIntent` identity goes in the data URI, never in
+  extras and never in arithmetic on a request code. A routine slot alarm needs
+  its own key that cannot collide with an occurrence alarm.
+- **A routine day is not a calendar day** (v2 plan §4.2). Arm against the logical
+  day, and remember that all seven of Joy's days cross midnight.
+
+Only **tracked** slots — about 3.7 a day. Scaffold, buffer and free must not
+notify, or the feature becomes eighty interruptions a week and gets turned off.
+
+### 9.5 Then keep going
+
+Test the app on the phone. Every bug that has mattered in this project was found
+by using it, not by a test — an empty turn rendering as nothing, a silent
+push-back, a lost conversation. Then carry on with `jarvis-v2-plan.md` §8.
