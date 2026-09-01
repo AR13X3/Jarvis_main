@@ -41,19 +41,43 @@ data class SlotRow(
     val actualStart: LocalDateTime?,
     val actualEnd: LocalDateTime?,
     val position: SlotPosition,
+    /**
+     * The server's tolerance, carried down rather than known here.
+     *
+     * Null means **no threshold has been received**. That is not a tolerance of
+     * zero and it is not "nothing drifted".
+     */
+    val driftToleranceMinutes: Int? = null,
 ) {
     val started: Boolean get() = actualStart != null
 
     /**
-     * Started somewhere other than planned, by more than a few minutes.
+     * Started somewhere other than planned, by more than the tolerance — or
+     * **null when that cannot be answered**.
      *
-     * The tolerance exists because nobody taps at the second, and a routine that
-     * called a four-minute difference a deviation would cry wolf until it was
-     * ignored.
+     * Three states, not two, and the third is the point. `false` means measured
+     * and within tolerance; `null` means no tolerance has arrived, so there is
+     * nothing to measure against and the row shows no verdict at all. Rendering
+     * an unknown as "fine" is §6's provenance rule broken in miniature — the
+     * same mistake as reading an empty drift list as a clean week.
+     *
+     * **The 15 that used to be hardcoded here is gone** (v2 plan §6, tracker
+     * 109). The *reasoning* behind it was right — nobody taps at the second, and
+     * a routine crying wolf over four minutes gets ignored — but the number is
+     * the gateway's, derived there from `GRACE_MINUTES`, and a client constant
+     * that happens to agree today is one that silently disagrees the day it is
+     * tuned. That is precisely how `grace_minutes` went wrong.
+     *
+     * Absolute, so an early start counts too — matching the gateway's
+     * `DriftingSlot`, which is `|actual − planned|`. If the two differed, the
+     * screen and the dashboard would disagree about the same slot.
      */
-    val drifted: Boolean
-        get() = actualStart != null &&
-            Math.abs(java.time.Duration.between(plannedStart, actualStart).toMinutes()) > 15
+    val drifted: Boolean?
+        get() {
+            val tolerance = driftToleranceMinutes ?: return null
+            val began = actualStart ?: return false
+            return Math.abs(java.time.Duration.between(plannedStart, began).toMinutes()) > tolerance
+        }
 
     /**
      * A tracked slot whose time has passed with nothing recorded.
@@ -192,7 +216,15 @@ class RoutineViewModel @Inject constructor(
         _state.value = _state.value.copy(
             routine = routine,
             selected = selected,
-            day = logical?.let { dayView(it, starts, at, isToday = it.date == running?.date) },
+            day = logical?.let {
+                dayView(
+                    logical = it,
+                    starts = starts,
+                    at = at,
+                    isToday = it.date == running?.date,
+                    driftToleranceMinutes = routine.driftToleranceMinutes,
+                )
+            },
             now = at,
             resting = running == null,
             nextDayStartsAt = next?.startsAt,
@@ -225,6 +257,8 @@ internal fun dayView(
     starts: List<SlotStart>,
     at: LocalDateTime,
     isToday: Boolean,
+    /** The gateway's tolerance. Null until one has been received — see [SlotRow.drifted]. */
+    driftToleranceMinutes: Int? = null,
 ): DayView {
     val onThisDay = starts.filter { it.on == logical.date }
     val byTime = onThisDay.map { it.at }.sorted()
@@ -253,6 +287,7 @@ internal fun dayView(
                 !plannedEnd.isAfter(at) -> SlotPosition.Past
                 else -> SlotPosition.Upcoming
             },
+            driftToleranceMinutes = driftToleranceMinutes,
         )
     }
     return DayView(logical, isToday, rows)

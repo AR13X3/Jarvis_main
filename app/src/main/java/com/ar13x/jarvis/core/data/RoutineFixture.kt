@@ -71,6 +71,17 @@ object RoutineFixture {
             "Not yet placed: uni assessment weeks, 10–15h. Wednesday's buffer is the only place " +
                 "it can come from.",
         ),
+        /**
+         * A fixture value, standing in for the gateway's
+         * `routine_drift_threshold_minutes` until it rides on `GET /routine`
+         * (tracker 109). It matches what the gateway derives today — `GRACE_MINUTES`,
+         * which is 15 — so the day view behaves exactly as it did before the
+         * constant was removed from `SlotRow`.
+         *
+         * Changing this number changes a fixture. It no longer changes what the
+         * app believes about a live routine, which is the whole point of moving it.
+         */
+        driftToleranceMinutes = 15,
     )
 
     // --- days -----------------------------------------------------------------

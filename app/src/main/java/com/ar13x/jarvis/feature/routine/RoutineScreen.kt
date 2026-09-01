@@ -464,7 +464,10 @@ private fun subtitle(row: SlotRow): String {
         // classification was wrong.
         row.slot.kind == SlotKind.Buffer -> planned + " · keep clear"
 
-        row.actualStart != null && row.drifted ->
+        // `drifted` is null when no tolerance has reached the app. Null is not
+        // "on time" — there is nothing to be on time against — so an unknown
+        // falls through to the plain "started" line and claims neither way.
+        row.actualStart != null && row.drifted == true ->
             planned + " · started " + row.actualStart.format(TIME)
         row.actualStart != null -> planned + " · started"
         row.unrecorded -> planned + " · not recorded"

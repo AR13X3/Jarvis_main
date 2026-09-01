@@ -40,6 +40,26 @@ data class Routine(
      * reasoning from scratch in three months (§4.8).
      */
     val notes: List<String> = emptyList(),
+    /**
+     * How far off plan a start must be to count as drift, in minutes.
+     * **The gateway's number, not the app's.** Null when none has been received.
+     *
+     * It belongs on the routine rather than in `SlotRow` because §4.2 requires
+     * the routine tab to render **off the tailnet**, from this cached object.
+     * The gateway currently publishes it only as
+     * `policy.routine_drift_threshold_minutes` on `GET /dashboard` —
+     * authenticated, network-only, and hanging off an object the routine tab
+     * never fetches — so a cold start, or a tram, would leave the tab with
+     * nothing but a client-side guess. Tracker 109 asks for it on `GET /routine`
+     * as well; this field is where it lands.
+     *
+     * Until then the fixture supplies it, which is honest in a way the constant
+     * it replaces was not: inventing a number is what a fixture is *for*,
+     * whereas production logic inventing a policy value is the client quietly
+     * overruling the server. When the field reaches the wire this becomes a
+     * plain deserialisation and nothing above it changes.
+     */
+    val driftToleranceMinutes: Int? = null,
 ) {
     fun day(weekday: DayOfWeek): RoutineDay? = days.firstOrNull { it.weekday == weekday }
 

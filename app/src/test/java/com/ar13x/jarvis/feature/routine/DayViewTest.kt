@@ -4,7 +4,6 @@ import com.ar13x.jarvis.core.data.RoutineFixture
 import com.ar13x.jarvis.core.data.SlotStart
 import com.ar13x.jarvis.core.model.LogicalDay
 import org.junit.Assert.assertEquals
-import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
@@ -31,8 +30,20 @@ class DayViewTest {
     private fun started(slotId: String, hour: Int, minute: Int) =
         SlotStart(VERSION, monday, slotId, at(hour, minute))
 
+    /**
+     * Threads the fixture's tolerance in, the way the ViewModel threads the
+     * routine's. Passed explicitly rather than left to default, and that is the
+     * point: `drifted` is *unknown* without one, so a test that quietly omitted
+     * it would assert against null and stop testing drift at all.
+     */
     private fun rowsAt(now: LocalDateTime, starts: List<SlotStart>) =
-        dayView(day, starts, now, isToday = true)
+        dayView(
+            logical = day,
+            starts = starts,
+            at = now,
+            isToday = true,
+            driftToleranceMinutes = RoutineFixture.theWeek.driftToleranceMinutes,
+        )
 
     @Test
     fun `the next start is what ends the previous slot`() {
@@ -80,7 +91,7 @@ class DayViewTest {
         val uni = view.rows.first { it.slot.id == "mon-uni" }
 
         assertEquals(at(20, 15), gym.actualStart)
-        assertTrue(gym.drifted)
+        assertEquals(true, gym.drifted)
         assertEquals(at(20, 15), uni.actualEnd)
     }
 
@@ -88,14 +99,59 @@ class DayViewTest {
     fun `starting close to the plan is not drift`() {
         val view = rowsAt(at(10, 0), listOf(started("mon-reskill", 8, 52)))
 
-        assertFalse(view.rows.first { it.slot.id == "mon-reskill" }.drifted)
+        assertEquals(false, view.rows.first { it.slot.id == "mon-reskill" }.drifted)
     }
 
     @Test
     fun `starting well after the plan is drift`() {
         val view = rowsAt(at(12, 0), listOf(started("mon-reskill", 10, 30)))
 
-        assertTrue(view.rows.first { it.slot.id == "mon-reskill" }.drifted)
+        assertEquals(true, view.rows.first { it.slot.id == "mon-reskill" }.drifted)
+    }
+
+    @Test
+    fun `starting early counts, because the deviation is absolute`() {
+        // Matches the gateway's DriftingSlot, which is |actual - planned|. If the
+        // two disagreed, the screen and the dashboard would disagree about the
+        // same slot and neither would be wrong on its own terms.
+        val view = rowsAt(at(10, 0), listOf(started("mon-reskill", 8, 0)))
+
+        assertEquals(true, view.rows.first { it.slot.id == "mon-reskill" }.drifted)
+    }
+
+    @Test
+    fun `with no tolerance received, drift is unknown rather than false`() {
+        // The whole reason `drifted` is nullable. Before this, SlotRow hardcoded
+        // 15 and would happily return `false` for a routine it had no threshold
+        // for — a verdict computed from a number the client invented, which is
+        // how grace_minutes went wrong on the occurrence side.
+        //
+        // Null must not collapse to false anywhere: an unmeasurable slot is not
+        // an on-time one, and the row shows no verdict at all.
+        val view = dayView(
+            logical = day,
+            starts = listOf(started("mon-reskill", 10, 30)),
+            at = at(12, 0),
+            isToday = true,
+            driftToleranceMinutes = null,
+        )
+
+        val reskill = view.rows.first { it.slot.id == "mon-reskill" }
+
+        assertNull(reskill.drifted)
+        // ...and the start itself is still recorded. Not knowing whether it
+        // drifted says nothing about whether it happened.
+        assertEquals(at(10, 30), reskill.actualStart)
+    }
+
+    @Test
+    fun `a slot that was never started is not drifting, even with a tolerance`() {
+        // `false` here is a real answer, not a stand-in for unknown: there is a
+        // threshold, and nothing deviated from the plan because nothing began.
+        // `unrecorded` is the word for that, and it is asserted separately.
+        val view = rowsAt(at(16, 0), emptyList())
+
+        assertEquals(false, view.rows.first { it.slot.id == "mon-gym" }.drifted)
     }
 
     @Test
