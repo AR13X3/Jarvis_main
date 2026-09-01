@@ -92,6 +92,27 @@ class SlotAlarmIdentityTest {
     }
 
     @Test
+    fun `the alarm, the Start button and the tap target are three different intents`() {
+        // All three are built from the same key and they must not collapse.
+        // PendingIntent equality ignores extras entirely, so the ONLY thing
+        // separating them is the data URI -- the alarm uses the bare key, the
+        // action appends "/start", the tap target appends "/open".
+        //
+        // The tap target is the one that mattered: it is an
+        // `Intent(MainActivity)` with no action and nothing else, which
+        // `filterEquals` calls identical to the REMINDER's tap target, since
+        // that one distinguishes itself by an extra. Without a data URI the two
+        // were separated by request code alone.
+        val base = RoutineAlarmScheduler.key(friday, "fri-gym")
+        val uris = listOf(base, base + "/start", base + "/open")
+
+        assertEquals("three intents, three URIs", uris.size, uris.toSet().size)
+        for (uri in uris) {
+            assertTrue(uri, uri.startsWith("jarvis://slot/"))
+        }
+    }
+
+    @Test
     fun `a slot id with awkward characters stays one path segment`() {
         // Not reachable from today's ids, which are all `fri-speedway` shaped.
         // Asserted anyway: the day one arrives with a slash in it, a key that

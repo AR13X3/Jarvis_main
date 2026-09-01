@@ -275,6 +275,24 @@ class Notifier @Inject constructor(
             id,
             Intent(context, MainActivity::class.java).apply {
                 flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
+                // A DATA URI, on an intent that otherwise carries nothing.
+                //
+                // Without it this is `Intent(MainActivity)` with no action and
+                // no data — which `filterEquals` says is the SAME intent as the
+                // reminder tap-target built in `show()` above, because that one
+                // distinguishes itself only by an `EXTRA_TASK_ID`, and
+                // PendingIntent equality ignores extras entirely (BUILD_NOTES
+                // §14). The two are then separated by request code alone, and
+                // one hash collision between `notificationId(day, slot)` and
+                // `alarmKey(taskId)` would make `FLAG_UPDATE_CURRENT` rewrite
+                // the survivor: a reminder that stops opening its task, or a
+                // slot that opens someone else's.
+                //
+                // Unlikely, and it is exactly the shape of the three collisions
+                // §14 already records. Making it impossible costs one line.
+                data = android.net.Uri.parse(
+                    RoutineAlarmScheduler.key(alarm.on, alarm.slotId) + "/open",
+                )
             },
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
         )

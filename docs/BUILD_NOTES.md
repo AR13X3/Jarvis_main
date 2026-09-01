@@ -1211,6 +1211,18 @@ wrong twice more, in the same package, by people who had read that comment:
    fire time is the obvious trap: the whole point of rescheduling is that it
    changes.
 
+**A fourth way it nearly happened, found by reading the §9.6 diff back.** The
+slot notification's tap target was `Intent(MainActivity)` with no action and no
+data — which `filterEquals` calls *the same intent* as the reminder tap target
+built in `Notifier.show`, because that one distinguishes itself only by an
+`EXTRA_TASK_ID`. The two were separated by **request code alone**, so a single
+collision between `notificationId(day, slot)` and `alarmKey(taskId)` would have
+had `FLAG_UPDATE_CURRENT` rewrite the survivor: a reminder that stops opening its
+task, or a slot that opens somebody else's. Fixed by giving it a data URI. The
+residual risk on the *reminder* side is bounded rather than absent —
+`alarmKey` is `taskId.hashCode()`, which for ids below 2³¹ is the id itself, so
+two live tasks cannot collide today.
+
 **The routine slot alarms added in §9.6 are the first thing in this package
 written to the rule rather than against it**, and they are worth reading as the
 worked example:
