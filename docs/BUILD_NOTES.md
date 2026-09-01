@@ -1197,6 +1197,7 @@ wrong twice more, in the same package, by people who had read that comment:
 | the alarm's *request code* | `notificationId(taskId, fireAt)` | includes the fire time, so a rescheduled reminder could not replace its own alarm. **Two alarms fired.** |
 | nudge action buttons | `(notificationId * 8) + hash + minutes` | `* 8` overflows `Int`; the offset reaches 67 and overruns its 8-wide slot. Done on one reminder could complete another. |
 | the catch-up alarm | `REQUEST_OFFSET + occurrenceId.toInt()` | truncates a `Long`; ids 2^32 apart share an alarm |
+| **routine slot alarms** (§9.6) | `jarvis://slot/<logical day>/<slot id>`, in the data URI | correct, and written against this rule rather than rediscovering it |
 
 **The rule, stated once so it does not have to be rediscovered:**
 
@@ -1209,6 +1210,25 @@ wrong twice more, in the same package, by people who had read that comment:
 4. **Never key an alarm on anything that can change while it is armed.** A
    fire time is the obvious trap: the whole point of rescheduling is that it
    changes.
+
+**The routine slot alarms added in §9.6 are the first thing in this package
+written to the rule rather than against it**, and they are worth reading as the
+worked example:
+
+- the identity is `(logical day, slot id)` in the **data URI** — deliberately
+  *not* the slot's time, which is rule 4. A routine edit moving gym from 08:00 to
+  09:00 keeps the key, so re-arming replaces the alarm rather than adding a
+  second one. Keying on the time is precisely how a reminder once fired twice.
+- the request code is a stable hash of that whole key, never arithmetic on part
+  of it (rule 3).
+- the authority `slot` cannot collide with `occurrence`, and the two use
+  different receiver components as well — belt and braces, but the braces are
+  the URI.
+- `RoutineAlarmScheduler.encodeSlotId` is hand-written rather than `Uri.encode`
+  **so that the identity function can be unit-tested at all**. Every identity
+  test in this package is plain JUnit; `Uri.encode` is an Android stub that
+  throws there. An identity function nobody can test is one nobody checks, which
+  is how this table got four rows.
 
 Note that a notification id and an alarm id want *opposite* properties — the
 first must change with the fire time so a push and a local alarm for one firing

@@ -25,9 +25,11 @@ Rewritten 2026-09-01. Paste §0 into a new session; it points at everything else
 > out to be wrong. §9.1 first: a to-do cannot currently be given a deadline at
 > all, which is a bug and not a feature.
 >
-> As of 2026-09-02: `v0.1.12` published, 290 tests green, tree clean. **Verify
-> that rather than believing it** — sessions overlap here and this line goes
-> stale within the hour.
+> As of 2026-09-02 (late): `v0.1.12` is still the published release and
+> **nothing newer has been published**. §9 is built except §9.3, which is
+> blocked on a gateway schema. 335 tests green, tree clean. **Verify that rather
+> than believing it** — sessions overlap here and this line goes stale within
+> the hour.
 >
 > **Never publish a release without asking me first.** Building, tagging and
 > verifying unprompted is fine; `gh release create` is not. Use
@@ -207,10 +209,23 @@ If a claim rests on something you did not check, say so.
 
 ## 8. Where things stand
 
-Eleven releases — `0.1.1`–`0.1.12`, with `0.1.4` deliberately skipped — all
-installing in place on one key. **`v0.1.12` is the current release**, built from
-`4a149cb` and tagged. Whether the phone has taken it has not been checked — no
-device was attached to `adb`.
+**Rewritten 2026-09-02, late, after §9 was built.** The version of this section
+that stood before had gone wrong in four separate places at once — it still
+called the routine's remote half unbound, still listed tracker 108/109/110 as
+outstanding, still said summaries were blocked on one of them, and still counted
+the release gap from `0.1.10` when `0.1.12` was out. Every one of those was true
+when written. That is the point of §6, and this section is where it keeps
+happening, so **re-derive anything here that a decision depends on.**
+
+### Released
+
+Eleven releases — `0.1.1`–`0.1.12`, `0.1.4` deliberately skipped — all installing
+in place on one key. **`v0.1.12` is the current release**, built from `4a149cb`
+and tagged. **Nothing since has been published**, deliberately: §9 is a large
+change and publishing is Joy's call.
+
+Whether the phone has taken `0.1.12` is still unchecked — no device has been
+attached to `adb` in either of the last two sessions.
 
 `tools/release.sh` does the whole thing except publishing: it refuses a dirty
 tree, checks the versionCode beats what is published, builds, verifies the
@@ -218,91 +233,89 @@ signing cert against the one every prior release used, reads the versionName and
 the embedded commit **back out of the APK**, then tags and pushes. It stops
 before `gh release create` on purpose. Do not add a `--publish` flag.
 
-**Complete:** the plan through Phase F, plus voice, the Overdue section, the
-follow-up loop with lock-screen answers, checklists, unfinished-task recovery,
-the **routine** — day view and week view, against a fixture — the
-**dashboard**, and **to-dos** (list, backlog, detail, capture, linking). 290 tests.
+### Built and unreleased — which is now most of a release
 
-**Unreleased, and it is now a lot.** `0.1.10` predates the routine tab, the
-dashboard, and four fixes, three of which are the `PendingIntent` identity bugs
-in §7. Whether that earns a release is Joy's call, but the gap is wider than
-usual.
+**335 tests, tree clean.** The plan through Phase F, plus voice, the Overdue
+section, the follow-up loop with lock-screen answers, checklists, unfinished-task
+recovery, the routine (day and week views, against the live gateway), the
+dashboard, and to-dos.
 
-**The v2 plan is no longer "not yet agreed" — six of its seven steps are BUILT.**
-`docs/jarvis-v2-plan.md` §8 carries the build state per step. The gateway shipped
-steps 2–6 overnight on 2026-09-01 (event table, dashboard numbers, routines,
-to-dos, summaries); only attachments are unstarted. **Read the §8 list rather
-than the prose around it** — and note the banner at the top of that document,
-which is now the staleness rule itself: the plan has pointed at a breaking change
-twice, both times because the reasoning was sound and the premise had expired.
-Re-derive any costed claim against the served `openapi.json` and the real DTOs.
+**Five of §9's six items are built** (see §9 for what each one decided):
 
-**Waiting on gw03** (tracker 108, 109, 110):
-- the **accepted-failure flag** — `Task.accepted_failure`, `FailingTask.accepted`,
-  and `accepted_failure` on `PatchTaskBody`. The app half is built and tested; it
-  lands with no further app change.
-- **`drift_threshold_minutes` on `Routine`** — it is on `DashboardPolicy` only,
-  which is authenticated and network-only, while §4.2 requires the routine tab to
-  render offline from the cached routine.
-- **the `SummaryFacts` verb vocabulary** — `reminders` and `todos` are
-  `map<string, SummaryCount>` and the legal keys are in no schema. Do not write
-  summary parsing until this is answered; guessing the key strings would show up
-  as a zero on a screen, which reads exactly like a true zero.
+| | what landed |
+|---|---|
+| §9.1 | a to-do can be given a deadline at last — detail screen and capture, and the first `DatePicker` in the tree |
+| §9.2 | five tabs, icon-only; Dashboard and To-dos promoted out of nested screens |
+| §9.4 | all four Jira features — priority, sub-tasks, the activity trail, status grouping |
+| §9.5 | the to-do → reminder link deleted, and v2 plan §5.1 updated rather than left contradicting the code |
+| §9.6 | routine notifications — exact alarms on tracked slots, answerable from the lock screen |
 
-**Waiting on Joy:** the FCM measurement, still never started; which routine slots
-are *tracked* versus *scaffold* — a considered guess today, and it decides what
-the dashboard can say; whether the 12-hour times in the routine want an am/pm
-marker; **where the dashboard lives** (tracker 116 — it is parked in the Routine
-graph, and a fourth tab is hers to call); and the four decisions in tracker 103,
-including off-machine backups.
+**§9.3 (first-class labels) is the one not built, and deliberately.** It needs a
+gateway contract that does not exist yet. The shape is proposed on tracker 134
+and Joy's gateway ruled option **(a)** on tracker 137 — labels *replace* tags,
+with existing tags migrated one-label-each, and a summary storing both `label_id`
+and the name it had when written so renaming a label does not rewrite history.
+**Do not write the app half until the schema is live**; guessing key strings is
+how a zero appears on a screen and reads as a true zero.
 
-**To-dos are feature-complete for now** — list, backlog filter, detail, capture
-and linking. The one thing deliberately absent is a **date picker in the capture
-sheet**: §5.2 makes an undated to-do the ordinary case, so capture is for the
-backlog and setting a date happens on the detail screen, where the consequence
-(*this leaves the backlog*) is visible.
+### The gateway is ahead of the app, not behind it
 
-**Summaries are deliberately unstarted**, blocked on tracker 110: `SummaryFacts`
-carries verb-keyed maps whose key vocabulary is in no schema. Writing the parser
-against guessed strings would surface as a zero on screen, which reads exactly
-like a true zero.
+**Tracker 108, 109 and 110 are all done and deployed**, and so are the three
+contract asks this session opened (134–136). Verified from the served contract
+rather than from the board: **25 paths, 71 schemas, sha `383d102ebc0df899`**.
 
-**Not built, and each for a stated reason:** attachments (step 7, called last);
-per-week routine overrides (§9 calls them agreed and never specified them, so
-there is nothing to build to); routine import by agent (§4.7); agent *tools* for
-to-dos and summaries — the model can read them but cannot create a to-do, and
-adding tools changes both the agreed tool-scope table and the live conversational
-surface, so it is a joint decision.
+`docs/gateway-openapi.json` is that exact copy. It had been sitting at **16 paths
+and 37 schemas** — predating routines, to-dos, summaries and the dashboard
+entirely — while `JarvisApi`'s own doc comment called it the authority. Refreshed
+2026-09-02. `TodoJiraContractTest` now reads enum spellings *out of it* rather
+than restating them, so it cannot agree with a mistake by repeating it.
 
-**The routine's remote half is written and NOT bound — one live read away.**
-`RemoteRoutineRepository` and its DTOs are done and tested (15 tests); the swap
-is the single `@Binds` line in `DataModule`, which explains at the binding site
-why it has not been flipped. Two reasons, both real:
+### What is genuinely not built
 
-1. **`RoutineDay.weekday` has no base in the contract** — a bare `integer`, and
-   Python's `weekday()` (0 = Mon) and `isoweekday()` (1 = Mon) differ by one
-   character. Wrong choice shifts the whole week by a day with every slot and
-   time still correct, so it reads as bad data rather than a client bug.
-   `RoutineDto.toDomain` *measures* the base from the payload instead of
-   guessing — a complete week is either `{0..6}` or `{1..7}` and those sets do
-   not overlap — and throws on anything else. Tracker 117 asks gw03 to put the
-   range in the schema, at which point that function collapses to a line.
-2. **No routine payload this code has seen came from the gateway.** No bearer
-   token on this machine; everything was built from the schema.
+- **Summaries (v2 §8 step 6, app half).** It was blocked on tracker 110, and
+  **110 is resolved** — `SummaryReminderVerb` and `SummaryTodoVerb` are named
+  enums in the contract and the key vocabulary is no longer a guess. This is the
+  largest unbuilt app half and is now unblocked.
+- **Attachments** (v2 §8 step 7). Called last, still unstarted.
+- **Per-week routine overrides.** §9 of the v2 plan calls them agreed and never
+  specified them, so there is nothing to build to. It needs a spec before code.
+- **Routine import by agent** (v2 §4.7).
+- **Agent *tools* for to-dos and summaries.** The model can read them but cannot
+  create a to-do. Adding tools changes both the agreed tool-scope table and the
+  live conversational surface, so it is a joint decision rather than joy's.
 
-So: get one live `GET /routine` (a token, or run it from the phone), check the
-weekday base and that the tab renders, then flip the binding. Flipping it blind
-trades a working routine tab for an unrun one.
+### Corrections to things this file used to claim
+
+- **The routine's remote half IS bound.** `DataModule` binds
+  `RemoteRoutineRepository`, and the routine tab reads Joy's real week — done in
+  `d628980`, verified against a production body. The weekday base was *measured*
+  from the payload rather than guessed and comes back one-based.
+- **The write path is still unproven.** `routine/starts` held zero rows as of the
+  last check, so no `POST` has ever succeeded and no real `SlotStart` has been
+  decoded. §9.6 now gives that path a second caller — the notification's Start
+  button — so the first tap on either is still the test.
+
+### Waiting on Joy
+
+The FCM measurement (never started); which routine slots are *tracked* versus
+*scaffold* — a considered guess today, and §9.6 now **arms notifications off that
+guess**, so a wrong one is louder than it was; whether the 12-hour times in the
+routine want an am/pm marker; and the four decisions in tracker 103, including
+off-machine backups.
+
+Tracker 116 — where the dashboard and to-dos live — is **closed**: Joy answered it
+in §9.2 by asking for both as tabs.
 
 **Accepted, not fixed:** "Charge my watch" lapses every night. The loop is
 correct; the task is at a time Joy does not answer. Do not reopen it unprompted.
 
 **Every bug that mattered on 31 August was found by using the app on a real
-phone**, not by a test — an empty turn rendering as nothing, a lost
-conversation, stale buttons, a wrapping placeholder. Every bug found on 1
-September was found by *reading*, and the tests could not have caught them
-either, because the code they guarded was not the code that ran. Both halves of
-that are worth keeping.
+phone**, not by a test — an empty turn rendering as nothing, a lost conversation,
+stale buttons, a wrapping placeholder. Every bug found on 1 September was found
+by *reading*, and the tests could not have caught those either, because the code
+they guarded was not the code that ran. §9.1 is the same shape again: the model
+was right the whole time and no test would ever have noticed that the UI could
+only ever *remove* a deadline. Both halves of that are worth keeping.
 
 ---
 
@@ -311,6 +324,21 @@ that are worth keeping.
 Given 2026-09-02, after `v0.1.12`. Five changes, then carry on. **Every decision
 in here is made** — Joy asked for the calls to be taken rather than returned as
 questions. Build it as written; raise something only if it turns out to be wrong.
+
+> **STATUS 2026-09-02, late — five of six are BUILT and none of it is released.**
+>
+> | | state |
+> |---|---|
+> | §9.1 deadlines | **built** — `1f907b4` |
+> | §9.2 five tabs | **built** — `2757d02` |
+> | §9.3 labels | **NOT built, and correctly so.** No gateway schema exists yet. Shape proposed on tracker 134; Joy's gateway ruled option (a) on 137 and has not shipped it. Do not guess the field names. |
+> | §9.4 Jira features | **built** — `d9893bd`. gw03 shipped the contract for all four the same night (tracker 135, 136). |
+> | §9.5 delete the link | **built** — `b4d0486`. gw03 may retire `todos.todo_tasks` whenever it likes; nothing reads it. |
+> | §9.6 routine notifications | **built** — `c4452d6` |
+> | §9.7 test on the phone | **not done — no device was attached to `adb`.** Said plainly rather than quietly skipped: §9.7 is the item this project's own history rates most highly, and it is the one still outstanding. |
+>
+> The brief below is left exactly as Joy wrote it. What each item actually
+> decided in the building is in the commit messages, which are long on purpose.
 
 ### 9.1 A to-do cannot be given a deadline. Fix that first.
 
@@ -452,3 +480,17 @@ by using it, not by a test — an empty turn rendering as nothing, a silent
 push-back, a lost conversation, and §9.1 above, which no test would ever have
 caught because the model was right the whole time. Then carry on with
 `jarvis-v2-plan.md` §8.
+
+> **Still outstanding, and it is the most valuable thing left.** No phone has
+> been attached to `adb` for two sessions, so none of §9 has been seen running.
+> Three parts of it are exactly the kind of thing only the phone will show:
+> whether the five icon-only tabs are actually distinguishable at a glance,
+> whether the date picker's 23:59 sentinel round-trips against the *real*
+> gateway rather than the reasoning in `Deadline.kt`, and whether the routine
+> notifications arrive at all — that last one has never fired once outside a
+> unit test.
+>
+> **On v2 §8: summaries are unblocked now.** They were held on tracker 110,
+> which is resolved — the verb vocabulary is published as `SummaryReminderVerb`
+> and `SummaryTodoVerb`, so the map keys are no longer a guess. That is the
+> largest unbuilt app half and step 6 of §8.
