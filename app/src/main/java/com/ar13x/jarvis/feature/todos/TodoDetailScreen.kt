@@ -1,6 +1,7 @@
 package com.ar13x.jarvis.feature.todos
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -21,6 +22,7 @@ import androidx.compose.foundation.layout.heightIn
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.ArrowBack
 import androidx.compose.material.icons.rounded.Close
+import androidx.compose.material.icons.rounded.EditCalendar
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ModalBottomSheet
@@ -30,8 +32,12 @@ import androidx.compose.material3.TextButton
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
@@ -40,13 +46,20 @@ import com.ar13x.jarvis.core.data.message
 import com.ar13x.jarvis.core.model.Task
 import com.ar13x.jarvis.core.model.Todo
 import com.ar13x.jarvis.core.model.TodoStatus
+import com.ar13x.jarvis.core.ui.Deadline
+import com.ar13x.jarvis.core.ui.DueDateFormat
 import com.ar13x.jarvis.core.ui.LoadState
 import com.ar13x.jarvis.designsystem.component.CircleIconButton
+import com.ar13x.jarvis.designsystem.component.DeadlinePickerDialog
 import com.ar13x.jarvis.designsystem.component.JarvisCard
 import com.ar13x.jarvis.designsystem.component.JarvisChip
 import com.ar13x.jarvis.designsystem.component.SectionHeader
+import com.ar13x.jarvis.designsystem.theme.Corner
 import com.ar13x.jarvis.designsystem.theme.JarvisTheme
 import com.ar13x.jarvis.designsystem.theme.Space
+import java.time.Instant
+import java.time.LocalDate
+import java.time.ZoneId
 import java.time.format.DateTimeFormatter
 
 /**
@@ -177,28 +190,12 @@ private fun Content(
         // --- deadline -----------------------------------------------------------
         item { SectionHeader("Deadline") }
         item {
-            Column(Modifier.padding(horizontal = Space.Gutter)) {
-                Text(
-                    // `due_date` is the server's local day, never derived here.
-                    text = todo.dueDate?.format(DAY) ?: "No deadline — this is in the backlog.",
-                    style = JarvisTheme.typography.bodyMedium,
-                    color = if (todo.dueDate == null) colors.inkMuted else colors.ink,
-                )
-                if (todo.dueAt != null) {
-                    Spacer(Modifier.height(Space.x1))
-                    TextButton(
-                        onClick = { viewModel.setDueAt(null) },
-                        contentPadding = PaddingValues(0.dp),
-                    ) {
-                        Text("Clear deadline", style = JarvisTheme.typography.labelLarge)
-                    }
-                    Text(
-                        "Moves it back to the backlog. The reminders below keep firing.",
-                        style = JarvisTheme.typography.bodySmall,
-                        color = colors.inkMuted,
-                    )
-                }
-            }
+            DeadlineSection(
+                todo = todo,
+                mismatch = state.deadlineDayMismatch,
+                onSet = viewModel::setDeadline,
+                onClear = viewModel::clearDeadline,
+            )
         }
 
         // --- reminders -----------------------------------------------------------
@@ -283,6 +280,118 @@ private fun Content(
                     todo.tags.forEach { JarvisChip(label = it, selected = false, onClick = {}) }
                 }
             }
+        }
+    }
+}
+
+/**
+ * The deadline, and the two things you can do to it.
+ *
+ * **Until this existed a to-do could only ever have a deadline taken away.**
+ * `Todo` has carried `due_at` since migration 0009 and the only control on this
+ * screen was "Clear deadline", so the sole way to acquire one was to ask the
+ * agent in chat — which meant the app could undo something it could not do. It
+ * was not a missing feature so much as half a feature that read as complete.
+ *
+ * The row is the affordance: tapping it opens the picker whether or not there is
+ * a deadline already, so setting and changing are the same gesture. "Clear" stays
+ * a separate, quieter control underneath, because it is the destructive one and
+ * because the sentence explaining what it does is worth the room.
+ */
+@Composable
+private fun DeadlineSection(
+    todo: Todo,
+    mismatch: DeadlineDayMismatch?,
+    onSet: (Instant, LocalDate) -> Unit,
+    onClear: () -> Unit,
+) {
+    val colors = JarvisTheme.colors
+    val zone = remember { ZoneId.systemDefault() }
+    var picking by remember { mutableStateOf(false) }
+
+    // The day is the server's and the time is read off the instant — and the
+    // time is shown only when the deadline actually names one (§9.1: most
+    // to-dos want a day, not an hour).
+    val label = DueDateFormat.forTodo(todo.dueDate, todo.dueAt, zone)
+
+    if (picking) {
+        DeadlinePickerDialog(
+            onDismiss = { picking = false },
+            onPick = { dueAt, day ->
+                picking = false
+                onSet(dueAt, day)
+            },
+            // Seeded from the server's day, never from a day this screen
+            // derived. `initialTime` is a time and may be read off the instant.
+            initialDay = todo.dueDate,
+            initialTime = todo.dueAt?.let { Deadline.timeOf(it, zone) },
+            zone = zone,
+        )
+    }
+
+    Column(Modifier.padding(horizontal = Space.Gutter)) {
+        Row(
+            Modifier
+                .fillMaxWidth()
+                .clip(Corner.Sm)
+                .clickable(
+                    onClickLabel = if (todo.dueAt == null) "Set a deadline" else "Change the deadline",
+                    onClick = { picking = true },
+                )
+                .padding(vertical = Space.x2),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(Space.x3),
+        ) {
+            Icon(
+                Icons.Rounded.EditCalendar,
+                contentDescription = null,
+                tint = if (label == null) colors.inkMuted else colors.brandCore,
+                modifier = Modifier.size(20.dp),
+            )
+            Column(Modifier.weight(1f)) {
+                Text(
+                    text = label ?: "Set a deadline",
+                    style = JarvisTheme.typography.bodyLarge,
+                    color = if (label == null) colors.inkMuted else colors.ink,
+                )
+                if (label == null) {
+                    Text(
+                        // §5.2: undated is the ordinary case, not an omission.
+                        // The line says where the to-do currently is rather
+                        // than nagging about a field being empty.
+                        "No deadline — this is in the backlog.",
+                        style = JarvisTheme.typography.bodySmall,
+                        color = colors.inkMuted,
+                    )
+                }
+            }
+        }
+
+        // Almost never drawn. It means the gateway filed the deadline under a
+        // different calendar day from the one that was tapped, which can only
+        // happen if its zone and the phone's have parted company — and which
+        // would otherwise look like the app losing a day at random.
+        if (mismatch != null) {
+            Text(
+                text = "Saved, but the server filed this under " +
+                    mismatch.stored.format(DAY) + " rather than " +
+                    mismatch.asked.format(DAY) + ". The time is right; the day is not.",
+                style = JarvisTheme.typography.bodySmall,
+                color = colors.status.incomplete,
+                modifier = Modifier.padding(vertical = Space.x1),
+            )
+        }
+
+        if (todo.dueAt != null) {
+            Spacer(Modifier.height(Space.x1))
+            TextButton(onClick = onClear, contentPadding = PaddingValues(0.dp)) {
+                Text("Clear deadline", style = JarvisTheme.typography.labelLarge)
+            }
+            Text(
+                "Moves it back to the backlog. The reminders below keep firing.",
+                style = JarvisTheme.typography.bodySmall,
+                color = colors.inkMuted,
+            )
         }
     }
 }

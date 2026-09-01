@@ -66,6 +66,46 @@ object DueDateFormat {
     }
 
     /**
+     * A to-do's deadline, or `null` when it has none — which is ordinary rather
+     * than missing (§5.2): an undated to-do is what the backlog is made of.
+     *
+     * Same rule as everywhere else here: the **day** is [dueDate], the server's
+     * own, and the **time** is read off [dueAt]. The one thing this does that
+     * the task formatter does not is **omit the time when there is not one to
+     * show** — [Deadline.EndOfDay] means the user picked a day and no hour, and
+     * appending "11:59 PM" would invent a precision they did not ask for.
+     *
+     * [dueDate] is preferred and [dueAt] is only fallen back to when the server
+     * sent an instant without a day. That fallback derives a calendar day on the
+     * phone, which §3.2 forbids in general — it is here for the same reason
+     * [forProposal] has it: the alternative is showing nothing at all for a
+     * deadline that demonstrably exists, and a day that may be off by one is
+     * more use than a blank. It is not expected to run.
+     */
+    fun forTodo(
+        dueDate: LocalDate?,
+        dueAt: Instant?,
+        zone: ZoneId = ZoneId.systemDefault(),
+    ): String? {
+        if (dueDate == null && dueAt == null) return null
+        val today = LocalDate.now(zone)
+        val date = dueDate ?: dueAt!!.atZone(zone).toLocalDate()
+        val day = when (date) {
+            today -> "Today"
+            today.plusDays(1) -> "Tomorrow"
+            today.minusDays(1) -> "Yesterday"
+            else -> {
+                val format = if (date.year == today.year) dayThisYear else dayOtherYear
+                format.format(date)
+            }
+        }
+        val time = dueAt
+            ?.takeIf { Deadline.hasTimeOfDay(it, zone) }
+            ?.let { timeFormat.format(it.atZone(zone).toLocalTime()) }
+        return if (time == null) day else day + ", " + time
+    }
+
+    /**
      * The proposal summary's date, for the confirmation card.
      *
      * Same rule as a task row: the **day** comes from the server's bare

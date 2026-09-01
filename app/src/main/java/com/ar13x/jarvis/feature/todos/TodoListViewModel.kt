@@ -15,6 +15,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import java.time.Instant
 import javax.inject.Inject
 
 /**
@@ -140,12 +141,20 @@ class TodoListViewModel @Inject constructor(
      * also drop it straight back out of view whenever the current filter
      * excludes it, which is the wrong feedback for "I just added that".
      */
-    fun create(title: String, description: String, tags: List<String>) {
+    fun create(
+        title: String,
+        description: String,
+        tags: List<String>,
+        dueAt: Instant? = null,
+    ) {
         viewModelScope.launch {
             try {
                 val created = repository.create(
                     title = title,
                     description = description.takeIf { it.isNotBlank() },
+                    // Undated stays the ordinary case (§5.2): this is `null`
+                    // unless the capture sheet's optional row was actually used.
+                    dueAt = dueAt,
                     tags = tags,
                 )
                 _state.update { current ->

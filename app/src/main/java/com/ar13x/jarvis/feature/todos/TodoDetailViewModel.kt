@@ -20,6 +20,8 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import java.time.Instant
+import java.time.LocalDate
 import javax.inject.Inject
 
 data class TodoDetailUiState(
@@ -45,7 +47,23 @@ data class TodoDetailUiState(
      * user cannot see, and it beats fetching the world to pre-empt it.
      */
     val candidates: LoadState<List<Task>>? = null,
+    /**
+     * Set when the day the user picked and the day the server filed it under
+     * are not the same one. Almost always `null`.
+     *
+     * **This is a tripwire, not a feature.** The app sends an instant and the
+     * gateway derives the calendar day from it in its own configured zone
+     * (§3.2); if that zone ever stops matching the phone's, every deadline
+     * quietly lands a day out with the time still perfectly correct, which reads
+     * as bad data rather than as a bug. This project has paid for that class of
+     * mistake more than once, and it is invisible precisely because nothing
+     * fails. Fifteen lines to make it announce itself is cheap.
+     */
+    val deadlineDayMismatch: DeadlineDayMismatch? = null,
 )
+
+/** The day asked for, and the day the gateway actually stored it under. */
+data class DeadlineDayMismatch(val asked: LocalDate, val stored: LocalDate)
 
 /**
  * One to-do, and the reminders pointed at it.
@@ -91,7 +109,45 @@ class TodoDetailViewModel @Inject constructor(
      * way to the wire by `todoPatchBody` — a nullable field on a data class
      * could not have expressed it, because `JarvisJson` omits nulls.
      */
-    fun setDueAt(dueAt: java.time.Instant?) = mutate { todos.setDueAt(todoId, dueAt) }
+    fun setDueAt(dueAt: Instant?) = mutate { todos.setDueAt(todoId, dueAt) }
+
+    /**
+     * Sets the deadline to an instant the user picked, and checks the day it
+     * came back as.
+     *
+     * [askedFor] is the calendar day they tapped. The app does not compute the
+     * stored day and must not — it compares its own question against the
+     * server's answer, which is the one comparison §3.2 permits and the only one
+     * that can catch a zone disagreement. A `null` `due_date` in the response is
+     * *not* a mismatch: it is the gateway declining to say, and treating silence
+     * as disagreement would raise a false alarm every time.
+     */
+    fun setDeadline(dueAt: Instant, askedFor: LocalDate) {
+        viewModelScope.launch {
+            try {
+                val updated = todos.setDueAt(todoId, dueAt)
+                val stored = updated.dueDate
+                _state.update {
+                    it.copy(
+                        deadlineDayMismatch = if (stored != null && stored != askedFor) {
+                            DeadlineDayMismatch(asked = askedFor, stored = stored)
+                        } else {
+                            null
+                        },
+                    )
+                }
+                apply(updated)
+            } catch (e: Exception) {
+                _state.update { it.copy(transientFailure = e.toFailureReason()) }
+            }
+        }
+    }
+
+    /** Back to the backlog (§5.2), and the tripwire goes quiet with it. */
+    fun clearDeadline() {
+        _state.update { it.copy(deadlineDayMismatch = null) }
+        setDueAt(null)
+    }
 
     fun setTitle(title: String) = mutate { todos.setTitle(todoId, title) }
 

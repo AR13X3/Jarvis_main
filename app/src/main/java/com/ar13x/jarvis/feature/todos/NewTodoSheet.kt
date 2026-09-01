@@ -2,6 +2,7 @@ package com.ar13x.jarvis.feature.todos
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -13,7 +14,12 @@ import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.text.BasicTextField
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.rounded.Close
+import androidx.compose.material.icons.rounded.EditCalendar
+import androidx.compose.material3.Icon
 import androidx.compose.material3.LocalTextStyle
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -29,9 +35,16 @@ import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.unit.dp
+import com.ar13x.jarvis.core.ui.Deadline
+import com.ar13x.jarvis.core.ui.DueDateFormat
+import com.ar13x.jarvis.designsystem.component.CircleIconButton
+import com.ar13x.jarvis.designsystem.component.DeadlinePickerDialog
 import com.ar13x.jarvis.designsystem.theme.Corner
 import com.ar13x.jarvis.designsystem.theme.JarvisTheme
 import com.ar13x.jarvis.designsystem.theme.Space
+import java.time.Instant
+import java.time.LocalDate
+import java.time.ZoneId
 
 /**
  * Capturing a to-do.
@@ -41,17 +54,20 @@ import com.ar13x.jarvis.designsystem.theme.Space
  * Thursday" and can misread it; a title typed into a field cannot be misparsed.
  * Nothing here goes near the agent.
  *
- * **No deadline field, deliberately.** The thing this sheet is for is the
- * backlog — "place the uni assessment weeks", the note that has nowhere to go
- * yet — and §5.2 makes an undated to-do the ordinary case rather than an
- * incomplete one. Adding a date is one tap away on the detail screen, where the
- * consequence ("this leaves the backlog") is visible. Putting a date picker in
- * the capture path would slow down the case that matters most and imply a
- * deadline is expected.
+ * **The deadline here is optional and secondary, and that is a correction to
+ * what this comment used to say.** It read "no deadline field, deliberately",
+ * on the argument that §5.2 makes an undated to-do the ordinary case and that a
+ * date is one tap away on the detail screen. The first half of that is still
+ * true and is why the field is a quiet row rather than a third box you tab
+ * through. The second half was wrong: **there was no way to set a deadline on
+ * the detail screen either** — only to clear one — so "one tap away" pointed at
+ * a tap that did not exist, and the two halves of the reasoning were each
+ * relying on the other. Capture stays one field for the case that matters most;
+ * the deadline is there for the note that arrives already knowing when it is due.
  */
 @Composable
 fun NewTodoSheet(
-    onCreate: (title: String, description: String, tags: List<String>) -> Unit,
+    onCreate: (title: String, description: String, tags: List<String>, dueAt: Instant?) -> Unit,
     onCancel: () -> Unit,
 ) {
     val colors = JarvisTheme.colors
@@ -59,8 +75,32 @@ fun NewTodoSheet(
     var description by remember { mutableStateOf("") }
     var tagText by remember { mutableStateOf("") }
 
+    // Both halves are kept: the instant is what gets sent, and the day is what
+    // was tapped. The day is only ever used to draw this row — the server has
+    // not been asked yet, so there is no `due_date` to prefer over it, and this
+    // is the one moment where the phone's own reading of the day is the
+    // authoritative one because it is the question rather than the answer.
+    var dueAt by remember { mutableStateOf<Instant?>(null) }
+    var dueDay by remember { mutableStateOf<LocalDate?>(null) }
+    var picking by remember { mutableStateOf(false) }
+    val zone = remember { ZoneId.systemDefault() }
+
     val tags = remember(tagText) {
         tagText.split(',').map { it.trim() }.filter { it.isNotEmpty() }
+    }
+
+    if (picking) {
+        DeadlinePickerDialog(
+            onDismiss = { picking = false },
+            onPick = { instant, day ->
+                dueAt = instant
+                dueDay = day
+                picking = false
+            },
+            initialDay = dueDay,
+            initialTime = dueAt?.let { Deadline.timeOf(it, zone) },
+            zone = zone,
+        )
     }
 
     Column(
@@ -99,6 +139,51 @@ fun NewTodoSheet(
             capitalization = KeyboardCapitalization.Words,
         )
 
+        Spacer(Modifier.height(Space.x2))
+
+        // A row rather than a field: it does not take focus, it does not join
+        // the tab order, and skipping it costs nothing. That is the whole of
+        // "optional and secondary" — the undated to-do stays a one-field capture.
+        val deadline = DueDateFormat.forTodo(dueDay, dueAt, zone)
+        Row(
+            Modifier
+                .fillMaxWidth()
+                .clip(Corner.Sm)
+                .clickable(
+                    onClickLabel = if (dueAt == null) "Add a deadline" else "Change the deadline",
+                    onClick = { picking = true },
+                )
+                .padding(horizontal = Space.x3, vertical = Space.x3),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(Space.x3),
+        ) {
+            Icon(
+                Icons.Rounded.EditCalendar,
+                contentDescription = null,
+                tint = if (dueAt == null) colors.inkMuted else colors.brandCore,
+                modifier = Modifier.size(20.dp),
+            )
+            Text(
+                text = deadline ?: "Add a deadline (optional)",
+                style = JarvisTheme.typography.bodyMedium,
+                color = if (dueAt == null) colors.inkMuted else colors.ink,
+                modifier = Modifier.weight(1f),
+            )
+            if (dueAt != null) {
+                CircleIconButton(
+                    onClick = { dueAt = null; dueDay = null },
+                    diameter = 28.dp,
+                ) {
+                    Icon(
+                        Icons.Rounded.Close,
+                        contentDescription = "Remove the deadline",
+                        tint = colors.inkMuted,
+                        modifier = Modifier.size(14.dp),
+                    )
+                }
+            }
+        }
+
         Spacer(Modifier.height(Space.x4))
         Row(
             Modifier.fillMaxWidth(),
@@ -112,7 +197,7 @@ fun NewTodoSheet(
                 // the button being dead says so without an error message
                 // appearing after the fact.
                 enabled = title.isNotBlank(),
-                onClick = { onCreate(title.trim(), description.trim(), tags) },
+                onClick = { onCreate(title.trim(), description.trim(), tags, dueAt) },
             ) {
                 Text("Add")
             }

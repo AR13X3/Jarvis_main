@@ -88,9 +88,9 @@ fun TodoListScreen(
             containerColor = colors.surface,
         ) {
             NewTodoSheet(
-                onCreate = { title, description, tags ->
+                onCreate = { title, description, tags, dueAt ->
                     composing = false
-                    viewModel.create(title, description, tags)
+                    viewModel.create(title, description, tags, dueAt)
                 },
                 onCancel = { composing = false },
             )
