@@ -8,6 +8,7 @@ import com.ar13x.jarvis.core.data.TodoRepository
 import com.ar13x.jarvis.core.data.toFailureReason
 import com.ar13x.jarvis.core.model.FailureReason
 import com.ar13x.jarvis.core.model.Task
+import com.ar13x.jarvis.core.model.TaskStatus
 import com.ar13x.jarvis.core.model.Todo
 import com.ar13x.jarvis.core.model.TodoStatus
 import com.ar13x.jarvis.core.ui.LoadState
@@ -34,6 +35,16 @@ data class TodoDetailUiState(
     val reminders: List<Task> = emptyList(),
     val remindersLoading: Boolean = false,
     val transientFailure: FailureReason? = null,
+    /**
+     * Reminders that could be pointed at this to-do, loaded only when asked.
+     *
+     * Live tasks minus the ones already linked here. A task belonging to a
+     * *different* to-do is still offered, deliberately: the app cannot know
+     * which without fetching every to-do, and the gateway answers `409` naming
+     * the owner. Showing an honest error beats hiding a row for a reason the
+     * user cannot see, and it beats fetching the world to pre-empt it.
+     */
+    val candidates: LoadState<List<Task>>? = null,
 )
 
 /**
@@ -88,6 +99,49 @@ class TodoDetailViewModel @Inject constructor(
 
     /** The task keeps firing. This says "not about this to-do", not "stop". */
     fun unlink(taskId: Long) = mutate { todos.unlink(todoId, taskId) }
+
+    /**
+     * Opens the picker and fetches what could be linked.
+     *
+     * `active` and `awaiting` only — the states in which a reminder still
+     * fires. Pointing a completed or cancelled task at a to-do would attach
+     * something that will never chase it, which looks like setting a reminder
+     * and is not one.
+     */
+    fun openPicker() {
+        _state.update { it.copy(candidates = LoadState.Loading) }
+        viewModelScope.launch {
+            val linked = _state.value.todo.dataOrNull?.taskIds.orEmpty().toSet()
+            _state.update { current ->
+                current.copy(
+                    candidates = try {
+                        LoadState.Ready(
+                            tasks.tasks(statuses = setOf(TaskStatus.Active, TaskStatus.Awaiting))
+                                .tasks
+                                .filterNot { it.id in linked },
+                        )
+                    } catch (e: Exception) {
+                        LoadState.Failed(e.toFailureReason())
+                    },
+                )
+            }
+        }
+    }
+
+    fun closePicker() = _state.update { it.copy(candidates = null) }
+
+    /**
+     * Points an existing reminder at this to-do.
+     *
+     * A task, not a copy (§5.1). A `409` means it already belongs to another
+     * to-do, and the gateway's message names which — shown verbatim, because
+     * "that reminder is already on X" is the only useful thing to say and the
+     * app does not know X.
+     */
+    fun link(taskId: Long) {
+        closePicker()
+        mutate { todos.link(todoId, taskId) }
+    }
 
     fun dismissFailure() = _state.update { it.copy(transientFailure = null) }
 

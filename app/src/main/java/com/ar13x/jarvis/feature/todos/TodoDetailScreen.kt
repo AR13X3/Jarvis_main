@@ -16,13 +16,18 @@ import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.layout.navigationBarsPadding
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.ArrowBack
 import androidx.compose.material.icons.rounded.Close
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
+import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
@@ -56,6 +61,7 @@ import java.time.format.DateTimeFormatter
  * to send until `todoPatchBody` existed — `JarvisJson` omits Kotlin nulls, so a
  * nullable field would have asked the server to change nothing.
  */
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun TodoDetailScreen(
     onBack: () -> Unit,
@@ -64,6 +70,17 @@ fun TodoDetailScreen(
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
     val colors = JarvisTheme.colors
+    val sheet = rememberModalBottomSheetState()
+
+    state.candidates?.let { candidates ->
+        ModalBottomSheet(
+            onDismissRequest = viewModel::closePicker,
+            sheetState = sheet,
+            containerColor = colors.surface,
+        ) {
+            LinkPicker(candidates, onPick = viewModel::link)
+        }
+    }
 
     Column(
         Modifier
@@ -222,6 +239,20 @@ private fun Content(
             )
         }
 
+        item {
+            TextButton(
+                onClick = viewModel::openPicker,
+                modifier = Modifier.padding(horizontal = Space.x3),
+            ) {
+                // "Point an existing reminder at this" rather than "Add a
+                // reminder", because it does not create one. §5.1: setting a
+                // reminder means creating the TASK through the flow that already
+                // fires and chases, then pointing at it. A button that read
+                // "Add" would promise the creating half.
+                Text("Point a reminder at this", style = JarvisTheme.typography.labelLarge)
+            }
+        }
+
         // An id that could not be fetched is absent rather than fatal — but the
         // count disagreeing with the rows would look like a bug, so it says so.
         val missing = todo.taskIds.size - state.reminders.size
@@ -326,3 +357,85 @@ private val TodoStatus.detailLabel: String
     }
 
 private val DAY: DateTimeFormatter = DateTimeFormatter.ofPattern("d MMM yyyy")
+
+/**
+ * The reminders that could be pointed at this to-do.
+ *
+ * Live tasks only — `active` and `awaiting` — minus the ones already here. A
+ * task that belongs to a *different* to-do is still listed: the app cannot know
+ * which without fetching every to-do, and the gateway answers `409` naming the
+ * owner. An honest error beats a row hidden for a reason nobody can see.
+ */
+@Composable
+private fun LinkPicker(candidates: LoadState<List<Task>>, onPick: (Long) -> Unit) {
+    val colors = JarvisTheme.colors
+
+    Column(
+        Modifier
+            .fillMaxWidth()
+            .navigationBarsPadding()
+            .padding(horizontal = Space.Gutter, vertical = Space.x2),
+    ) {
+        Text(
+            "Point a reminder at this",
+            style = JarvisTheme.typography.titleLarge,
+            color = colors.ink,
+        )
+        Spacer(Modifier.height(Space.x1))
+        Text(
+            "The reminder keeps its own schedule. Linking says what it is about.",
+            style = JarvisTheme.typography.bodySmall,
+            color = colors.inkMuted,
+        )
+        Spacer(Modifier.height(Space.x3))
+
+        when (candidates) {
+            is LoadState.Loading -> Box(
+                Modifier.fillMaxWidth().padding(Space.x6),
+                contentAlignment = Alignment.Center,
+            ) { CircularProgressIndicator(color = colors.brandCore) }
+
+            is LoadState.Failed -> Text(
+                candidates.reason.message(),
+                style = JarvisTheme.typography.bodyMedium,
+                color = colors.inkMuted,
+            )
+
+            is LoadState.Ready -> if (candidates.data.isEmpty()) {
+                Text(
+                    // Names the filter rather than saying "nothing found",
+                    // which would read as "you have no reminders" when the real
+                    // answer is usually "they are all already linked here".
+                    "No live reminders left to link. Only active and awaiting " +
+                        "ones can be pointed at a to-do.",
+                    style = JarvisTheme.typography.bodyMedium,
+                    color = colors.inkMuted,
+                )
+            } else {
+                LazyColumn(Modifier.heightIn(max = 360.dp)) {
+                    items(candidates.data, key = { it.id }) { task ->
+                        JarvisCard(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(vertical = Space.x1),
+                            onClick = { onPick(task.id) },
+                        ) {
+                            Text(
+                                task.title,
+                                style = JarvisTheme.typography.titleMedium,
+                                color = colors.ink,
+                            )
+                            Spacer(Modifier.height(Space.x1))
+                            Text(
+                                task.recurrenceText ?: task.dueDate.format(DAY),
+                                style = JarvisTheme.typography.bodySmall,
+                                color = colors.inkMuted,
+                            )
+                        }
+                    }
+                }
+            }
+        }
+        Spacer(Modifier.height(Space.x4))
+    }
+}
