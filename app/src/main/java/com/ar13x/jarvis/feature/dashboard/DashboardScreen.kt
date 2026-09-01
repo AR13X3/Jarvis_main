@@ -143,7 +143,15 @@ private fun Content(view: DashboardView) {
         // fact about the data rather than an oversight: `status` is stored per
         // firing and nothing overwrites it, so this half survives in the
         // projection even for firings the event stream predates.
-        item { SectionHeader("Failing") }
+        item { SectionHeader("Not completed") }
+        item {
+            Caption(
+                // Names the mechanism, because "failed" invites reading it as a
+                // judgement. It ran out of chances; cancelling is a different
+                // thing and is counted separately above.
+                "Ran out of extensions without being answered. Cancelling is not counted here.",
+            )
+        }
         if (view.failing.isEmpty() && view.acceptedFailures.isEmpty()) {
             item { Empty("Nothing has run out of extensions in this window.") }
         }
@@ -226,7 +234,12 @@ private fun Totals(view: DashboardView) {
     ) {
         Stat("Firings", t.firings, Modifier.weight(1f))
         Stat("Done", t.completed, Modifier.weight(1f))
-        Stat("Failed", t.failed, Modifier.weight(1f))
+        // "Not done" and "Cancelled" are separate columns because they are
+        // separate facts. `cancelled` was on the wire and simply not rendered,
+        // which folded a decision you made into a count of things that went
+        // wrong -- and made the failure figure look worse than it is.
+        Stat("Not done", t.failed, Modifier.weight(1f))
+        Stat("Cancelled", t.cancelled, Modifier.weight(1f))
         Stat("Open", t.unresolved, Modifier.weight(1f))
     }
 }

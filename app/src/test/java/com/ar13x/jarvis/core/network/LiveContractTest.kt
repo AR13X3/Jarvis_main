@@ -81,6 +81,39 @@ class LiveContractTest {
         assertEquals(null, domain.driftToleranceMinutes)
     }
 
+    /**
+     * The regression, against the data that exposed it.
+     *
+     * A real task session carries overdue cards the gateway resolved as
+     * `superseded` and `incomplete`. Both used to decode to `null`, which the
+     * card reads as *unanswered* — so answered nudges came back with live
+     * buttons and a countdown that had already expired.
+     */
+    @Test
+    fun `real overdue cards carry a resolution instead of decoding to null`() {
+        val page = JarvisJson.decodeFromString(
+            com.ar13x.jarvis.core.model.PagedMessages.serializer(),
+            body("live-msgs.json"),
+        )
+
+        val overdue = page.messages
+            .flatMap { it.components }
+            .filterIsInstance<com.ar13x.jarvis.core.model.AgentComponent.Overdue>()
+
+        assertTrue("expected overdue cards in this session", overdue.isNotEmpty())
+        assertTrue(
+            "every resolved card must decode to a real value",
+            overdue.all { it.resolution != null },
+        )
+        // The two spellings that were being thrown away.
+        val seen = overdue.mapNotNull { it.resolution }.toSet()
+        assertTrue(
+            com.ar13x.jarvis.core.model.OverdueResolution.Superseded in seen,
+        )
+        // ...and every one of them closes its card.
+        assertTrue(overdue.none { it.canExtend })
+    }
+
     @Test
     fun `real tasks, sections, occurrences, sessions and todos all decode`() {
         JarvisJson.decodeFromString(PagedTasks.serializer(), body("live-tasks.json"))

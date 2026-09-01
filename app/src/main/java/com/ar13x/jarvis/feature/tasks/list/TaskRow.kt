@@ -59,6 +59,7 @@ import com.ar13x.jarvis.designsystem.motion.sharedTaskTitle
 import com.ar13x.jarvis.designsystem.theme.Corner
 import com.ar13x.jarvis.designsystem.theme.JarvisTheme
 import com.ar13x.jarvis.designsystem.theme.Space
+import com.ar13x.jarvis.core.model.TaskStatus
 import com.ar13x.jarvis.designsystem.theme.statusStyle
 import com.ar13x.jarvis.designsystem.theme.tabularNums
 
@@ -327,6 +328,17 @@ private fun MetaLine(
         if (overdue) {
             OverduePill()
         }
+        // Says it in words, not just as a coloured dot.
+        //
+        // `cancelled` and `incomplete` were distinguishable only by a
+        // strike-through and whether a 7dp dot was filled or outlined -- a real
+        // distinction that nobody reads. They are different in kind: one is a
+        // decision, the other is a thing that did not get done, and §6.2 keeps
+        // both statuses precisely so that difference survives. A row that will
+        // not say which is throwing that away at the last step.
+        if (task.status == TaskStatus.Incomplete || task.status == TaskStatus.Cancelled) {
+            StatusPill(task.status)
+        }
         // Straight from the server's `due_today`. Never computed (plan §3.2).
         // Suppressed once overdue: "Today" beside "Overdue" reads as a
         // contradiction, and the later fact is the one that matters.
@@ -343,6 +355,31 @@ private fun MetaLine(
  * colour-blindness and a dark theme, the same reasoning §6.2 applies to the
  * cancelled/incomplete distinction.
  */
+/**
+ * The status, in words, for the two that are easy to confuse.
+ *
+ * Amber and outlined for `incomplete`; grey and quiet for `cancelled` -- form
+ * and colour, so the distinction survives a dark theme and colour-blindness,
+ * which is the same rule `StatusStyle` states and this row was not honouring.
+ */
+@Composable
+private fun StatusPill(status: TaskStatus, modifier: Modifier = Modifier) {
+    val colors = JarvisTheme.colors
+    val style = statusStyle(status)
+    Box(
+        modifier
+            .clip(Corner.Pill)
+            .background(style.accent.copy(alpha = 0.16f), Corner.Pill)
+            .padding(horizontal = Space.x2, vertical = 1.dp),
+    ) {
+        Text(
+            text = style.label,
+            style = JarvisTheme.typography.labelSmall,
+            color = style.accent,
+        )
+    }
+}
+
 @Composable
 private fun OverduePill(modifier: Modifier = Modifier) {
     val colors = JarvisTheme.colors

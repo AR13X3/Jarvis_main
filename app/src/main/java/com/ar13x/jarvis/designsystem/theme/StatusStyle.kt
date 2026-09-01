@@ -78,7 +78,12 @@ fun statusStyle(status: TaskStatus): StatusStyle {
             rowAlpha = 0.7f,
             label = "Cancelled",
         )
-        // A lapse — needs attention, is not a failure. Still fully mutable.
+        // Ran out of chances. Needs attention, still fully mutable.
+        //
+        // "Not completed", not "Missed": the routine domain already owns
+        // `missed` for a slot that was never started (§6), and one word meaning
+        // two things across two screens is how a vocabulary rots. It is also
+        // the plainer word for what happened.
         TaskStatus.Incomplete -> StatusStyle(
             accent = c.status.incomplete,
             rowFill = Color.Transparent,
@@ -86,7 +91,7 @@ fun statusStyle(status: TaskStatus): StatusStyle {
             titleDecoration = null,
             indicatorOutlined = true,
             rowAlpha = 1f,
-            label = "Missed",
+            label = "Not completed",
         )
     }
 }

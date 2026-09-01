@@ -551,7 +551,7 @@ private fun statusLabel(status: TaskStatus) = when (status) {
     TaskStatus.Completed -> "Done"
     TaskStatus.Cancelled -> "Cancelled"
     // A lapse, not a failure — the label should not read as an accusation.
-    TaskStatus.Incomplete -> "Missed"
+    TaskStatus.Incomplete -> "Not completed"
 }
 
 @Composable

@@ -43,7 +43,7 @@ class OverdueComponentTest {
             taskId = 12,
             extensionsUsed = 2,
             extensionsAllowed = 2,
-            resolution = OverdueResolution.Lapsed,
+            resolution = OverdueResolution.Incomplete,
         )
         val encoded = JarvisJson.encodeToString(AgentComponent.serializer(), original)
         assertEquals(original, decode(encoded))
@@ -61,6 +61,53 @@ class OverdueComponentTest {
         )
         assertEquals(0, exhausted.extensionsLeft)
         assertFalse(exhausted.canExtend)
+    }
+
+    /**
+     * **Every spelling the gateway can send must decode.**
+     *
+     * This is the regression that mattered. The enum read
+     * `completed`/`extended`/`lapsed` and the contract says
+     * `superseded`/`completed`/`cancelled`/`incomplete` — one value in common.
+     * The other three decoded to `null` because `JarvisJson` coerces an
+     * unrecognised value on a nullable field to its default, and a null
+     * resolution means *unanswered*: the card stayed live, its buttons stayed
+     * enabled, and a whole extension allowance could be spent on a deadline
+     * that had already moved.
+     *
+     * Nothing threw. That is why it survived, and why this test asserts the
+     * VALUE rather than that decoding succeeded.
+     */
+    @Test
+    fun `every resolution the contract declares decodes to a real value`() {
+        val expected = mapOf(
+            "superseded" to OverdueResolution.Superseded,
+            "completed" to OverdueResolution.Completed,
+            "cancelled" to OverdueResolution.Cancelled,
+            "incomplete" to OverdueResolution.Incomplete,
+        )
+
+        for ((wire, value) in expected) {
+            val json = """
+                {"type":"overdue","occurrence_id":1,"task_id":1,"resolution":"$wire"}
+            """.trimIndent()
+
+            val decoded = decode(json) as AgentComponent.Overdue
+
+            assertEquals("`" + wire + "` must not decode to null", value, decoded.resolution)
+            // ...and an answered card offers nothing, whichever way it ended.
+            assertFalse("`" + wire + "` must close the card", decoded.canExtend)
+        }
+    }
+
+    @Test
+    fun `an unanswered nudge is the only one that still offers buttons`() {
+        val json = """{"type":"overdue","occurrence_id":1,"task_id":1}"""
+
+        val decoded = decode(json) as AgentComponent.Overdue
+
+        assertEquals(null, decoded.resolution)
+        assertTrue(decoded.canExtend)
     }
 
     /** Answered cards stop offering buttons but stay in history (§5.3). */

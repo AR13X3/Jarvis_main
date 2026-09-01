@@ -18,6 +18,12 @@ import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -71,6 +77,17 @@ fun OverdueCard(
     val colors = JarvisTheme.colors
     val resolved = component.resolution != null || superseded
 
+    // Which chip was tapped, so the spinner appears on THAT one.
+    //
+    // Disabling the chips was the whole of the previous feedback, and a
+    // disabled chip here looked identical to an enabled one -- so a tap
+    // produced no visible change at all, and the natural response was to tap
+    // again. Keyed on the allowance so a fresh card starts clean.
+    var pending by remember(component.occurrenceId, component.extensionsUsed) {
+        mutableStateOf<Int?>(null)
+    }
+    LaunchedEffect(busy) { if (!busy) pending = null }
+
     JarvisCard(
         modifier = modifier.fillMaxWidth(),
         containerColor = colors.surface,
@@ -103,16 +120,22 @@ fun OverdueCard(
             // A superseded card carries no resolution of its own — it was
             // never answered, it was overtaken — and "pushed back" is exactly
             // what happened to it.
-            if (resolved) ResolutionLabel(component.resolution ?: OverdueResolution.Extended)
+            if (resolved) ResolutionLabel(component.resolution ?: OverdueResolution.Superseded)
         }
 
         Spacer(Modifier.height(Space.x3))
 
         Text(
-            text = when (component.resolution ?: OverdueResolution.Extended.takeIf { superseded }) {
+            text = when (component.resolution ?: OverdueResolution.Superseded.takeIf { superseded }) {
                 OverdueResolution.Completed -> "You marked this done."
-                OverdueResolution.Extended -> "Pushed back."
-                OverdueResolution.Lapsed -> "This one lapsed. You can still pick it up."
+                OverdueResolution.Superseded -> "Pushed back."
+                OverdueResolution.Cancelled -> "This was cancelled."
+                // Not "lapsed", which reads as something that happened to the
+                // clock. It did not get done, and the card should say the thing
+                // rather than the mechanism — while making clear it is still
+                // pickupable, because `incomplete` is not terminal.
+                OverdueResolution.Incomplete ->
+                    "This one wasn't completed in time. You can still pick it up."
                 null -> "Have you done this?"
             },
             style = JarvisTheme.typography.titleLarge,
@@ -146,7 +169,11 @@ fun OverdueCard(
                         ExtendChip(
                             minutes = minutes,
                             enabled = !busy,
-                            onClick = { onExtend(minutes) },
+                            working = busy && pending == minutes,
+                            onClick = {
+                                pending = minutes
+                                onExtend(minutes)
+                            },
                             modifier = Modifier.weight(1f),
                         )
                     }
@@ -214,16 +241,28 @@ private fun PrimaryAnswer(label: String, busy: Boolean, onClick: () -> Unit) {
     }
 }
 
+/**
+ * One extension choice.
+ *
+ * [working] is the tapped one and shows a spinner; the others fade while the
+ * request is in flight. Both halves matter: without the spinner a tap looks
+ * like nothing happened, and without the fade the untapped chips still look
+ * pressable, which is how an allowance gets spent three times over.
+ */
 @Composable
 private fun ExtendChip(
     minutes: Int,
     enabled: Boolean,
+    working: Boolean,
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val colors = JarvisTheme.colors
     Box(
         modifier
+            // Visibly inert, not merely inert. A disabled control that looks
+            // identical to an enabled one is the bug, not the fix for it.
+            .alpha(if (enabled || working) 1f else 0.4f)
             .clip(Corner.Pill)
             .background(colors.surfaceSunk, Corner.Pill)
             .border(1.dp, colors.hairline, Corner.Pill)
@@ -231,11 +270,19 @@ private fun ExtendChip(
             .padding(vertical = Space.x2),
         contentAlignment = Alignment.Center,
     ) {
-        Text(
-            text = if (minutes < 60) "$minutes min" else "1 hour",
-            style = JarvisTheme.typography.labelMedium.tabularNums(),
-            color = colors.ink,
-        )
+        if (working) {
+            CircularProgressIndicator(
+                color = colors.ink,
+                strokeWidth = 2.dp,
+                modifier = Modifier.size(14.dp),
+            )
+        } else {
+            Text(
+                text = if (minutes < 60) "$minutes min" else "1 hour",
+                style = JarvisTheme.typography.labelMedium.tabularNums(),
+                color = colors.ink,
+            )
+        }
     }
 }
 
@@ -244,8 +291,12 @@ private fun ResolutionLabel(resolution: OverdueResolution) {
     val colors = JarvisTheme.colors
     val (label, tint) = when (resolution) {
         OverdueResolution.Completed -> "Done" to colors.status.completed
-        OverdueResolution.Extended -> "Pushed back" to colors.inkMuted
-        OverdueResolution.Lapsed -> "Incomplete" to colors.status.incomplete
+        OverdueResolution.Superseded -> "Pushed back" to colors.inkMuted
+        // A decision, calm — not an error. Deliberately the same words and the
+        // same colour the task list uses, so the two surfaces cannot drift into
+        // describing the same state differently.
+        OverdueResolution.Cancelled -> "Cancelled" to colors.status.cancelled
+        OverdueResolution.Incomplete -> "Not completed" to colors.status.incomplete
     }
     Row(verticalAlignment = Alignment.CenterVertically) {
         if (resolution == OverdueResolution.Completed) {

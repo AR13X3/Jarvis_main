@@ -221,13 +221,41 @@ val DefaultExtensionMinutes: List<Int> = listOf(15, 30, 60)
 /** Four is what fits across the card before the labels start truncating. */
 private const val MaxExtensionChoices = 4
 
-/** How an overdue nudge was answered. Null while it is still asking. */
+/**
+ * How an overdue nudge ended. Null while it is still asking. **These four spellings are the contract's**, and
+ * getting them wrong is not a cosmetic bug.
+ *
+ * This enum used to read `completed` / `extended` / `lapsed`, which shared
+ * exactly ONE value with what the gateway actually sends. `superseded` and
+ * `incomplete` therefore decoded to `null` — `JarvisJson` sets
+ * `coerceInputValues`, so an unrecognised value on a nullable field becomes the
+ * default rather than throwing — and a `null` resolution means *unanswered*.
+ *
+ * The consequence was silent and expensive. An answered card came back looking
+ * live: its buttons stayed enabled, so pushing a deadline back once could be
+ * done again and again until the whole allowance was spent, and a task the
+ * server had already marked incomplete still offered "Yes, it's done" and a
+ * countdown that had already run out. Nothing errored until the button was
+ * pressed.
+ *
+ * A mismatch here cannot fail loudly, which is why it survived: the field
+ * decodes, the type is right, and the only symptom is a card that will not
+ * settle. Anything added to `OverdueComponent.resolution` on the gateway must
+ * be added here too.
+ */
 @Serializable
 enum class OverdueResolution {
+    /** A later nudge replaced this one — the deadline moved, manually or automatically. */
+    @SerialName("superseded") Superseded,
+
+    /** Answered "yes, it's done". */
     @SerialName("completed") Completed,
-    @SerialName("extended") Extended,
-    /** The allowance ran out and the task lapsed. */
-    @SerialName("lapsed") Lapsed,
+
+    /** The task was cancelled — a decision, not a failure. */
+    @SerialName("cancelled") Cancelled,
+
+    /** The allowance ran out and the firing was never answered. */
+    @SerialName("incomplete") Incomplete,
 }
 
 @Serializable

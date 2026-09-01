@@ -160,6 +160,13 @@ If a claim rests on something you did not check, say so.
   first, so clearing a deadline would silently do nothing. `todoPatchBody` builds
   a `JsonObject` from a `Patch<T>` tri-state instead — do not "simplify" it back
   into a data class; `TodoPatchTest` is what will catch you.
+- **An enum the app spells differently from the gateway fails SILENTLY.**
+  `JarvisJson` sets `coerceInputValues`, so an unrecognised value becomes the
+  field's default — `null` on a nullable one — rather than throwing. This cost a
+  real bug: `OverdueResolution` shared one value out of four with the contract,
+  so answered overdue cards decoded as *unanswered* and kept live buttons until
+  the whole extension allowance was spent. `docs/STATES.md` is every state in the
+  system, checked against the contract; keep it current.
 - **Python on this machine opens files as cp1252, not UTF-8.** `json.load(open(p))`
   on the served `openapi.json` mangles every `§` and `—` into two characters, and
   a diff against gw03's copy then reports ~56 differing values that do not exist.
