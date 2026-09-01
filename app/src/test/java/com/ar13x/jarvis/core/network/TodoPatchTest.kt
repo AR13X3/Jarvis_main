@@ -149,11 +149,15 @@ class TodoPatchTest {
         assertEquals(2L, todo.todoId)
         assertEquals(TodoStatus.Doing, todo.status)
         assertEquals(listOf("CBAI"), todo.tags)
-        assertEquals(listOf(31L), todo.taskIds)
         assertEquals(deadline, todo.dueAt)
         assertEquals(java.time.LocalDate.of(2026, 9, 4), todo.dueDate)
-        assertTrue(todo.hasReminders)
         assertFalse(todo.isUndated)
+        // The payload above still carries `task_ids`, and getting this far is
+        // the assertion. The gateway serves it until gw03 retires
+        // `todos.todo_tasks` (tracker 131/132); the app stopped decoding it in
+        // §9.5. What is pinned here is that the decode SURVIVES the key — a
+        // field arriving from a gateway ahead of the app must never take the
+        // screen down, which is what `ignoreUnknownKeys` is for.
     }
 
     @Test
@@ -171,7 +175,7 @@ class TodoPatchTest {
         assertNull(todo.dueAt)
         assertNull(todo.dueDate)
         assertTrue(todo.isUndated)
-        assertFalse(todo.hasReminders)
+        // `task_ids` is absent here too, and is no longer a field either way.
         assertEquals("", todo.description)
     }
 }

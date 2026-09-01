@@ -4,6 +4,7 @@ import com.ar13x.jarvis.core.model.PagedTodos
 import com.ar13x.jarvis.core.model.Todo
 import com.ar13x.jarvis.core.model.TodoStatus
 import java.time.Instant
+import java.time.ZoneId
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -35,10 +36,9 @@ object TodoFixture {
             description = "A disk failure currently loses the database and every backup of it.",
             status = TodoStatus.Doing,
             tags = listOf("CBAI"),
-            // Dated, and with a reminder chasing it. The to-do is the thing;
-            // the task is what interrupts.
+            // Dated. Nothing chases it — a to-do's deadline is a date on a
+            // note, and the things that interrupt are reminders in Tasks.
             dueAt = now.plusSeconds(60L * 60 * 24 * 3),
-            taskIds = listOf(31),
             createdAt = now.minusSeconds(60L * 60 * 24 * 4),
             updatedAt = now.minusSeconds(60L * 60 * 2),
         ),
@@ -136,15 +136,23 @@ class FakeTodoRepository @Inject constructor() : TodoRepository {
     override suspend fun setTags(todoId: Long, tags: List<String>): Todo =
         update(todoId) { it.copy(tags = tags) }
 
+    /**
+     * Stands in for a gateway **in the same timezone as the phone**, which is
+     * the arrangement that actually holds today.
+     *
+     * It used to answer `dueDate = null`, which was honest about the fake not
+     * being a server and made the detail screen say "No deadline" straight after
+     * one had been set. Deriving the day here is the §3.2 conversion the *app*
+     * must never do — but this is standing in for the side that is supposed to
+     * do it, so doing it is the point rather than the mistake.
+     */
     override suspend fun setDueAt(todoId: Long, dueAt: Instant?): Todo =
-        update(todoId) { it.copy(dueAt = dueAt, dueDate = null) }
-
-    override suspend fun link(todoId: Long, taskId: Long): Todo =
-        // Idempotent, as the route is.
-        update(todoId) { it.copy(taskIds = (it.taskIds + taskId).distinct()) }
-
-    override suspend fun unlink(todoId: Long, taskId: Long): Todo =
-        update(todoId) { it.copy(taskIds = it.taskIds - taskId) }
+        update(todoId) {
+            it.copy(
+                dueAt = dueAt,
+                dueDate = dueAt?.atZone(ZoneId.systemDefault())?.toLocalDate(),
+            )
+        }
 
     private fun update(todoId: Long, change: (Todo) -> Todo): Todo {
         val updated = change(rows.first { it.todoId == todoId }).copy(updatedAt = Instant.now())

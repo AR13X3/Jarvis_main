@@ -113,23 +113,12 @@ interface JarvisApi {
     @PATCH("todos/{id}")
     suspend fun patchTodo(@Path("id") id: Long, @Body body: JsonObject): TodoEnvelope
 
-    /** Attach an existing reminder. Idempotent; 409 if it belongs to another to-do. */
-    @POST("todos/{todoId}/tasks/{taskId}")
-    suspend fun linkTask(
-        @Path("todoId") todoId: Long,
-        @Path("taskId") taskId: Long,
-    ): TodoEnvelope
-
-    /**
-     * Detach a reminder. **The task survives** — it keeps firing and its own
-     * routes still resolve it. "This reminder is not about that to-do" is not
-     * "stop reminding me".
-     */
-    @DELETE("todos/{todoId}/tasks/{taskId}")
-    suspend fun unlinkTask(
-        @Path("todoId") todoId: Long,
-        @Path("taskId") taskId: Long,
-    ): TodoEnvelope
+    // `POST`/`DELETE todos/{todoId}/tasks/{taskId}` are still served and are
+    // deliberately not declared here. They attached a reminder to a to-do; Joy
+    // had that removed because a to-do's own deadline is the deadline and two
+    // mechanisms answering one question have to be kept agreeing forever. gw03
+    // is retiring the table (tracker 131/132) — a route the app can still call
+    // is a route the app can still be tempted back into.
 
     // --- routine (v2 plan §4) --------------------------------------------------
     //

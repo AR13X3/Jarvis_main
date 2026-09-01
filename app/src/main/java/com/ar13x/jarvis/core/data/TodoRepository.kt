@@ -59,15 +59,9 @@ interface TodoRepository {
      */
     suspend fun setDueAt(todoId: Long, dueAt: Instant?): Todo
 
-    /**
-     * Points an existing reminder at this to-do (§5.1).
-     *
-     * A task, not a copy. Setting a reminder on a to-do means creating the task
-     * through the flow that already fires, chases and extends, then pointing at
-     * it — which is why there is no "add reminder" that invents one here.
-     */
-    suspend fun link(todoId: Long, taskId: Long): Todo
-
-    /** Detaches a reminder. **The task survives and keeps firing.** */
-    suspend fun unlink(todoId: Long, taskId: Long): Todo
+    // There is deliberately no `link`/`unlink` here any more. A to-do used to be
+    // able to point at the reminders chasing it (§5.1, shipped in 395df72) and
+    // Joy had it removed: "remove the reminder pointing thing, it is doing work
+    // twice." Two mechanisms answered "when is this due" and both had to be kept
+    // agreeing. `setDueAt` above is now the only answer.
 }

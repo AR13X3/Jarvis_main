@@ -16,20 +16,13 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.layout.navigationBarsPadding
-import androidx.compose.foundation.layout.heightIn
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.ArrowBack
-import androidx.compose.material.icons.rounded.Close
 import androidx.compose.material.icons.rounded.EditCalendar
 import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
-import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -43,7 +36,6 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.ar13x.jarvis.core.data.message
-import com.ar13x.jarvis.core.model.Task
 import com.ar13x.jarvis.core.model.Todo
 import com.ar13x.jarvis.core.model.TodoStatus
 import com.ar13x.jarvis.core.ui.Deadline
@@ -51,7 +43,6 @@ import com.ar13x.jarvis.core.ui.DueDateFormat
 import com.ar13x.jarvis.core.ui.LoadState
 import com.ar13x.jarvis.designsystem.component.CircleIconButton
 import com.ar13x.jarvis.designsystem.component.DeadlinePickerDialog
-import com.ar13x.jarvis.designsystem.component.JarvisCard
 import com.ar13x.jarvis.designsystem.component.JarvisChip
 import com.ar13x.jarvis.designsystem.component.SectionHeader
 import com.ar13x.jarvis.designsystem.theme.Corner
@@ -65,35 +56,27 @@ import java.time.format.DateTimeFormatter
 /**
  * One to-do (v2 plan §5).
  *
- * The screen exists mostly to make three things visible that a list row cannot:
- * the description, **what is chasing it**, and the fact that a deadline can be
- * taken away again.
+ * The screen exists to show three things a list row cannot: the description, the
+ * full status set including `cancelled`, and **the deadline — which can now be
+ * set, changed and taken away.**
  *
- * That last one is not decoration. Clearing a deadline is how a dated to-do
- * returns to the backlog (§5.2), and it is the single edit the app was unable
- * to send until `todoPatchBody` existed — `JarvisJson` omits Kotlin nulls, so a
- * nullable field would have asked the server to change nothing.
+ * Setting it is new (§9.1), and its absence was what made the rest of this
+ * screen misleading: the only deadline control used to be "Clear deadline", so
+ * the app could undo something it had no way to do. Clearing is not decoration
+ * either — it is how a dated to-do returns to the backlog (§5.2), and it is the
+ * edit the app could not send at all until `todoPatchBody` existed, because
+ * `JarvisJson` omits Kotlin nulls and a nullable field would have asked the
+ * server to change nothing.
+ *
+ * What is deliberately **not** here any more is the reminders section (§9.5).
  */
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun TodoDetailScreen(
     onBack: () -> Unit,
-    onOpenTask: (Long) -> Unit,
     viewModel: TodoDetailViewModel = hiltViewModel(),
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
     val colors = JarvisTheme.colors
-    val sheet = rememberModalBottomSheetState()
-
-    state.candidates?.let { candidates ->
-        ModalBottomSheet(
-            onDismissRequest = viewModel::closePicker,
-            sheetState = sheet,
-            containerColor = colors.surface,
-        ) {
-            LinkPicker(candidates, onPick = viewModel::link)
-        }
-    }
 
     Column(
         Modifier
@@ -135,7 +118,7 @@ fun TodoDetailScreen(
                 }
             }
 
-            is LoadState.Ready -> Content(loaded.data, state, viewModel, onOpenTask)
+            is LoadState.Ready -> Content(loaded.data, state, viewModel)
         }
     }
 }
@@ -145,7 +128,6 @@ private fun Content(
     todo: Todo,
     state: TodoDetailUiState,
     viewModel: TodoDetailViewModel,
-    onOpenTask: (Long) -> Unit,
 ) {
     val colors = JarvisTheme.colors
 
@@ -198,72 +180,12 @@ private fun Content(
             )
         }
 
-        // --- reminders -----------------------------------------------------------
-        item { SectionHeader("Reminders") }
-        item {
-            Text(
-                // The §5.1 sentence, said where it matters. A to-do with no
-                // reminder is not half-configured; it is a note that nothing is
-                // chasing, which is most of them.
-                text = if (todo.hasReminders) {
-                    "These fire, chase and extend. The to-do itself never interrupts you."
-                } else {
-                    "Nothing is chasing this. A to-do does not fire on its own — " +
-                        "a reminder is a separate thing you point at it."
-                },
-                style = JarvisTheme.typography.bodySmall,
-                color = colors.inkMuted,
-                modifier = Modifier.padding(horizontal = Space.Gutter),
-            )
-        }
-
-        if (state.remindersLoading) {
-            item {
-                Box(
-                    Modifier
-                        .fillMaxWidth()
-                        .padding(Space.x6),
-                    contentAlignment = Alignment.Center,
-                ) { CircularProgressIndicator(color = colors.brandCore) }
-            }
-        }
-
-        items(state.reminders, key = { it.id }) { task ->
-            ReminderRow(
-                task = task,
-                onOpen = { onOpenTask(task.id) },
-                onUnlink = { viewModel.unlink(task.id) },
-            )
-        }
-
-        item {
-            TextButton(
-                onClick = viewModel::openPicker,
-                modifier = Modifier.padding(horizontal = Space.x3),
-            ) {
-                // "Point an existing reminder at this" rather than "Add a
-                // reminder", because it does not create one. §5.1: setting a
-                // reminder means creating the TASK through the flow that already
-                // fires and chases, then pointing at it. A button that read
-                // "Add" would promise the creating half.
-                Text("Point a reminder at this", style = JarvisTheme.typography.labelLarge)
-            }
-        }
-
-        // An id that could not be fetched is absent rather than fatal — but the
-        // count disagreeing with the rows would look like a bug, so it says so.
-        val missing = todo.taskIds.size - state.reminders.size
-        if (!state.remindersLoading && missing > 0) {
-            item {
-                Text(
-                    text = missing.toString() + " reminder" + (if (missing == 1) "" else "s") +
-                        " could not be loaded.",
-                    style = JarvisTheme.typography.bodySmall,
-                    color = colors.status.incomplete,
-                    modifier = Modifier.padding(horizontal = Space.Gutter, vertical = Space.x2),
-                )
-            }
-        }
+        // There is no "Reminders" section any more, and its absence is the
+        // point (§9.5). A to-do used to list the tasks chasing it and offer
+        // "Point a reminder at this"; Joy had that removed because the deadline
+        // above and a linked reminder both answered "when is this due", and two
+        // answers is a consistency problem forever. A thing that should chase
+        // you is a reminder, and it is made in the Tasks tab.
 
         if (todo.tags.isNotEmpty()) {
             item { SectionHeader("Tags") }
@@ -395,40 +317,6 @@ private fun DeadlineSection(
         }
     }
 }
-
-@Composable
-private fun ReminderRow(task: Task, onOpen: () -> Unit, onUnlink: () -> Unit) {
-    val colors = JarvisTheme.colors
-    JarvisCard(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(horizontal = Space.Gutter, vertical = Space.x1),
-        onClick = onOpen,
-    ) {
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            Column(Modifier.weight(1f)) {
-                Text(task.title, style = JarvisTheme.typography.titleMedium, color = colors.ink)
-                Spacer(Modifier.height(Space.x1))
-                Text(
-                    text = task.recurrenceText ?: task.dueDate.format(DAY),
-                    style = JarvisTheme.typography.bodySmall,
-                    color = colors.inkMuted,
-                )
-            }
-            CircleIconButton(onClick = onUnlink, diameter = 32.dp) {
-                Icon(
-                    Icons.Rounded.Close,
-                    // Says what it does. "Remove" would read as deleting the
-                    // reminder, and the task survives and keeps firing.
-                    contentDescription = "Detach from this to-do — the reminder keeps firing",
-                    tint = colors.inkMuted,
-                    modifier = Modifier.size(16.dp),
-                )
-            }
-        }
-    }
-}
-
 @Composable
 private fun Header(onBack: () -> Unit) {
     val colors = JarvisTheme.colors
@@ -466,85 +354,3 @@ private val TodoStatus.detailLabel: String
     }
 
 private val DAY: DateTimeFormatter = DateTimeFormatter.ofPattern("d MMM yyyy")
-
-/**
- * The reminders that could be pointed at this to-do.
- *
- * Live tasks only — `active` and `awaiting` — minus the ones already here. A
- * task that belongs to a *different* to-do is still listed: the app cannot know
- * which without fetching every to-do, and the gateway answers `409` naming the
- * owner. An honest error beats a row hidden for a reason nobody can see.
- */
-@Composable
-private fun LinkPicker(candidates: LoadState<List<Task>>, onPick: (Long) -> Unit) {
-    val colors = JarvisTheme.colors
-
-    Column(
-        Modifier
-            .fillMaxWidth()
-            .navigationBarsPadding()
-            .padding(horizontal = Space.Gutter, vertical = Space.x2),
-    ) {
-        Text(
-            "Point a reminder at this",
-            style = JarvisTheme.typography.titleLarge,
-            color = colors.ink,
-        )
-        Spacer(Modifier.height(Space.x1))
-        Text(
-            "The reminder keeps its own schedule. Linking says what it is about.",
-            style = JarvisTheme.typography.bodySmall,
-            color = colors.inkMuted,
-        )
-        Spacer(Modifier.height(Space.x3))
-
-        when (candidates) {
-            is LoadState.Loading -> Box(
-                Modifier.fillMaxWidth().padding(Space.x6),
-                contentAlignment = Alignment.Center,
-            ) { CircularProgressIndicator(color = colors.brandCore) }
-
-            is LoadState.Failed -> Text(
-                candidates.reason.message(),
-                style = JarvisTheme.typography.bodyMedium,
-                color = colors.inkMuted,
-            )
-
-            is LoadState.Ready -> if (candidates.data.isEmpty()) {
-                Text(
-                    // Names the filter rather than saying "nothing found",
-                    // which would read as "you have no reminders" when the real
-                    // answer is usually "they are all already linked here".
-                    "No live reminders left to link. Only active and awaiting " +
-                        "ones can be pointed at a to-do.",
-                    style = JarvisTheme.typography.bodyMedium,
-                    color = colors.inkMuted,
-                )
-            } else {
-                LazyColumn(Modifier.heightIn(max = 360.dp)) {
-                    items(candidates.data, key = { it.id }) { task ->
-                        JarvisCard(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(vertical = Space.x1),
-                            onClick = { onPick(task.id) },
-                        ) {
-                            Text(
-                                task.title,
-                                style = JarvisTheme.typography.titleMedium,
-                                color = colors.ink,
-                            )
-                            Spacer(Modifier.height(Space.x1))
-                            Text(
-                                task.recurrenceText ?: task.dueDate.format(DAY),
-                                style = JarvisTheme.typography.bodySmall,
-                                color = colors.inkMuted,
-                            )
-                        }
-                    }
-                }
-            }
-        }
-        Spacer(Modifier.height(Space.x4))
-    }
-}

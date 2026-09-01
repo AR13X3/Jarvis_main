@@ -204,7 +204,7 @@ class TodoListViewModelTest {
 
         val created = (vm.state.value.content as LoadState.Ready).data.first()
         assertTrue(created.isUndated)
-        assertFalse(created.hasReminders)
+
     }
 
     @Test

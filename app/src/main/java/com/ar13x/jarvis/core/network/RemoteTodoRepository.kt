@@ -80,12 +80,6 @@ class RemoteTodoRepository @Inject constructor(
         todoPatchBody(dueAt = if (dueAt == null) Patch.Clear else Patch.Set(dueAt)),
     )
 
-    override suspend fun link(todoId: Long, taskId: Long): Todo =
-        gatewayCall(mutating = true) { api.linkTask(todoId, taskId).todo }
-
-    override suspend fun unlink(todoId: Long, taskId: Long): Todo =
-        gatewayCall(mutating = true) { api.unlinkTask(todoId, taskId).todo }
-
     private suspend fun patch(
         todoId: Long,
         body: kotlinx.serialization.json.JsonObject,

@@ -228,14 +228,10 @@ private fun JarvisNavHost(
                     }
                     composable<TodoDetail> {
                         WithNavScope {
-                            TodoDetailScreen(
-                                onBack = navController::popBackStack,
-                                // Cross-domain, into the reminder's own session
-                                // -- the to-do owns the link, but the task is
-                                // still a task and its screen is the one that
-                                // can cancel, extend or talk about it.
-                                onOpenTask = { id -> navController.navigate(TaskSession(id)) },
-                            )
+                            // No `onOpenTask` any more. It existed to cross from
+                            // a to-do into the reminder chasing it; with the
+                            // link deleted (§9.5) there is nothing to cross to.
+                            TodoDetailScreen(onBack = navController::popBackStack)
                         }
                     }
                     composable<About> {

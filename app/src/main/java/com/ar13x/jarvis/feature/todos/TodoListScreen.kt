@@ -47,6 +47,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.ar13x.jarvis.core.data.message
 import com.ar13x.jarvis.core.model.Todo
 import com.ar13x.jarvis.core.model.TodoStatus
+import com.ar13x.jarvis.core.ui.DueDateFormat
 import com.ar13x.jarvis.core.ui.LoadState
 import com.ar13x.jarvis.designsystem.component.CircleIconButton
 import com.ar13x.jarvis.designsystem.component.JarvisCard
@@ -281,17 +282,10 @@ private fun TodoRow(todo: Todo, onOpen: () -> Unit, onAdvance: () -> Unit) {
 private fun Subtitle(todo: Todo) {
     val colors = JarvisTheme.colors
     val parts = buildList {
-        // `due_date` is the server's local day. Never derived from `due_at`
-        // here — that is §3.2's highest-risk defect.
-        todo.dueDate?.let { add("due " + it.format(DAY)) }
-        // Says nothing when there are none, rather than "0 reminders". A to-do
-        // with nothing chasing it is ordinary (§5.1), not incomplete.
-        if (todo.hasReminders) {
-            add(
-                todo.taskIds.size.toString() + " reminder" +
-                    if (todo.taskIds.size == 1) "" else "s",
-            )
-        }
+        // The day is the server's and the hour is only shown when the deadline
+        // actually names one — §3.2 for the first half, §9.1 for the second.
+        DueDateFormat.forTodo(todo.dueDate, todo.dueAt)?.let { add("due " + it) }
+        // The reminder count that used to sit here is gone with the link (§9.5).
         addAll(todo.tags)
     }
     if (parts.isEmpty()) return

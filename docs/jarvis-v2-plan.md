@@ -368,10 +368,41 @@ Joy was explicit: **no dragging, no board columns**.
 | `status` | see below |
 | `checklists` | already built and shipping |
 | `attachments` | this is Phase G, which returns to scope |
-| `tasks` | a to-do **has** tasks; it is not one |
+| ~~`tasks`~~ | ~~a to-do **has** tasks; it is not one~~ — **link deleted 2026-09-02, see §5.1** |
 | `history` | the event stream, §3 |
 
 ### 5.1 A to-do has tasks
+
+> **SUPERSEDED 2026-09-02 — the link is deleted, on Joy's instruction.**
+> *"Remove the reminder pointing thing, it is doing work twice."*
+>
+> **A to-do's own deadline is the deadline.** `todos.todo_tasks`, the join that
+> let a to-do point at the reminders chasing it, is gone from the app: no link
+> and unlink on `TodoRepository`, no routes on `JarvisApi`, no `task_ids` on the
+> `Todo` DTO, and no Reminders section on the detail screen. gw03 has agreed to
+> retire the table now that nothing reads it (tracker 131 and 132) rather than
+> leave it answering — dead state that still answers is how this project has been
+> misled twice.
+>
+> **The paragraph below is not wrong about what it was arguing.** Its point was
+> that a to-do must not grow a *second nagging engine*, and that is still true
+> and still enforced: deleting the link does not build one, because a to-do with
+> a `due_at` is simply **not chased**. Nothing about it fires, extends or lapses.
+> What the link actually produced was two mechanisms answering *when is this
+> due* — the to-do's own `due_at` and whatever the linked task's deadline said —
+> which then had to be kept agreeing with each other forever, by hand, with
+> nothing detecting a divergence.
+>
+> **The half that survives:** a thing that should interrupt you is a *reminder*,
+> made in the Tasks tab, and it fires and chases exactly as it always has. That
+> was §5.1's real content. What is dropped is only the pointer between them.
+>
+> **One consequence worth stating rather than discovering.** §7's summaries group
+> by tag, and the reminders half of a tagged summary was partly populated through
+> this link. With it gone that half goes permanently empty for to-do-derived
+> reminders — and an empty count reads exactly like a true zero. joy raised this
+> on tracker 132; it is gw03's to answer, and it is a reason to check a summary
+> after this ships rather than a reason not to ship it.
 
 Joy: *"yes, tasks can have reminders, but we can create tasks without any due
 time or date as well."*

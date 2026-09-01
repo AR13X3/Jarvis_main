@@ -26,27 +26,7 @@ import javax.inject.Inject
 
 data class TodoDetailUiState(
     val todo: LoadState<Todo> = LoadState.Loading,
-    /**
-     * The reminders chasing this to-do, resolved from [Todo.taskIds].
-     *
-     * Fetched separately because the to-do carries ids, not tasks — §5.1's link
-     * direction. A task that cannot be fetched is simply absent here rather than
-     * failing the whole screen: an unlinkable id should not take the to-do down
-     * with it.
-     */
-    val reminders: List<Task> = emptyList(),
-    val remindersLoading: Boolean = false,
     val transientFailure: FailureReason? = null,
-    /**
-     * Reminders that could be pointed at this to-do, loaded only when asked.
-     *
-     * Live tasks minus the ones already linked here. A task belonging to a
-     * *different* to-do is still offered, deliberately: the app cannot know
-     * which without fetching every to-do, and the gateway answers `409` naming
-     * the owner. Showing an honest error beats hiding a row for a reason the
-     * user cannot see, and it beats fetching the world to pre-empt it.
-     */
-    val candidates: LoadState<List<Task>>? = null,
     /**
      * Set when the day the user picked and the day the server filed it under
      * are not the same one. Almost always `null`.
@@ -66,16 +46,19 @@ data class TodoDetailUiState(
 data class DeadlineDayMismatch(val asked: LocalDate, val stored: LocalDate)
 
 /**
- * One to-do, and the reminders pointed at it.
+ * One to-do.
  *
  * Every edit here is direct, with no proposal, and that is §5.4's rule rather
  * than an exception to it: the model confirms because it can misparse "next
  * Thursday"; a tap on a status or a deadline cannot.
+ *
+ * It no longer holds a [TaskRepository]. It used to, only to resolve the
+ * reminders a to-do pointed at — that link is deleted (§9.5), and with it the
+ * one place the to-do domain reached into the task domain.
  */
 @HiltViewModel
 class TodoDetailViewModel @Inject constructor(
     private val todos: TodoRepository,
-    private val tasks: TaskRepository,
     savedStateHandle: SavedStateHandle,
 ) : ViewModel() {
 
@@ -154,51 +137,6 @@ class TodoDetailViewModel @Inject constructor(
     fun setDescription(description: String) = mutate { todos.setDescription(todoId, description) }
 
     /** The task keeps firing. This says "not about this to-do", not "stop". */
-    fun unlink(taskId: Long) = mutate { todos.unlink(todoId, taskId) }
-
-    /**
-     * Opens the picker and fetches what could be linked.
-     *
-     * `active` and `awaiting` only — the states in which a reminder still
-     * fires. Pointing a completed or cancelled task at a to-do would attach
-     * something that will never chase it, which looks like setting a reminder
-     * and is not one.
-     */
-    fun openPicker() {
-        _state.update { it.copy(candidates = LoadState.Loading) }
-        viewModelScope.launch {
-            val linked = _state.value.todo.dataOrNull?.taskIds.orEmpty().toSet()
-            _state.update { current ->
-                current.copy(
-                    candidates = try {
-                        LoadState.Ready(
-                            tasks.tasks(statuses = setOf(TaskStatus.Active, TaskStatus.Awaiting))
-                                .tasks
-                                .filterNot { it.id in linked },
-                        )
-                    } catch (e: Exception) {
-                        LoadState.Failed(e.toFailureReason())
-                    },
-                )
-            }
-        }
-    }
-
-    fun closePicker() = _state.update { it.copy(candidates = null) }
-
-    /**
-     * Points an existing reminder at this to-do.
-     *
-     * A task, not a copy (§5.1). A `409` means it already belongs to another
-     * to-do, and the gateway's message names which — shown verbatim, because
-     * "that reminder is already on X" is the only useful thing to say and the
-     * app does not know X.
-     */
-    fun link(taskId: Long) {
-        closePicker()
-        mutate { todos.link(todoId, taskId) }
-    }
-
     fun dismissFailure() = _state.update { it.copy(transientFailure = null) }
 
     private fun mutate(block: suspend () -> Todo) {
@@ -215,23 +153,7 @@ class TodoDetailViewModel @Inject constructor(
         }
     }
 
-    private suspend fun apply(todo: Todo) {
-        _state.update { it.copy(todo = LoadState.Ready(todo), remindersLoading = todo.hasReminders) }
-        loadReminders(todo)
-    }
-
-    private suspend fun loadReminders(todo: Todo) {
-        if (todo.taskIds.isEmpty()) {
-            _state.update { it.copy(reminders = emptyList(), remindersLoading = false) }
-            return
-        }
-        val fetched = viewModelScope.async {
-            todo.taskIds
-                .map { id -> viewModelScope.async { runCatching { tasks.task(id) }.getOrNull() } }
-                .awaitAll()
-                .filterNotNull()
-        }.await()
-
-        _state.update { it.copy(reminders = fetched, remindersLoading = false) }
+    private fun apply(todo: Todo) {
+        _state.update { it.copy(todo = LoadState.Ready(todo)) }
     }
 }
