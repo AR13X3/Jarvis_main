@@ -19,9 +19,11 @@ Rewritten 2026-09-01. Paste §0 into a new session; it points at everything else
 > curl -s https://gw03.tail9662e3.ts.net/tracker/api/items
 > ```
 >
-> **§9 is your brief.** Joy has asked for four changes before the next release.
-> Read it, then confirm the scope of the Jira-style work before building all of
-> it — that one is the only open-ended item.
+> **§9 is your brief.** Five changes before the next release, and **every
+> decision in it is already made** — Joy asked for the calls to be taken, not
+> returned as questions. Build it as written; raise something only if it turns
+> out to be wrong. §9.1 first: a to-do cannot currently be given a deadline at
+> all, which is a bug and not a feature.
 >
 > As of 2026-09-02: `v0.1.12` published, 290 tests green, tree clean. **Verify
 > that rather than believing it** — sessions overlap here and this line goes
@@ -306,102 +308,147 @@ that are worth keeping.
 
 ## 9. Joy's brief for the next session
 
-Given 2026-09-02, after `v0.1.12`. Four changes, then carry on.
+Given 2026-09-02, after `v0.1.12`. Five changes, then carry on. **Every decision
+in here is made** — Joy asked for the calls to be taken rather than returned as
+questions. Build it as written; raise something only if it turns out to be wrong.
 
-**Confirm scope on the third before building all of it.** The other three are
-well-defined; that one is a direction, not a specification.
+### 9.1 A to-do cannot be given a deadline. Fix that first.
 
-### 9.1 Five tabs, icons only
+**This is a bug, not a feature, and it is the most embarrassing thing in the
+app.** `Todo` carries `starts_at`, `due_at`, `starts_on` and `due_date`, and the
+detail screen offers exactly one deadline control: **"Clear deadline"**. There is
+no date picker anywhere in the codebase — `grep -rl DatePicker app/src/main`
+returns nothing. Capture has no date field either, deliberately (`41f4756`).
+
+So a to-do can only acquire a deadline if the agent sets one through chat, and
+the only thing the UI can then do is take it away. Joy's words: *"literally no
+way to add deadlines at the moment on todos."*
+
+Build both directions:
+
+- **On the detail screen**, a deadline row that opens a date picker — and a time
+  picker only if a time is wanted, since most to-dos want a day and not an hour.
+  Keep "Clear deadline" where it is.
+- **On capture**, an optional deadline. `41f4756` left it out on purpose so the
+  `+` stayed one field, and that instinct was right — keep the field optional and
+  secondary, not a required second step.
+
+**Send the instant, never the local day.** `due_date` and `starts_on` are the
+server's to compute (§3.2). The app sends `due_at` and reads both back. There is
+no `DatePicker` precedent in this codebase, so this is also the place that
+establishes one — write it as a reusable component, because §9.3 needs it too.
+
+### 9.2 Five tabs, icons only
 
 Dashboard and To-dos become **their own tabs**. Today both are nested screens —
-`TodoList` hangs off the Tasks graph via `onTodos`, and `DashboardRoute` off
-`onOpenDashboard`. Joy wants them at the top level.
+`TodoList` hangs off the Tasks graph via `onTodos`, `DashboardRoute` off
+`onOpenDashboard`.
 
-That makes five: **Tasks, To-dos, Routine, Dashboard, Chat.** Five labelled tabs
-will not fit, so the bar goes **icon-only** — Joy's words: "to make sure all of
-the tabs fit, use only icons".
+That makes five: **Tasks, To-dos, Routine, Dashboard, Chat**, and the bar goes
+**icon-only** so they fit. Joy asked directly for both as tabs, so all five stay
+— none gets demoted back to a nested screen.
 
 `JarvisBottomBar` already iterates `JarvisTab.entries` and picks an icon per tab,
-so the enum and the icon `when` are most of it. Dropping the label means the
-`contentDescription` becomes the only name a screen reader gets — keep it, and
-keep the touch target at its current size rather than shrinking to match the
-smaller cell.
-
-### 9.2 A to-do's deadline is the deadline — delete the reminder link
-
-Joy: *"To-dos can have deadline, remove the reminder pointing thing, it is doing
-work twice."*
-
-**Read that precisely.** To-dos already carry `starts_at`, `due_at`, `starts_on`
-and `due_date` — the deadline exists and works. The thing to remove is the
-**to-do → reminder link** shipped in `395df72`, where a to-do could point at
-Tasks that chase it. Two mechanisms now answer "when is this due", they have to
-be kept consistent, and Joy is right that it is duplicate work.
-
-Do **not** add a deadline field. It is already there.
-
-This reverses **v2 plan §5.1**, which argued a to-do *has* tasks so that only one
-domain owns nagging. That argument was about not building a second nagging
-engine, and deleting the link does not rebuild one — a to-do with a `due_at`
-simply is not chased. Update §5.1 rather than leaving the plan contradicting the
-code, and tell gw03: the link has a gateway table (`todos.todo_tasks`) and they
-should not keep serving something nothing reads.
+so the enum and the icon `when` are most of the work. Dropping the label makes
+`contentDescription` the only name a screen reader gets — keep it, and keep the
+touch target at its present height rather than shrinking it to match the narrower
+cell.
 
 ### 9.3 Labels, the way Jira and Trello do them
 
-Joy: *"The labelling system is not proper, make it like jira-trello. we also need
-more jira-trello functionalities in to-do."*
+Today `Todo.tags` is `List<String>`: free text, retyped every time, no colour,
+nothing stopping `uni` and `Uni` becoming two labels. That is the "not proper"
+part.
 
-Today `Todo.tags` is `List<String>` — free text, typed fresh each time, no
-colour, no reuse, nothing stopping `uni` and `Uni` being different labels. That
-is the "not proper" part.
+**A label becomes a first-class object** — an id, a name, a colour — defined once
+and **picked from a set** rather than typed. That alone ends the drift and gives
+the dashboard something it can group by without normalising strings.
 
-What Jira and Trello actually do, and what makes them feel different: a label is
-a **first-class object** with a name and a colour, defined once on a board and
-**picked from a set** rather than typed. That alone fixes the drift and gives the
-dashboard something it can group by reliably.
+- a label picker on the to-do detail: existing labels first, "create new" last
+- labels shown as coloured chips on the list row, not as prose
+- filter the list by label
+- renaming or recolouring a label changes it everywhere, because it is one object
 
-**Beyond labels, this is a direction and not a spec.** Ask Joy which of these
-matter before building any of them — the whole list is a large amount of work
-and some of it may not be wanted:
+This needs a gateway contract. Put the shape on the tracker before building the
+app half, the way §4 asks — `labels(id, name, colour)` plus a join to to-dos, and
+the existing free-text tags migrate into it as one label each.
 
-- priority, as a field rather than the existing boolean star
-- ordering within a status, so a column has a top
-- sub-tasks, distinct from the checklist that already exists in the description
-- a parent or epic, for grouping several to-dos under one piece of work
-- comments or an activity trail on a to-do
-- due-soon and overdue treatment on the list
+### 9.4 The Jira-style features, chosen
 
-Joy was explicit earlier that there is **no dragging and no board columns**
-(v2 plan §5). Check whether that still holds before designing anything that
-assumes a board — "more jira-trello functionalities" may have changed it.
+Joy: *"Add some solid jira-trello features, pick for me."* These four, in this
+order. They are chosen to be **solid on a phone**, which rules out most of what
+makes Jira feel like Jira on a desktop.
 
-### 9.4 Routine notifications
+1. **Priority as a real scale**, not the boolean star. Four levels — highest,
+   high, normal, low — shown as a coloured glyph on the row. The star is a
+   two-state field pretending to be a priority, and a backlog of forty to-dos
+   cannot be ordered by a boolean.
+2. **Sub-tasks**: real child to-dos with their own status and deadline, distinct
+   from the description checklist. A checklist item cannot be scheduled or
+   assigned a label; a sub-task is the thing you actually want when a piece of
+   work has parts. The parent shows `3 of 5`.
+3. **An activity trail on each to-do** — what changed and when. This is nearly
+   free: `tasks.occurrence_events` already exists and the same pattern applies,
+   and it is what makes "why is this still open" answerable three weeks later.
+4. **Status grouping on the list**, with counts per status. It reads like a board
+   without being one.
+
+**Still no dragging and no board columns.** Joy set that in v2 plan §5 and nothing
+since has changed it: drag-to-reorder on a phone is a fight with the scroll
+gesture, and a board needs horizontal space this screen does not have. Grouping
+by status gets most of the legibility for none of the cost.
+
+**Deliberately not built:** assignees (one user), sprints and epics (no team, no
+cadence), time tracking (that is what Routine is for), and custom fields.
+
+### 9.5 The to-do → reminder link is deleted
+
+Joy: *"remove the reminder pointing thing, it is doing work twice."*
+
+Remove the link shipped in `395df72`, where a to-do could point at Tasks chasing
+it. Once §9.1 lands, a to-do's own deadline answers "when is this due", and two
+mechanisms answering it means keeping them consistent forever.
+
+This reverses **v2 plan §5.1**, which argued a to-do *has* tasks so only one
+domain owns nagging. That argument was about not building a second nagging
+engine, and deleting the link does not build one — a to-do with a `due_at` simply
+is not chased. **Update §5.1** rather than leaving the plan contradicting the
+code.
+
+gw03 has been told (tracker #131). Once the app ships without it, ask them to
+**retire `todos.todo_tasks` rather than leave it serving nothing** — dead state
+that still answers is how this project has been misled twice.
+
+### 9.6 Routine notifications
 
 Joy: *"I am not getting any notifications for routines, we need those as well."*
 
-There is no routine notification path at all. Nothing fires when a tracked slot
-begins, so the day view only works if you are already looking at it — which
-defeats the point of tracking adherence.
+There is no routine notification path at all, so the day view only works if you
+are already looking at it — which defeats tracking adherence.
 
-The machinery exists and should be reused rather than rebuilt: `AlarmScheduler`
-arms exact alarms, `Notifier` posts them, `BootReceiver` re-arms after a reboot
-or an app update. What is new is *what* to arm — the tracked slots of the current
-routine day — and it is the same shape as the occurrence mirror.
+Reuse the machinery rather than rebuilding it: `AlarmScheduler` arms exact
+alarms, `Notifier` posts them, `BootReceiver` re-arms after a reboot or an app
+update. What is new is *what* to arm — the tracked slots of the current routine
+day — and it is the same shape as the occurrence mirror.
 
-Two things to get right, both of which this codebase has already paid for once:
+Three things this codebase has already paid for once:
 
 - **`BUILD_NOTES` §14.** `PendingIntent` identity goes in the data URI, never in
-  extras and never in arithmetic on a request code. A routine slot alarm needs
-  its own key that cannot collide with an occurrence alarm.
+  extras and never in arithmetic on a request code. A slot alarm needs a key that
+  cannot collide with an occurrence alarm.
 - **A routine day is not a calendar day** (v2 plan §4.2). Arm against the logical
-  day, and remember that all seven of Joy's days cross midnight.
+  day; all seven of Joy's days cross midnight.
+- **Tracked slots only** — about 3.7 a day. Scaffold, buffer and free must never
+  notify, or this becomes eighty interruptions a week and gets switched off,
+  which is worse than not having it.
 
-Only **tracked** slots — about 3.7 a day. Scaffold, buffer and free must not
-notify, or the feature becomes eighty interruptions a week and gets turned off.
+The notification's action is **start** — the same one tap the day view uses, so
+the routine can be driven from the lock screen exactly as reminders are.
 
-### 9.5 Then keep going
+### 9.7 Then keep going
 
 Test the app on the phone. Every bug that has mattered in this project was found
 by using it, not by a test — an empty turn rendering as nothing, a silent
-push-back, a lost conversation. Then carry on with `jarvis-v2-plan.md` §8.
+push-back, a lost conversation, and §9.1 above, which no test would ever have
+caught because the model was right the whole time. Then carry on with
+`jarvis-v2-plan.md` §8.
