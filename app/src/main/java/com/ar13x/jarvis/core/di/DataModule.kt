@@ -3,11 +3,13 @@ package com.ar13x.jarvis.core.di
 import com.ar13x.jarvis.core.data.AgentRepository
 import com.ar13x.jarvis.core.data.DashboardRepository
 import com.ar13x.jarvis.core.data.RoutineRepository
+import com.ar13x.jarvis.core.data.SummaryRepository
 import com.ar13x.jarvis.core.data.TaskRepository
 import com.ar13x.jarvis.core.data.TodoRepository
 import com.ar13x.jarvis.core.network.RemoteAgentRepository
 import com.ar13x.jarvis.core.network.RemoteDashboardRepository
 import com.ar13x.jarvis.core.network.RemoteRoutineRepository
+import com.ar13x.jarvis.core.network.RemoteSummaryRepository
 import com.ar13x.jarvis.core.network.RemoteTaskRepository
 import com.ar13x.jarvis.core.network.RemoteTodoRepository
 import dagger.Binds
@@ -86,4 +88,18 @@ abstract class DataModule {
     @Binds
     @Singleton
     abstract fun bindRoutineRepository(impl: RemoteRoutineRepository): RoutineRepository
+
+    /**
+     * Summaries (v2 plan §7). **Remote with no fake alongside it**, which is the
+     * only repository here without one.
+     *
+     * A summary is facts the gateway counted plus prose a model wrote from them.
+     * A fixture would have to invent both, and invented sentences about invented
+     * arithmetic — on the one screen whose whole purpose is telling Joy what
+     * actually happened — is a fiction this app should not be able to produce
+     * even by accident. Off the tailnet the screen says so instead.
+     */
+    @Binds
+    @Singleton
+    abstract fun bindSummaryRepository(impl: RemoteSummaryRepository): SummaryRepository
 }

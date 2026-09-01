@@ -16,6 +16,7 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.rounded.Notes
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
@@ -62,6 +63,7 @@ import java.time.format.DateTimeFormatter
  */
 @Composable
 fun DashboardScreen(
+    onOpenSummaries: () -> Unit,
     viewModel: DashboardViewModel = hiltViewModel(),
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
@@ -72,7 +74,7 @@ fun DashboardScreen(
             .fillMaxSize()
             .background(colors.ground),
     ) {
-        Header()
+        Header(onOpenSummaries)
 
         when (val s = state) {
             is LoadState.Loading -> Centred { CircularProgressIndicator(color = colors.brandCore) }
@@ -98,7 +100,7 @@ fun DashboardScreen(
 }
 
 @Composable
-private fun Header() {
+private fun Header(onOpenSummaries: () -> Unit) {
     val colors = JarvisTheme.colors
     Row(
         Modifier
@@ -112,10 +114,23 @@ private fun Header() {
         // returned to the day view; now it is its own tab and backing out of it
         // would mean leaving the tab, which the bar already does better.
         Text(
+            modifier = Modifier.weight(1f),
             text = "How it is going",
             style = JarvisTheme.typography.titleLarge,
             color = colors.ink,
         )
+        // The written record (v2 plan §7), not a sixth tab. Same question as
+        // this screen asks, answered in sentences over a longer window — and
+        // §9.2 already took the bar to the five Joy said was the comfortable
+        // limit, so this one lives behind an icon rather than beside them.
+        CircleIconButton(onClick = onOpenSummaries, diameter = 36.dp) {
+            Icon(
+                Icons.AutoMirrored.Rounded.Notes,
+                contentDescription = "Summaries",
+                tint = colors.inkMuted,
+                modifier = Modifier.size(18.dp),
+            )
+        }
     }
 }
 

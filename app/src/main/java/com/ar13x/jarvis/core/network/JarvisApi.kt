@@ -7,6 +7,8 @@ import com.ar13x.jarvis.core.model.PagedTasks
 import com.ar13x.jarvis.core.model.PagedTodos
 import com.ar13x.jarvis.core.model.SectionsResponse
 import com.ar13x.jarvis.core.model.Session
+import com.ar13x.jarvis.core.model.Summaries
+import com.ar13x.jarvis.core.model.Summary
 import com.ar13x.jarvis.core.model.Todo
 import com.ar13x.jarvis.core.model.TodoEnvelope
 import com.ar13x.jarvis.core.model.TodoEvents
@@ -140,6 +142,32 @@ interface JarvisApi {
     // mechanisms answering one question have to be kept agreeing forever. gw03
     // is retiring the table (tracker 131/132) — a route the app can still call
     // is a route the app can still be tempted back into.
+
+    // --- summaries (v2 plan §7) ------------------------------------------------
+
+    /**
+     * Stored summaries, newest first.
+     *
+     * Read-only. Generation is a POST below, deliberately: writing a summary
+     * costs a model call and money, so it is never a side effect of looking.
+     */
+    @GET("summaries")
+    suspend fun summaries(
+        @Query("period") period: String? = null,
+        @Query("tag") tag: String? = null,
+        @Query("date_from") dateFrom: String? = null,
+        @Query("date_to") dateTo: String? = null,
+        @Query("limit") limit: Int = 30,
+    ): Summaries
+
+    /**
+     * Writes one. **A deliberate act**, which is why it has a body.
+     *
+     * `replace` overwrites an existing summary for the same period and tag
+     * rather than adding a second; without it the gateway keeps what it has.
+     */
+    @POST("summaries/generate")
+    suspend fun generateSummary(@Body body: GenerateSummaryBody): Summary
 
     // --- routine (v2 plan §4) --------------------------------------------------
     //
@@ -315,6 +343,23 @@ data class CreateTodoBody(
  * it the right probe for the first-run screen: it separates "cannot reach the
  * gateway" from "the token is wrong" before the user has entered anything.
  */
+/**
+ * Asking for a summary to be written (v2 plan §7).
+ *
+ * `factsOnly` skips the model entirely and stores the arithmetic alone. It is
+ * the honest fallback when the prose is not wanted or not affordable, and the
+ * screen can render a summary that has one without pretending the other failed.
+ */
+@Serializable
+data class GenerateSummaryBody(
+    val period: String = "daily",
+    @Serializable(com.ar13x.jarvis.core.model.LocalDateSerializer::class)
+    val day: java.time.LocalDate? = null,
+    val tag: String? = null,
+    @SerialName("facts_only") val factsOnly: Boolean = false,
+    val replace: Boolean = false,
+)
+
 @Serializable
 data class ExtendOccurrenceBody(val minutes: Int)
 

@@ -45,6 +45,20 @@ sealed interface Route
 
 @Serializable data object DashboardRoute : Route
 
+/**
+ * The written record (v2 plan §7) — **a screen inside the Dashboard tab**, not a
+ * sixth tab.
+ *
+ * §9.2 took the bar to five and Joy's own note on tracker 116 is that five is
+ * where tabs stop being comfortable to hit. Summaries are also not one of the v2
+ * plan's four surfaces: §9 of that document lists Reminders, Tasks, Routine and
+ * Dashboard, and this is the same question the dashboard asks — "how it is
+ * going" — answered in sentences over a longer window instead of in numbers now.
+ *
+ * That is a placement rather than a claim, and it is one line to move.
+ */
+@Serializable data object SummariesRoute : Route
+
 @Serializable data object TaskList : Route
 
 /**

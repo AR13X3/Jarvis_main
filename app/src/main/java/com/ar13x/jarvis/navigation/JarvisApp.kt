@@ -45,6 +45,7 @@ import com.ar13x.jarvis.core.update.UpdateStatus
 import com.ar13x.jarvis.feature.about.AboutScreen
 import com.ar13x.jarvis.feature.chat.ChatScreen
 import com.ar13x.jarvis.feature.dashboard.DashboardScreen
+import com.ar13x.jarvis.feature.summaries.SummariesScreen
 import com.ar13x.jarvis.feature.routine.RoutineScreen
 import com.ar13x.jarvis.feature.routine.RoutineWeekScreen
 import com.ar13x.jarvis.feature.tasks.list.TaskListScreen
@@ -291,7 +292,12 @@ private fun JarvisNavHost(
                 navigation<DashboardGraph>(startDestination = DashboardRoute) {
                     composable<DashboardRoute> {
                         // A tab root, so no back arrow — same reason as TodoList.
-                        DashboardScreen()
+                        DashboardScreen(
+                            onOpenSummaries = { navController.navigate(SummariesRoute) },
+                        )
+                    }
+                    composable<SummariesRoute> {
+                        SummariesScreen(onBack = navController::popBackStack)
                     }
                 }
 
