@@ -159,7 +159,7 @@
     "/tasks/{task_id}": {
       "get": {
         "summary": "Get Task",
-        "description": "Opening a task's session needs exactly this one task \u2014 whether it is\nterminal decides whether the composer appears. Without it the app pages\n`GET /tasks` until it finds the id (joy A4, 2026-08-20).\n\nReturns the task bare: a GET returns the resource, a mutation wraps it.",
+        "description": "Opening a task's session needs exactly this one task — whether it is\nterminal decides whether the composer appears. Without it the app pages\n`GET /tasks` until it finds the id (joy A4, 2026-08-20).\n\nReturns the task bare: a GET returns the resource, a mutation wraps it.",
         "operationId": "get_task_tasks__task_id__get",
         "security": [
           {
@@ -202,7 +202,7 @@
       },
       "patch": {
         "summary": "Patch Task",
-        "description": "Direct UI manipulation of a cheap reversible flag \u2014 no proposal.\nAI-initiated mutations confirm; a menu tap cannot misparse.",
+        "description": "Direct UI manipulation of cheap reversible fields — no proposal.\nAI-initiated mutations confirm; a menu tap cannot misparse.\n\nRouted through `update_task` rather than a per-field setter so that a body\ncarrying both keys is one statement and one row version. The app sends them\nsingly today, but two setters would make \"both\" mean two writes and a window\nbetween them.",
         "operationId": "patch_task_tasks__task_id__patch",
         "security": [
           {
@@ -357,10 +357,131 @@
         }
       }
     },
+    "/occurrences/history": {
+      "get": {
+        "summary": "Get Occurrence History",
+        "description": "What happened. The counterpart to /occurrences/upcoming (v2 plan §3).\n\nEvery field here has been stored since 0001 and none of it was readable:\n`upcoming` is the only occurrence read on the API and it looks forward only.\nSo this ships with no migration and no backfill — the history is already\ncomplete for every firing this system has resolved.\n\n`bucket` chooses which day the range filters on and is echoed back on the\nresponse. `resolved` is the day it was ANSWERED, `due` is the day it was\nDUE; they diverge on anything resolved late, which is most of what a\ndashboard about slipping wants to look at. Both dates are on every row\nregardless, so the client never derives one from the other (§3.2).\n\nNOTE FOR ANYONE COMPUTING LATENESS FROM THESE ROWS: `scheduled_for` is the\ndeadline as it stood when the firing resolved, not as it was set. An\nextension overwrites it in place, so a firing extended twice reports the\nextended deadline and looks punctual. Board item 69 is the fix; until the\nevent stream exists, treat `extensions_used > 0` as \"this row understates\nhow late it was\".",
+        "operationId": "get_occurrence_history_occurrences_history_get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "date_from",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "format": "date"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Date From"
+            }
+          },
+          {
+            "name": "date_to",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "format": "date"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Date To"
+            }
+          },
+          {
+            "name": "bucket",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "enum": [
+                "resolved",
+                "due"
+              ],
+              "type": "string",
+              "default": "resolved",
+              "title": "Bucket"
+            }
+          },
+          {
+            "name": "status",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "array",
+                  "items": {
+                    "enum": [
+                      "active",
+                      "awaiting",
+                      "completed",
+                      "cancelled",
+                      "incomplete"
+                    ],
+                    "type": "string"
+                  }
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Status"
+            }
+          },
+          {
+            "name": "page",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "default": 1,
+              "title": "Page"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HistoryOccurrences"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/occurrences/{occurrence_id}/extend": {
       "post": {
         "summary": "Extend Occurrence",
-        "description": "One second chance on a missed deadline (joy 07 \u00a73.2).\n\nNot a proposal. The four buttons on an overdue nudge are direct UI\nmanipulation of a cheap, reversible thing \u2014 the same reasoning that lets\nPATCH /tasks set a priority flag without a confirmation card. Routing this\nthrough the model would also make answering a nudge cost an LLM call and\ncould misparse a tap, which is exactly what a button is for.\n\nOccurrence-scoped, so extending Monday's firing leaves the weekly rule\nalone.",
+        "description": "One second chance on a missed deadline (joy 07 §3.2).\n\nNot a proposal. The four buttons on an overdue nudge are direct UI\nmanipulation of a cheap, reversible thing — the same reasoning that lets\nPATCH /tasks set a priority flag without a confirmation card. Routing this\nthrough the model would also make answering a nudge cost an LLM call and\ncould misparse a tap, which is exactly what a button is for.\n\nOccurrence-scoped, so extending Monday's firing leaves the weekly rule\nalone.",
         "operationId": "extend_occurrence_occurrences__occurrence_id__extend_post",
         "security": [
           {
@@ -415,7 +536,7 @@
     "/occurrences/{occurrence_id}/complete": {
       "post": {
         "summary": "Complete Occurrence",
-        "description": "Mark this firing done (joy 07 \u00a73.2).\n\nThe gateway had NO completion endpoint at all until this one: `propose_complete`\nexisted as a tool and `/tasks/{id}/cancel` as a route, but nothing completed\na task outside the confirm flow. Needed regardless of the follow-up loop.\n\nTask-scoped completion is deliberately still absent. Finishing one firing of\na weekly rule must not close the series, and an endpoint that could do\neither depending on a flag is how that mistake gets made.",
+        "description": "Mark this firing done (joy 07 §3.2).\n\nThe gateway had NO completion endpoint at all until this one: `propose_complete`\nexisted as a tool and `/tasks/{id}/cancel` as a route, but nothing completed\na task outside the confirm flow. Needed regardless of the follow-up loop.\n\nTask-scoped completion is deliberately still absent. Finishing one firing of\na weekly rule must not close the series, and an endpoint that could do\neither depending on a flag is how that mistake gets made.",
         "operationId": "complete_occurrence_occurrences__occurrence_id__complete_post",
         "security": [
           {
@@ -460,7 +581,7 @@
     "/sessions": {
       "get": {
         "summary": "List Sessions",
-        "description": "Browsable conversation history (joy addendum \u00a72).\n\nGeneral chat is a series of conversations, not one thread \u2014 you ask about\nsomething, get pointed at a task, and that exchange is worth looking back\nat. Reopening needs nothing new: `GET /sessions/{id}/messages` already\nreturns persisted `components`, so a past disambiguation renders with its\noption buttons intact.",
+        "description": "Browsable conversation history (joy addendum §2).\n\nGeneral chat is a series of conversations, not one thread — you ask about\nsomething, get pointed at a task, and that exchange is worth looking back\nat. Reopening needs nothing new: `GET /sessions/{id}/messages` already\nreturns persisted `components`, so a past disambiguation renders with its\noption buttons intact.",
         "operationId": "list_sessions_sessions_get",
         "security": [
           {
@@ -881,7 +1002,7 @@
           "text"
         ],
         "title": "AgentResponse",
-        "description": "Structured, never bare text \u2014 the app renders cards and buttons."
+        "description": "Structured, never bare text — the app renders cards and buttons."
       },
       "CancelTaskBody": {
         "properties": {
@@ -981,7 +1102,7 @@
           "minutes"
         ],
         "title": "ExtendOccurrenceBody",
-        "description": "A second chance, in minutes (07 \u00a73.2).\n\nTyped as a literal so the choices appear in openapi.json and FastAPI rejects\nanything else with a 422 before it reaches a query \u2014 the same reasoning as\nthe `status` filter on GET /tasks. Kept in step with config.EXTENSION_MINUTES,\nwhich is what the app renders as buttons; a Literal cannot be built from a\nruntime value without losing the generated schema, so the two are asserted\nequal at import instead of one deriving from the other."
+        "description": "A second chance, in minutes (07 §3.2).\n\nTyped as a literal so the choices appear in openapi.json and FastAPI rejects\nanything else with a 422 before it reaches a query — the same reasoning as\nthe `status` filter on GET /tasks. Kept in step with config.EXTENSION_MINUTES,\nwhich is what the app renders as buttons; a Literal cannot be built from a\nruntime value without losing the generated schema, so the two are asserted\nequal at import instead of one deriving from the other."
       },
       "HTTPValidationError": {
         "properties": {
@@ -995,6 +1116,112 @@
         },
         "type": "object",
         "title": "HTTPValidationError"
+      },
+      "HistoryOccurrence": {
+        "properties": {
+          "occurrence_id": {
+            "type": "integer",
+            "title": "Occurrence Id"
+          },
+          "task_id": {
+            "type": "integer",
+            "title": "Task Id"
+          },
+          "title": {
+            "type": "string",
+            "title": "Title"
+          },
+          "scheduled_for": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Scheduled For"
+          },
+          "scheduled_date": {
+            "type": "string",
+            "format": "date",
+            "title": "Scheduled Date"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "active",
+              "awaiting",
+              "completed",
+              "cancelled",
+              "incomplete"
+            ],
+            "title": "Status"
+          },
+          "resolved_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Resolved At"
+          },
+          "extensions_used": {
+            "type": "integer",
+            "title": "Extensions Used",
+            "default": 0
+          },
+          "is_priority": {
+            "type": "boolean",
+            "title": "Is Priority",
+            "default": false
+          }
+        },
+        "type": "object",
+        "required": [
+          "occurrence_id",
+          "task_id",
+          "title",
+          "scheduled_for",
+          "scheduled_date",
+          "status"
+        ],
+        "title": "HistoryOccurrence",
+        "description": "One resolved firing, for the dashboard (v2 plan §3).\n\nCarries BOTH days on purpose, because they answer different questions and\nthe plan has not yet chosen between them:\n\n  `scheduled_date` — the local day it was DUE. \"What did I miss.\"\n  `resolved_at`    — the instant it was answered. \"What did I get done.\"\n\nCompleting yesterday's reminder this morning is due=yesterday,\nanswered=today, and neither is the wrong answer. Both are stored already, so\nthe client never has to pick one by deriving the other."
+      },
+      "HistoryOccurrences": {
+        "properties": {
+          "occurrences": {
+            "items": {
+              "$ref": "#/components/schemas/HistoryOccurrence"
+            },
+            "type": "array",
+            "title": "Occurrences"
+          },
+          "page": {
+            "type": "integer",
+            "title": "Page"
+          },
+          "has_more": {
+            "type": "boolean",
+            "title": "Has More"
+          },
+          "bucketed_by": {
+            "type": "string",
+            "enum": [
+              "resolved",
+              "due"
+            ],
+            "title": "Bucketed By"
+          }
+        },
+        "type": "object",
+        "required": [
+          "occurrences",
+          "page",
+          "has_more",
+          "bucketed_by"
+        ],
+        "title": "HistoryOccurrences",
+        "description": "Paged, because history only grows."
       },
       "Message": {
         "properties": {
@@ -1082,7 +1309,7 @@
           "seed"
         ],
         "title": "NewTaskComponent",
-        "description": "A way out of a general session that was asked to create something.\n\nA general session has no create tool and correctly declines \u2014 but that\nleaves the user having already said what they wanted, with nowhere to go.\nThe app renders this as a button that opens a NEW unbound session and sends\n`seed` immediately, so nothing is retyped (joy addendum \u00a74).\n\nThe invariant is untouched: this session still creates nothing, and the new\nsession binds only on confirmation. Seeding skips the typing, not the\nconfirmation."
+        "description": "A way out of a general session that was asked to create something.\n\nA general session has no create tool and correctly declines — but that\nleaves the user having already said what they wanted, with nowhere to go.\nThe app renders this as a button that opens a NEW unbound session and sends\n`seed` immediately, so nothing is retyped (joy addendum §4).\n\nThe invariant is untouched: this session still creates nothing, and the new\nsession binds only on confirmation. Seeding skips the typing, not the\nconfirmation."
       },
       "Occurrence": {
         "properties": {
@@ -1128,6 +1355,18 @@
             "type": "integer",
             "title": "Extensions Allowed",
             "default": 0
+          },
+          "resolved_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Resolved At"
           }
         },
         "type": "object",
@@ -1139,7 +1378,7 @@
           "status"
         ],
         "title": "Occurrence",
-        "description": "One firing of a task (joy 07 \u00a73.1).\n\nOccurrence-scoped, not task-scoped, and this is the whole reason the table\nexists (parent \u00a72.5): finishing Monday's gym session must not close the\nweekly rule."
+        "description": "One firing of a task (joy 07 §3.1).\n\nOccurrence-scoped, not task-scoped, and this is the whole reason the table\nexists (parent §2.5): finishing Monday's gym session must not close the\nweekly rule."
       },
       "OccurrenceEnvelope": {
         "properties": {
@@ -1156,7 +1395,7 @@
           "task"
         ],
         "title": "OccurrenceEnvelope",
-        "description": "What /extend and /complete answer with (07 \u00a73.2).\n\nBoth, not one: extending changes the firing AND (for a one-shot) the task's\nown due time, and completing resolves the firing while possibly leaving a\nrecurring parent untouched. The app needs to see which of those happened."
+        "description": "What /extend and /complete answer with (07 §3.2).\n\nBoth, not one: extending changes the firing AND (for a one-shot) the task's\nown due time, and completing resolves the firing while possibly leaving a\nrecurring parent untouched. The app needs to see which of those happened."
       },
       "Ok": {
         "properties": {
@@ -1197,6 +1436,35 @@
           "extensions_allowed": {
             "type": "integer",
             "title": "Extensions Allowed"
+          },
+          "grace_minutes": {
+            "type": "integer",
+            "title": "Grace Minutes",
+            "default": 15
+          },
+          "extension_minutes": {
+            "items": {
+              "type": "integer"
+            },
+            "type": "array",
+            "title": "Extension Minutes"
+          },
+          "resolution": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "superseded",
+                  "completed",
+                  "cancelled",
+                  "incomplete"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Resolution"
           }
         },
         "type": "object",
@@ -1208,7 +1476,7 @@
           "extensions_allowed"
         ],
         "title": "OverdueComponent",
-        "description": "The agent asking whether a missed thing got done (joy 07 \u00a73.3).\n\nThis is the first component the SERVER originates. Every other one answers a\nuser turn; this one is posted into the task's session by the scheduler when\na deadline passes, which is what makes the agent able to initiate at all.\n\nIt is a MESSAGE, not only a push notification, because one session per task\nis the architecture (parent \u00a72.2) and scrolling back has to show the agent\nasking and what was answered \u2014 exactly as a resolved confirm card does\n(\u00a75.3). A nudge living only in a notification vanishes with the notification\nand leaves no record that you were asked.\n\n`extensions_used == extensions_allowed` is the app's signal that no second\nchance remains, so this renders with \"Mark done\" alone and no extend\nbuttons. That case is also the FINAL message: the firing has already been\nrecorded `incomplete` by the time it is sent (\u00a73.4). Deliberately derived\nrather than carried as a separate flag \u2014 the doc fixes this shape, and a\nfield the app has not been built to read is worth less than one it can\ncompute."
+        "description": "The agent asking whether a missed thing got done (joy 07 §3.3).\n\nThis is the first component the SERVER originates. Every other one answers a\nuser turn; this one is posted into the task's session by the scheduler when\na deadline passes, which is what makes the agent able to initiate at all.\n\nIt is a MESSAGE, not only a push notification, because one session per task\nis the architecture (parent §2.2) and scrolling back has to show the agent\nasking and what was answered — exactly as a resolved confirm card does\n(§5.3). A nudge living only in a notification vanishes with the notification\nand leaves no record that you were asked.\n\n`extensions_used == extensions_allowed` is the app's signal that no second\nchance remains, so this renders with \"Mark done\" alone and no extend\nbuttons. That case is also the FINAL message: the firing has already been\nrecorded `incomplete` by the time it is sent (§3.4). Deliberately derived\nrather than carried as a separate flag — the doc fixes this shape, and a\nfield the app has not been built to read is worth less than one it can\ncompute.\n\n`grace_minutes` and `extension_minutes` are policy the app needs and must\nnot hardcode (09 §2.4, §5). The grace value is load-bearing rather than\ninformational: under 09 §2 the loop runs on timeouts, so the app schedules a\ncatch-up poll for `grace_minutes + small` after a nudge, to learn about a\ntransition it did not initiate (09 §7). An app assuming 15 goes out of sync\nthe moment this is tuned here, which is the whole reason it is tunable.\n\nBoth are sent before the app reads them: §4.5 has it tolerating unknown\nfields, so they are inert until consumed and correct the day they are."
       },
       "PagedMessages": {
         "properties": {
@@ -1288,13 +1556,15 @@
           "is_priority": {
             "type": "boolean",
             "title": "Is Priority"
+          },
+          "description": {
+            "type": "string",
+            "title": "Description"
           }
         },
         "type": "object",
-        "required": [
-          "is_priority"
-        ],
-        "title": "PatchTaskBody"
+        "title": "PatchTaskBody",
+        "description": "Direct UI manipulation of cheap, reversible fields — never a proposal\n(plan §5.4). A tap cannot misparse, and tapping again undoes it exactly.\n\nBOTH KEYS ARE OPTIONAL AND THE APP SENDS ONE AT A TIME: `is_priority` alone\nfor a star tap, `description` alone for a checklist tick. Requiring both\nwould make a star tap resend a description it did not touch, which is a\nlost-update race against a tick landing in the same second.\n\nTHE THREE STATES OF A KEY ARE DELIBERATELY DIFFERENT:\n\n  absent  -> leave the column alone. The app's serialiser omits unset\n             fields (`explicitNulls=false`), so this is what a one-key\n             patch produces and it must be the safe case.\n  \"\"      -> clear the description. Explicit, and the only way to empty it.\n  null    -> 422. Never sent by the app, and the alternative is worse than\n             an error: `update_task` skips nulls, so a null would return\n             200 with nothing changed. A tick that silently does nothing is\n             exactly the failure joy asked to avoid — better a visible error\n             the app can surface than a checkbox that quietly reverts.\n\nAn empty body is 422 for the same reason: it can only be a bug on the\ncaller's side, and answering 200 would hide it."
       },
       "ProposalSummary": {
         "properties": {
@@ -1393,7 +1663,7 @@
           "action"
         ],
         "title": "ProposalSummary",
-        "description": "What the confirmation card renders. `recurrence_text` is load-bearing:\nthe eval measured malformed recurrence arguments at ~1 in 5 on the\nNth-weekday pattern, and a human reading this before confirming is the\nonly thing that catches a wrong day set."
+        "description": "What the confirmation card renders. `recurrence_text` is load-bearing:\nthe eval measured malformed recurrence arguments at ~1 in 5 on the\nNth-weekday pattern, and a human reading this before confirming is the\nonly thing that catches a wrong day set.\n\nGUARANTEE: `due_date` IS ALWAYS PRESENT WHEN `due_at` IS (joy, board item\n63). Both stay optional because a `cancel` or `complete` proposal carries\nneither, and a conditional invariant is not expressible in JSON Schema —\nso it is enforced below instead of typed.\n\nThe client must never derive the calendar day from `due_at` itself. That is\n§3.2's rule and the reason `due_date` exists at all: the phone deriving it\napplies the PHONE's timezone, which is right only while the phone and the\nserver are in the same one. A proposal is the worst place to get it wrong,\nbecause confirming the card is what writes the task and the only check on\na wrong day is a human reading it."
       },
       "SectionsResponse": {
         "properties": {
@@ -1430,7 +1700,7 @@
           "all"
         ],
         "title": "SectionsResponse",
-        "description": "One round trip for the whole Tasks tab first paint (\u00a72.7)."
+        "description": "One round trip for the whole Tasks tab first paint (§2.7)."
       },
       "SendMessageBody": {
         "properties": {
@@ -1544,7 +1814,7 @@
           "message_count"
         ],
         "title": "SessionSummary",
-        "description": "One line per conversation for the Chat history list (joy addendum \u00a72).\n\nA task session is one thread bound to a task forever; general chat is a\nseries of conversations, and the ones where you asked about something and\ngot pointed at a task are worth keeping. Computed here rather than by the\napp fetching every session's first page just to label a list."
+        "description": "One line per conversation for the Chat history list (joy addendum §2).\n\nA task session is one thread bound to a task forever; general chat is a\nseries of conversations, and the ones where you asked about something and\ngot pointed at a task are worth keeping. Computed here rather than by the\napp fetching every session's first page just to label a list."
       },
       "Task": {
         "properties": {
@@ -1684,7 +1954,7 @@
           "task"
         ],
         "title": "TaskEnvelope",
-        "description": "\u00a74.4 \u2014 a mutation answers with the task it changed.\n\nNamed in the schema rather than returned as a bare dict so the app can drop\nits tolerant envelope-or-task decoder (joy A5, 2026-08-20). The rule across\nthe API: a GET returns the resource, a mutation returns it wrapped, so a\nmutation can gain a sibling field without changing shape.\n\n`task` is never null: these endpoints 404 when the task does not exist\nrather than answering with none. (This class was declared twice, and the\nearlier copy typed `task` as optional \u2014 the later one won, so the optional\nshape never reached the wire and removing it changes nothing.)"
+        "description": "§4.4 — a mutation answers with the task it changed.\n\nNamed in the schema rather than returned as a bare dict so the app can drop\nits tolerant envelope-or-task decoder (joy A5, 2026-08-20). The rule across\nthe API: a GET returns the resource, a mutation returns it wrapped, so a\nmutation can gain a sibling field without changing shape.\n\n`task` is never null: these endpoints 404 when the task does not exist\nrather than answering with none. (This class was declared twice, and the\nearlier copy typed `task` as optional — the later one won, so the optional\nshape never reached the wire and removing it changes nothing.)"
       },
       "TaskOption": {
         "properties": {
@@ -1742,7 +2012,7 @@
           "options"
         ],
         "title": "TaskOptionsComponent",
-        "description": "Disambiguation. Rendered as buttons, 3 at a time (\u00a72.7)."
+        "description": "Disambiguation. Rendered as buttons, 3 at a time (§2.7)."
       },
       "UpcomingOccurrence": {
         "properties": {
@@ -1814,7 +2084,7 @@
           "generated_at"
         ],
         "title": "UpcomingOccurrences",
-        "description": "Feeds the device alarm mirror (\u00a72.8). Not in the parent plan's API list;\nadded because reminders are impossible without it."
+        "description": "Feeds the device alarm mirror (§2.8). Not in the parent plan's API list;\nadded because reminders are impossible without it."
       },
       "ValidationError": {
         "properties": {
