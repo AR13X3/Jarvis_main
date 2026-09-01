@@ -19,7 +19,7 @@ Rewritten 2026-09-01. Paste §0 into a new session; it points at everything else
 > curl -s https://gw03.tail9662e3.ts.net/tracker/api/items
 > ```
 >
-> Everything is committed and pushed, 238 tests green, `v0.1.10` published —
+> Everything is committed and pushed, 253 tests green, `v0.1.10` published —
 > and **several fixes, the whole routine feature and the dashboard are
 > unreleased**, so what is on the phone is well behind the repo.
 > **Never publish a release without asking me first.**
@@ -184,7 +184,7 @@ installing in place on one key. Phone on `0.1.10`, verified with `adb`.
 **Complete:** the plan through Phase F, plus voice, the Overdue section, the
 follow-up loop with lock-screen answers, checklists, unfinished-task recovery,
 the **routine** — day view and week view, against a fixture — and the
-**dashboard**. 238 tests.
+**dashboard**. 253 tests.
 
 **Unreleased, and it is now a lot.** `0.1.10` predates the routine tab, the
 dashboard, and four fixes, three of which are the `PendingIntent` identity bugs
@@ -226,11 +226,25 @@ to-dos and summaries — the model can read them but cannot create a to-do, and
 adding tools changes both the agreed tool-scope table and the live conversational
 surface, so it is a joint decision.
 
-**The app is still on a fake routine repository.** `GET /routine`,
-`/routine/now` and `/routine/starts` all exist on the gateway now; `DataModule`
-still binds `FakeRoutineRepository`. Nothing persists across process death, by
-design, but that is the largest remaining gap between the app and reality — and
-it is the swap the two other repositories already went through in phase D.
+**The routine's remote half is written and NOT bound — one live read away.**
+`RemoteRoutineRepository` and its DTOs are done and tested (15 tests); the swap
+is the single `@Binds` line in `DataModule`, which explains at the binding site
+why it has not been flipped. Two reasons, both real:
+
+1. **`RoutineDay.weekday` has no base in the contract** — a bare `integer`, and
+   Python's `weekday()` (0 = Mon) and `isoweekday()` (1 = Mon) differ by one
+   character. Wrong choice shifts the whole week by a day with every slot and
+   time still correct, so it reads as bad data rather than a client bug.
+   `RoutineDto.toDomain` *measures* the base from the payload instead of
+   guessing — a complete week is either `{0..6}` or `{1..7}` and those sets do
+   not overlap — and throws on anything else. Tracker 117 asks gw03 to put the
+   range in the schema, at which point that function collapses to a line.
+2. **No routine payload this code has seen came from the gateway.** No bearer
+   token on this machine; everything was built from the schema.
+
+So: get one live `GET /routine` (a token, or run it from the phone), check the
+weekday base and that the tab renders, then flip the binding. Flipping it blind
+trades a working routine tab for an unrun one.
 
 **Accepted, not fixed:** "Charge my watch" lapses every night. The loop is
 correct; the task is at a time Joy does not answer. Do not reopen it unprompted.
