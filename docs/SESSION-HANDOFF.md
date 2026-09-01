@@ -19,9 +19,10 @@ Rewritten 2026-09-01. Paste §0 into a new session; it points at everything else
 > curl -s https://gw03.tail9662e3.ts.net/tracker/api/items
 > ```
 >
-> Everything is committed and pushed, 284 tests green, `v0.1.10` published —
-> and **several fixes, the routine feature, the dashboard and to-dos are
-> unreleased**, so what is on the phone is well behind the repo.
+> Everything is committed and pushed, 290 tests green, `v0.1.10` published —
+> **`v0.1.12` is published and the repo is clean at that tag** — the dashboard,
+> to-dos, the routine tab on real gateway data, and the overdue-card fix all
+> shipped 2026-09-02.
 > **Never publish a release without asking me first.**
 >
 > Pull `openapi.json` from `https://gw03.tail9662e3.ts.net/api/openapi.json`
@@ -192,13 +193,21 @@ If a claim rests on something you did not check, say so.
 
 ## 8. Where things stand
 
-Nine releases — `0.1.1`–`0.1.10`, with `0.1.4` deliberately skipped — all
-installing in place on one key. Phone on `0.1.10`, verified with `adb`.
+Eleven releases — `0.1.1`–`0.1.12`, with `0.1.4` deliberately skipped — all
+installing in place on one key. **`v0.1.12` is the current release**, built from
+`4a149cb` and tagged. Whether the phone has taken it has not been checked — no
+device was attached to `adb`.
+
+`tools/release.sh` does the whole thing except publishing: it refuses a dirty
+tree, checks the versionCode beats what is published, builds, verifies the
+signing cert against the one every prior release used, reads the versionName and
+the embedded commit **back out of the APK**, then tags and pushes. It stops
+before `gh release create` on purpose. Do not add a `--publish` flag.
 
 **Complete:** the plan through Phase F, plus voice, the Overdue section, the
 follow-up loop with lock-screen answers, checklists, unfinished-task recovery,
 the **routine** — day view and week view, against a fixture — the
-**dashboard**, and **to-dos** (list, backlog, detail, capture, linking). 284 tests.
+**dashboard**, and **to-dos** (list, backlog, detail, capture, linking). 290 tests.
 
 **Unreleased, and it is now a lot.** `0.1.10` predates the routine tab, the
 dashboard, and four fixes, three of which are the `PendingIntent` identity bugs
