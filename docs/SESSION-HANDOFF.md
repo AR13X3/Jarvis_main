@@ -19,7 +19,7 @@ Rewritten 2026-09-01. Paste §0 into a new session; it points at everything else
 > curl -s https://gw03.tail9662e3.ts.net/tracker/api/items
 > ```
 >
-> Everything is committed and pushed, 276 tests green, `v0.1.10` published —
+> Everything is committed and pushed, 284 tests green, `v0.1.10` published —
 > and **several fixes, the routine feature, the dashboard and to-dos are
 > unreleased**, so what is on the phone is well behind the repo.
 > **Never publish a release without asking me first.**
@@ -191,7 +191,7 @@ installing in place on one key. Phone on `0.1.10`, verified with `adb`.
 **Complete:** the plan through Phase F, plus voice, the Overdue section, the
 follow-up loop with lock-screen answers, checklists, unfinished-task recovery,
 the **routine** — day view and week view, against a fixture — the
-**dashboard**, and **to-dos** (list, backlog, detail, capture). 276 tests.
+**dashboard**, and **to-dos** (list, backlog, detail, capture, linking). 284 tests.
 
 **Unreleased, and it is now a lot.** `0.1.10` predates the routine tab, the
 dashboard, and four fixes, three of which are the `PendingIntent` identity bugs
@@ -226,10 +226,11 @@ marker; **where the dashboard lives** (tracker 116 — it is parked in the Routi
 graph, and a fourth tab is hers to call); and the four decisions in tracker 103,
 including off-machine backups.
 
-**The one real gap in to-dos:** you can *unlink* a reminder from a to-do but not
-*link* one. That is a gap rather than a decision — it needs a task picker, and
-the sensible entry point is probably from the **task** side ("this reminder is
-about…") rather than a search inside the to-do. Nothing blocks it.
+**To-dos are feature-complete for now** — list, backlog filter, detail, capture
+and linking. The one thing deliberately absent is a **date picker in the capture
+sheet**: §5.2 makes an undated to-do the ordinary case, so capture is for the
+backlog and setting a date happens on the detail screen, where the consequence
+(*this leaves the backlog*) is visible.
 
 **Summaries are deliberately unstarted**, blocked on tracker 110: `SummaryFacts`
 carries verb-keyed maps whose key vocabulary is in no schema. Writing the parser
