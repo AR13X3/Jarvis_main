@@ -19,7 +19,6 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.rounded.ArrowBack
 import androidx.compose.material.icons.rounded.Add
 import androidx.compose.material.icons.rounded.Check
 import androidx.compose.material3.CircularProgressIndicator
@@ -55,16 +54,19 @@ import com.ar13x.jarvis.designsystem.component.JarvisChip
 import com.ar13x.jarvis.designsystem.theme.Corner
 import com.ar13x.jarvis.designsystem.theme.JarvisTheme
 import com.ar13x.jarvis.designsystem.theme.Space
-import java.time.format.DateTimeFormatter
 
 /**
  * To-dos (v2 plan §5).
  *
  * **A to-do is not a reminder, and this screen exists so they stop being
  * confused.** A reminder fires, chases and extends; a to-do just sits there
- * being true. §5.1 makes a to-do the *owner* of reminders rather than a kind of
- * one, so a row here shows whether anything is chasing it — and if nothing is,
- * that is a legitimate state rather than a mistake.
+ * being true until you do it. They are now adjacent tabs (§9.2) rather than one
+ * being tucked behind an icon in the other, which is the arrangement that makes
+ * the distinction visible instead of merely documented.
+ *
+ * A row no longer shows what is chasing a to-do, because nothing does — the
+ * to-do → reminder link is deleted (§9.5) and a to-do's own deadline is the
+ * deadline.
  *
  * The **backlog is a filter**, not a second screen (§5.2). It is a chip in the
  * same row as the status filters, over the same ordering, so the two cannot
@@ -73,7 +75,6 @@ import java.time.format.DateTimeFormatter
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun TodoListScreen(
-    onBack: () -> Unit,
     onOpenTodo: (Long) -> Unit,
     viewModel: TodoListViewModel = hiltViewModel(),
 ) {
@@ -103,7 +104,7 @@ fun TodoListScreen(
             .fillMaxSize()
             .background(colors.ground),
     ) {
-        Header(onBack, onNew = { composing = true })
+        Header(onNew = { composing = true })
         Filters(state, viewModel)
 
         state.transientFailure?.let { reason ->
@@ -170,7 +171,7 @@ fun TodoListScreen(
 }
 
 @Composable
-private fun Header(onBack: () -> Unit, onNew: () -> Unit) {
+private fun Header(onNew: () -> Unit) {
     val colors = JarvisTheme.colors
     Row(
         Modifier
@@ -179,15 +180,8 @@ private fun Header(onBack: () -> Unit, onNew: () -> Unit) {
             .padding(horizontal = Space.Gutter, vertical = Space.x3),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        CircleIconButton(onClick = onBack, diameter = 36.dp) {
-            Icon(
-                Icons.AutoMirrored.Rounded.ArrowBack,
-                contentDescription = "Back",
-                tint = colors.inkMuted,
-                modifier = Modifier.size(18.dp),
-            )
-        }
-        Spacer(Modifier.width(Space.x3))
+        // No back arrow: this is a tab root now (§9.2), and there is nothing
+        // above it. A back arrow that leaves the tab is worse than none.
         Text("To-dos", style = JarvisTheme.typography.titleLarge, color = colors.ink)
         Spacer(Modifier.weight(1f))
         // The one saturated element on this screen, same as the + on the task
@@ -367,4 +361,3 @@ private val TodoStatus.label: String
         TodoStatus.Cancelled -> "Cancelled"
     }
 
-private val DAY: DateTimeFormatter = DateTimeFormatter.ofPattern("d MMM")

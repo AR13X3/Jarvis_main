@@ -19,8 +19,7 @@ sealed interface Route
  *
  * Its own tab rather than a screen inside Tasks: a routine is not a list of
  * things to do, it is where the hours already go, and the two answer different
- * questions. Placement is called out as open in v2 plan §9 -- three tabs plus
- * chat is a design-system decision, not a routing one.
+ * questions.
  */
 @Serializable data object RoutineGraph : Route
 
@@ -30,38 +29,42 @@ sealed interface Route
 @Serializable data object RoutineWeek : Route
 
 /**
- * The dashboard — "how it is going" (v2 plan §6).
+ * The dashboard — "how it is going" (v2 plan §6). **Its own tab as of §9.2.**
  *
- * **Placed here provisionally, and the placement is not mine to settle.** §9
- * lists navigation as open: four surfaces plus Chat is a design-system decision
- * and `jarvis-app-plan.md` §6 is the authority. So this does *not* add a fourth
- * bottom-bar tab — it sits in the Routine graph beside [RoutineWeek], reached
- * the same way, because "how it is going" is the same question as "where the
- * hours go" asked over a longer window.
+ * It spent a fortnight parked inside the Routine graph behind a chart icon, on
+ * the grounds that placement was a design decision v2 plan §9 left open and
+ * which was not this file's to take. Joy has since taken it: the dashboard and
+ * to-dos both become tabs and neither is demoted back to a nested screen.
  *
- * That is a placement, not a claim. Moving it to its own tab is one entry here
- * and one in `JarvisBottomBar`; the screen itself does not care.
+ * The comment that stood here predicted the move would cost "one entry here and
+ * one in `JarvisBottomBar`". It cost three — a graph, a tab and the removal of
+ * the chart icon that used to reach it — because two ways into one screen means
+ * two copies of it on two back stacks.
  */
+@Serializable data object DashboardGraph : Route
+
 @Serializable data object DashboardRoute : Route
 
 @Serializable data object TaskList : Route
 
 /**
- * To-dos (v2 plan §5) — the things reminders are *about*.
+ * To-dos (v2 plan §5) — **their own tab as of §9.2**, not a screen in Tasks.
  *
- * In the Tasks graph, and provisionally so for the same reason as
- * [DashboardRoute]: §9 leaves navigation to Joy. The v2 plan's full shape names
- * *Reminders* and *Tasks* as separate surfaces, where this app's "Tasks" tab is
- * the former and this screen is the latter — so these two probably do end up as
- * siblings. Deciding that is not this file's job.
+ * The v2 plan's four surfaces are Reminders, Tasks, Routine and Dashboard, where
+ * its *Reminders* is this app's `Tasks` tab and its *Tasks* is this screen. They
+ * are siblings, which is what they now are on the bar.
  *
- * Living in the Tasks graph does mean backing out of a to-do returns to the
- * reminder list with its scroll intact, which is the right behaviour whatever
- * the eventual placement.
+ * The cost of the move is real and worth naming: backing out of a to-do used to
+ * return to the reminder list, because the to-do screens lived in the Tasks
+ * graph. They now have a graph of their own, so a to-do backs out to the to-do
+ * list — which is the correct behaviour for a tab and would have been wrong
+ * while it was a nested screen.
  */
+@Serializable data object TodosGraph : Route
+
 @Serializable data object TodoList : Route
 
-/** One to-do, its reminders, and the deadline that can be taken away again. */
+/** One to-do: its description, its status, and its deadline (§9.1). */
 @Serializable data class TodoDetail(val todoId: Long) : Route
 
 /** Tapping a row opens *that task's* persistent session (plan §5.3). */

@@ -99,9 +99,14 @@ private fun JarvisTabs() {
     val navController = rememberNavController()
     val backStackEntry by navController.currentBackStackEntryAsState()
 
+    // Ordered most-specific-first and falling through to Tasks, which is the
+    // start destination. Five graphs now (§9.2) rather than three.
+    val hierarchy = backStackEntry?.destination?.hierarchy
     val currentTab = when {
-        backStackEntry?.destination?.hierarchy?.any { it.hasRoute(ChatGraph::class) } == true -> JarvisTab.Chat
-        backStackEntry?.destination?.hierarchy?.any { it.hasRoute(RoutineGraph::class) } == true -> JarvisTab.Routine
+        hierarchy?.any { it.hasRoute(ChatGraph::class) } == true -> JarvisTab.Chat
+        hierarchy?.any { it.hasRoute(RoutineGraph::class) } == true -> JarvisTab.Routine
+        hierarchy?.any { it.hasRoute(DashboardGraph::class) } == true -> JarvisTab.Dashboard
+        hierarchy?.any { it.hasRoute(TodosGraph::class) } == true -> JarvisTab.Todos
         else -> JarvisTab.Tasks
     }
 
@@ -136,7 +141,9 @@ private fun JarvisTabs() {
 private fun NavHostController.switchTab(tab: JarvisTab) {
     val target: Route = when (tab) {
         JarvisTab.Tasks -> TasksGraph
+        JarvisTab.Todos -> TodosGraph
         JarvisTab.Routine -> RoutineGraph
+        JarvisTab.Dashboard -> DashboardGraph
         JarvisTab.Chat -> ChatGraph
     }
     navigate(target) {
@@ -214,24 +221,7 @@ private fun JarvisNavHost(
                                 onNewSession = { navController.navigate(NewSession()) },
                                 onOpenDraft = { id -> navController.navigate(NewSession(sessionId = id)) },
                                 onAbout = { navController.navigate(About) },
-                                onTodos = { navController.navigate(TodoList) },
                             )
-                        }
-                    }
-                    composable<TodoList> {
-                        WithNavScope {
-                            TodoListScreen(
-                                onBack = navController::popBackStack,
-                                onOpenTodo = { id -> navController.navigate(TodoDetail(id)) },
-                            )
-                        }
-                    }
-                    composable<TodoDetail> {
-                        WithNavScope {
-                            // No `onOpenTask` any more. It existed to cross from
-                            // a to-do into the reminder chasing it; with the
-                            // link deleted (§9.5) there is nothing to cross to.
-                            TodoDetailScreen(onBack = navController::popBackStack)
                         }
                     }
                     composable<About> {
@@ -261,18 +251,47 @@ private fun JarvisNavHost(
                     }
                 }
 
+                // To-dos are a tab now (§9.2), so they get a graph of their own
+                // rather than hanging off Tasks. Backing out of a to-do returns
+                // to the to-do list, not to the reminder list.
+                navigation<TodosGraph>(startDestination = TodoList) {
+                    composable<TodoList> {
+                        WithNavScope {
+                            // No `onBack`: this is a tab root and there is
+                            // nothing above it to go back to. A back arrow here
+                            // would either do nothing or leave the tab, and both
+                            // are worse than its absence.
+                            TodoListScreen(
+                                onOpenTodo = { id -> navController.navigate(TodoDetail(id)) },
+                            )
+                        }
+                    }
+                    composable<TodoDetail> {
+                        WithNavScope {
+                            // No `onOpenTask` any more. It existed to cross from
+                            // a to-do into the reminder chasing it; with the
+                            // link deleted (§9.5) there is nothing to cross to.
+                            TodoDetailScreen(onBack = navController::popBackStack)
+                        }
+                    }
+                }
+
                 navigation<RoutineGraph>(startDestination = RoutineDayView) {
                     composable<RoutineDayView> {
-                        RoutineScreen(
-                            onOpenWeek = { navController.navigate(RoutineWeek) },
-                            onOpenDashboard = { navController.navigate(DashboardRoute) },
-                        )
+                        // `onOpenDashboard` is gone with the chart icon: the
+                        // dashboard is its own tab, and a second way in would
+                        // have pushed a second copy onto this graph's stack.
+                        RoutineScreen(onOpenWeek = { navController.navigate(RoutineWeek) })
                     }
                     composable<RoutineWeek> {
                         RoutineWeekScreen(onBack = { navController.popBackStack() })
                     }
+                }
+
+                navigation<DashboardGraph>(startDestination = DashboardRoute) {
                     composable<DashboardRoute> {
-                        DashboardScreen(onBack = { navController.popBackStack() })
+                        // A tab root, so no back arrow — same reason as TodoList.
+                        DashboardScreen()
                     }
                 }
 

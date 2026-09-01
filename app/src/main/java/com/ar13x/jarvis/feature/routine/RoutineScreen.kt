@@ -23,7 +23,6 @@ import androidx.compose.material.icons.rounded.BarChart
 import androidx.compose.material.icons.rounded.Check
 import androidx.compose.material.icons.rounded.ExpandLess
 import androidx.compose.material.icons.rounded.ExpandMore
-import androidx.compose.material.icons.rounded.Insights
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -66,7 +65,6 @@ import java.util.Locale
 @Composable
 fun RoutineScreen(
     onOpenWeek: () -> Unit,
-    onOpenDashboard: () -> Unit,
     modifier: Modifier = Modifier,
     viewModel: RoutineViewModel = hiltViewModel(),
 ) {
@@ -101,7 +99,6 @@ fun RoutineScreen(
                     tracked = day.trackedTotal,
                     unrecorded = day.unrecordedCount,
                     onOpenWeek = onOpenWeek,
-                    onOpenDashboard = onOpenDashboard,
                 )
             }
 
@@ -207,7 +204,6 @@ private fun DayHeading(
     tracked: Int,
     unrecorded: Int,
     onOpenWeek: () -> Unit,
-    onOpenDashboard: () -> Unit,
 ) {
     val colors = JarvisTheme.colors
     Column(
@@ -248,19 +244,9 @@ private fun DayHeading(
                     modifier = Modifier.size(17.dp),
                 )
             }
-            Spacer(Modifier.width(Space.x1))
-            // The same question over a longer window: this day view says what
-            // happened today, the dashboard says what keeps happening. Placed
-            // beside the week view rather than in the tab bar because a fourth
-            // tab is a design decision v2 plan section 9 leaves to Joy.
-            CircleIconButton(onClick = onOpenDashboard, diameter = 32.dp) {
-                Icon(
-                    Icons.Rounded.Insights,
-                    contentDescription = "How it is going",
-                    tint = colors.inkMuted,
-                    modifier = Modifier.size(17.dp),
-                )
-            }
+            // The chart icon that opened the dashboard is gone: Joy made the
+            // dashboard its own tab (section 9.2), and leaving a second way in
+            // would have put a second copy of it on this graph's back stack.
         }
         Spacer(Modifier.height(Space.x2))
         Text(

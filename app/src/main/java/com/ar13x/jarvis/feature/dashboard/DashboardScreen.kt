@@ -16,7 +16,6 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.rounded.ArrowBack
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
@@ -63,7 +62,6 @@ import java.time.format.DateTimeFormatter
  */
 @Composable
 fun DashboardScreen(
-    onBack: () -> Unit,
     viewModel: DashboardViewModel = hiltViewModel(),
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
@@ -74,7 +72,7 @@ fun DashboardScreen(
             .fillMaxSize()
             .background(colors.ground),
     ) {
-        Header(onBack = onBack)
+        Header()
 
         when (val s = state) {
             is LoadState.Loading -> Centred { CircularProgressIndicator(color = colors.brandCore) }
@@ -100,7 +98,7 @@ fun DashboardScreen(
 }
 
 @Composable
-private fun Header(onBack: () -> Unit) {
+private fun Header() {
     val colors = JarvisTheme.colors
     Row(
         Modifier
@@ -109,15 +107,10 @@ private fun Header(onBack: () -> Unit) {
             .padding(horizontal = Space.Gutter, vertical = Space.x3),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        CircleIconButton(onClick = onBack, diameter = 36.dp) {
-            Icon(
-                Icons.AutoMirrored.Rounded.ArrowBack,
-                contentDescription = "Back",
-                tint = colors.inkMuted,
-                modifier = Modifier.size(18.dp),
-            )
-        }
-        Spacer(Modifier.width(Space.x3))
+        // No back arrow: a tab root has nothing above it (§9.2). It used to
+        // sit inside the Routine graph behind a chart icon, and backing out
+        // returned to the day view; now it is its own tab and backing out of it
+        // would mean leaving the tab, which the bar already does better.
         Text(
             text = "How it is going",
             style = JarvisTheme.typography.titleLarge,
