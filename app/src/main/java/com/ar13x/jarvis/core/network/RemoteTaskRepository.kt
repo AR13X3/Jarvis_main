@@ -30,13 +30,16 @@ class RemoteTaskRepository @Inject constructor(
         gatewayCall { api.sections() }
 
     override suspend fun tasks(
-        status: TaskStatus?,
+        statuses: Set<TaskStatus>,
         from: LocalDate?,
         to: LocalDate?,
         page: Int,
     ): PagedTasks = gatewayCall {
         api.tasks(
-            status = status?.wireName(),
+            // Null, not an empty list: `status=[]` is a filter matching nothing,
+            // while an empty selection in the UI means no filter at all. The
+            // two render identically and mean opposite things.
+            status = statuses.takeIf { it.isNotEmpty() }?.map { it.wireName() },
             // Bare calendar days on the wire, which is what the server filters
             // on. Formatting an Instant here would reintroduce §3.2's bug.
             dateFrom = from?.toString(),

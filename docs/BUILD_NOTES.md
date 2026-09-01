@@ -57,7 +57,19 @@ Two consequences worth knowing before touching `build.gradle.kts`:
 
 ## 3. Contract items for the gw03 side
 
-> **Status as of 2026-08-20 evening — six of eight resolved and deployed.**
+> **Status as of 2026-09-02 — all eight resolved and deployed.**
+>
+> ⚠️ **The last two were resolved by gw03 without either side noticing here**,
+> and the app went on believing they were outstanding for about a fortnight.
+> Both were found by probing the served contract rather than by being told:
+> `GET /sessions` answers `401` where a nonsense path `404`s, and `GET /tasks`
+> declares `status` as an array. Neither cost much — the sessions caller was
+> already wrapped in `runCatching`, so chat history simply started working — but
+> the task filter chips stayed **single-select long after they needed to be**.
+>
+> The lesson is this project's own: a gateway capability the app believes is
+> missing is invisible, because nothing fails. **Re-probe the contract rather
+> than trusting this table.**
 >
 > | ask | state |
 > |---|---|
@@ -67,11 +79,12 @@ Two consequences worth knowing before touching `build.gradle.kts`:
 > | §3.7 `GET /tasks/{id}` | ✅ done — returns a bare `Task`, not an envelope |
 > | §3.6 mutation return types | ✅ done — `TaskEnvelope`; `confirm` now 404s rather than returning a null task |
 > | §3.11 `new_task` component | ✅ done — in the discriminator |
-> | §3.12 `GET /sessions?kind=general` | ⏳ outstanding — the chat-history list |
-> | §3.5 multi-value `status` | ⏳ outstanding — single-select chips stay correct meanwhile |
+> | §3.12 `GET /sessions?kind=general` | ✅ done — route is live; found by probe 2026-09-02, never reported |
+> | §3.5 multi-value `status` | ✅ done — an array on `GET /tasks` **and** `GET /todos`; chips are multi-select now |
 >
-> The app now uses all six. The two workarounds they replaced are gone: paging
-> `GET /tasks` to find one row, and failing "Show more" with an honest error.
+> The app now uses all eight. The workarounds they replaced are gone: paging
+> `GET /tasks` to find one row, failing "Show more" with an honest error, and
+> single-select status chips.
 
 
 §13 of the plan already lists the open questions. Phase A added two, both
@@ -172,7 +185,21 @@ well.
 > gateway's current behaviour for general sessions is **correct**; what is
 > missing is a way to list and reopen them.
 
-### 3.12 General chat history — **app side built, route still missing**
+### 3.12 General chat history — **built, and the route is live now**
+
+> **Resolved.** `GET /sessions` was probed on 2026-09-02 and answers `401` where
+> a nonsense path `404`s, so the route exists; `PagedSessions` and
+> `SessionSummary` on the served contract match the app's DTOs field for field.
+> Nothing had to change, because every caller was already wrapped in
+> `runCatching` against the 404 — the feature had been quietly working from
+> whenever gw03 wired it, and nobody here knew.
+>
+> The body has **not** been read (no bearer token on the build machine). Route
+> existence and schema shape are what was checked; say so rather than claiming
+> the feature is verified.
+>
+> The rest of this section is the original ask, kept because its design notes —
+> especially hiding empty conversations — are still what the app does.
 
 The schemas are already in your spec — `PagedSessions` and `SessionSummary`,
 with `id`, `kind`, `task_id`, `title`, `updated_at`, `message_count`. Exactly

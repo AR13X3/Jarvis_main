@@ -538,7 +538,7 @@ private fun FilterBar(
         TaskStatus.entries.forEach { status ->
             JarvisChip(
                 label = statusLabel(status),
-                selected = filters.status == status,
+                selected = status in filters.statuses,
                 onClick = { onEvent(TaskListEvent.ToggleStatusFilter(status)) },
             )
         }

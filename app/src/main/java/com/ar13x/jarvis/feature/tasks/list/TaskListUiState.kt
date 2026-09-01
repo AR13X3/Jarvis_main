@@ -146,14 +146,22 @@ val Task.overdueMoment: Instant?
 @Immutable
 data class TaskFilters(
     /**
-     * One status at a time. `GET /tasks` accepts a single `status`, so a
-     * multi-select chip row would offer a combination the gateway cannot
-     * answer — the filter would silently mean something other than it showed.
+     * **Several at once**, because `GET /tasks` now takes a repeated `status`.
+     *
+     * It used to take one, and this was a single nullable value with a comment
+     * explaining that a multi-select row would offer a combination the gateway
+     * could not answer. That was true when it was written and stopped being
+     * true without anyone noticing — the ask was BUILD_NOTES §3.5, and the
+     * contract carries the array now (verified against sha `e398ff18e4aa6b33`).
+     *
+     * An **empty** set means *no filter*, not *match nothing*. The two would
+     * look identical on screen and mean opposite things, so the repository
+     * sends no parameter at all rather than an empty list.
      */
-    val status: TaskStatus? = null,
+    val statuses: Set<TaskStatus> = emptySet(),
     val range: DateRange = DateRange.Any,
 ) {
-    val isEmpty: Boolean get() = status == null && range == DateRange.Any
+    val isEmpty: Boolean get() = statuses.isEmpty() && range == DateRange.Any
 
     /**
      * Resolves the range to the bare calendar days the API takes.

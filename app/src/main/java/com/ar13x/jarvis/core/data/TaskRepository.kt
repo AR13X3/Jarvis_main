@@ -28,12 +28,19 @@ interface TaskRepository {
     suspend fun sections(): SectionsResponse
 
     /**
-     * [status] is a single value, not a set: `GET /tasks` takes one
-     * `status` query parameter. Modelling it as a set here would let the UI
-     * promise a filter the gateway cannot serve — see BUILD_NOTES §3.5.
+     * [statuses] is a **set**: `GET /tasks` takes a repeated `status` parameter.
+     *
+     * It took a single value once, and this signature said so — modelling it as
+     * a set would have let the UI promise a filter the gateway could not serve
+     * (BUILD_NOTES §3.5). The gateway grew the array and nobody on this side
+     * noticed for a fortnight, so the chips stayed single-select long after they
+     * needed to be.
+     *
+     * An **empty** set means *no filter*. It must not become `status=[]`, which
+     * is a filter matching nothing and renders as an empty database.
      */
     suspend fun tasks(
-        status: TaskStatus? = null,
+        statuses: Set<TaskStatus> = emptySet(),
         from: LocalDate? = null,
         to: LocalDate? = null,
         page: Int = 1,

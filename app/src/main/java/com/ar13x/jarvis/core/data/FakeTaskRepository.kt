@@ -63,7 +63,7 @@ class FakeTaskRepository @Inject constructor(
     }
 
     override suspend fun tasks(
-        status: TaskStatus?,
+        statuses: Set<TaskStatus>,
         from: LocalDate?,
         to: LocalDate?,
         page: Int,
@@ -71,7 +71,10 @@ class FakeTaskRepository @Inject constructor(
         delay(FakeBackend.READ_LATENCY_MS)
         val filtered = backend.allTasks()
             .asSequence()
-            .filter { status == null || it.status == status }
+            // Empty means no filter, matching what the remote sends. A fake
+            // that read it as "match nothing" would let the UI be built against
+            // the opposite behaviour and look fine until it hit the gateway.
+            .filter { statuses.isEmpty() || it.status in statuses }
             // Filtered on the LOCAL calendar day the server sent, never on the
             // instant — the whole point of `due_date` existing (plan §3.2).
             .filter { from == null || !it.dueDate.isBefore(from) }

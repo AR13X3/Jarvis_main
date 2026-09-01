@@ -37,12 +37,15 @@ interface JarvisApi {
     suspend fun sections(): SectionsResponse
 
     /**
-     * Note `date_from` / `date_to`, not the `from` / `to` the plan's §4.4 shows,
-     * and `status` is a **single** value — see BUILD_NOTES §3.5.
+     * Note `date_from` / `date_to`, not the `from` / `to` the plan's §4.4 shows.
+     *
+     * `status` is a **repeated** parameter. It was single-valued once and
+     * BUILD_NOTES §3.5 asked for the array; the array is live (verified against
+     * the served contract, sha `e398ff18e4aa6b33`).
      */
     @GET("tasks")
     suspend fun tasks(
-        @Query("status") status: String? = null,
+        @Query("status") status: List<String>? = null,
         @Query("date_from") dateFrom: String? = null,
         @Query("date_to") dateTo: String? = null,
         @Query("page") page: Int = 1,
@@ -175,7 +178,14 @@ interface JarvisApi {
     @POST("sessions")
     suspend fun createSession(@Body body: CreateSessionBody): Session
 
-    /** Not yet served — see BUILD_NOTES §3.12. The schema is already theirs. */
+    /**
+     * The chat-history list (BUILD_NOTES §3.12).
+     *
+     * **Served now.** It 404'd when the app half was written, which is why every
+     * caller wraps it in `runCatching` — that tolerance is what let the feature
+     * ship ahead of the route, and it is why nothing had to change when the
+     * route appeared. Probed 2026-09-02: `401`, where a nonsense path `404`s.
+     */
     @GET("sessions")
     suspend fun sessions(
         @Query("kind") kind: String,
