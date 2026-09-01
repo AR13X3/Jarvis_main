@@ -2,6 +2,8 @@ package com.ar13x.jarvis.core.data
 
 import com.ar13x.jarvis.core.model.PagedTodos
 import com.ar13x.jarvis.core.model.Todo
+import com.ar13x.jarvis.core.model.TodoEvents
+import com.ar13x.jarvis.core.model.TodoPriority
 import com.ar13x.jarvis.core.model.TodoStatus
 import java.time.Instant
 
@@ -25,8 +27,27 @@ interface TodoRepository {
         statuses: Set<TodoStatus> = emptySet(),
         tag: String? = null,
         undated: Boolean = false,
+        priorities: Set<TodoPriority> = emptySet(),
         page: Int = 1,
     ): PagedTodos
+
+    /**
+     * One to-do's sub-tasks (§9.4.2).
+     *
+     * Separate from [todos] rather than another filter on it, because it is a
+     * different question: [todos] answers "what is on my list", and the list
+     * deliberately excludes children. This answers "what is inside this one".
+     */
+    suspend fun children(parentId: Long): List<Todo>
+
+    /**
+     * The activity trail (§9.4.3). Newest first.
+     *
+     * Read-only and paged. It is the only thing that can tell a to-do which was
+     * touched-and-deferred from one that was genuinely forgotten — `updated_at`
+     * cannot, and it is the field a reader reaches for first.
+     */
+    suspend fun history(todoId: Long, page: Int = 1): TodoEvents
 
     suspend fun todo(todoId: Long): Todo
 
@@ -37,9 +58,15 @@ interface TodoRepository {
         startsAt: Instant? = null,
         dueAt: Instant? = null,
         tags: List<String> = emptyList(),
+        priority: TodoPriority? = null,
+        /** Creates it as a sub-task of that to-do. One level only. */
+        parentId: Long? = null,
     ): Todo
 
     suspend fun setStatus(todoId: Long, status: TodoStatus): Todo
+
+    /** Direct, like the star and the status chips — a tap cannot misparse (§5.4). */
+    suspend fun setPriority(todoId: Long, priority: TodoPriority): Todo
 
     suspend fun setTitle(todoId: Long, title: String): Todo
 

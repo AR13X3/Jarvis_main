@@ -3,6 +3,8 @@ package com.ar13x.jarvis.core.network
 import com.ar13x.jarvis.core.data.TodoRepository
 import com.ar13x.jarvis.core.model.PagedTodos
 import com.ar13x.jarvis.core.model.Todo
+import com.ar13x.jarvis.core.model.TodoEvents
+import com.ar13x.jarvis.core.model.TodoPriority
 import com.ar13x.jarvis.core.model.TodoStatus
 import java.time.Instant
 import javax.inject.Inject
@@ -21,6 +23,7 @@ class RemoteTodoRepository @Inject constructor(
         statuses: Set<TodoStatus>,
         tag: String?,
         undated: Boolean,
+        priorities: Set<TodoPriority>,
         page: Int,
     ): PagedTodos = gatewayCall {
         api.todos(
@@ -31,9 +34,25 @@ class RemoteTodoRepository @Inject constructor(
             status = statuses.takeIf { it.isNotEmpty() }?.map { it.wireName() },
             tag = tag,
             undatedOnly = undated,
+            // Same rule as `status`, for the same reason.
+            priority = priorities.takeIf { it.isNotEmpty() }?.map { it.wireName() },
             page = page,
         )
     }
+
+    /**
+     * `include_children` is **not** set here.
+     *
+     * Asking by `parent_id` already narrows to one to-do's children, and the
+     * flag governs whether children appear in an unfiltered list. Setting both
+     * would read as "and also include children", which is what it is not.
+     */
+    override suspend fun children(parentId: Long): List<Todo> = gatewayCall {
+        api.todos(parentId = parentId).todos
+    }
+
+    override suspend fun history(todoId: Long, page: Int): TodoEvents =
+        gatewayCall { api.todoHistory(todoId, page) }
 
     override suspend fun todo(todoId: Long): Todo = gatewayCall { api.todo(todoId) }
 
@@ -43,6 +62,8 @@ class RemoteTodoRepository @Inject constructor(
         startsAt: Instant?,
         dueAt: Instant?,
         tags: List<String>,
+        priority: TodoPriority?,
+        parentId: Long?,
     ): Todo = gatewayCall(mutating = true) {
         api.createTodo(
             CreateTodoBody(
@@ -51,12 +72,17 @@ class RemoteTodoRepository @Inject constructor(
                 startsAt = startsAt,
                 dueAt = dueAt,
                 tags = tags.takeIf { it.isNotEmpty() },
+                priority = priority,
+                parentId = parentId,
             ),
         ).todo
     }
 
     override suspend fun setStatus(todoId: Long, status: TodoStatus): Todo =
         patch(todoId, todoPatchBody(status = Patch.Set(status)))
+
+    override suspend fun setPriority(todoId: Long, priority: TodoPriority): Todo =
+        patch(todoId, todoPatchBody(priority = Patch.Set(priority)))
 
     override suspend fun setTitle(todoId: Long, title: String): Todo =
         patch(todoId, todoPatchBody(title = Patch.Set(title)))

@@ -2,6 +2,8 @@ package com.ar13x.jarvis.core.data
 
 import com.ar13x.jarvis.core.model.PagedTodos
 import com.ar13x.jarvis.core.model.Todo
+import com.ar13x.jarvis.core.model.TodoEvents
+import com.ar13x.jarvis.core.model.TodoPriority
 import com.ar13x.jarvis.core.model.TodoStatus
 import java.time.Instant
 import java.time.ZoneId
@@ -84,12 +86,18 @@ class FakeTodoRepository @Inject constructor() : TodoRepository {
         statuses: Set<TodoStatus>,
         tag: String?,
         undated: Boolean,
+        priorities: Set<TodoPriority>,
         page: Int,
     ): PagedTodos = PagedTodos(
         todos = rows
+            // Top-level only, matching the gateway's own default. A fake that
+            // returned children as peers would let the list be built against a
+            // shape the server never sends.
+            .filter { !it.isSubTask }
             .filter { statuses.isEmpty() || it.status in statuses }
             .filter { tag == null || tag in it.tags }
-            .filter { !undated || it.isUndated },
+            .filter { !undated || it.isUndated }
+            .filter { priorities.isEmpty() || it.priority in priorities },
         page = 1,
         hasMore = false,
     )
@@ -103,6 +111,8 @@ class FakeTodoRepository @Inject constructor() : TodoRepository {
         startsAt: Instant?,
         dueAt: Instant?,
         tags: List<String>,
+        priority: TodoPriority?,
+        parentId: Long?,
     ): Todo {
         val created = Todo(
             todoId = (rows.maxOfOrNull { it.todoId } ?: 0) + 1,
@@ -110,13 +120,32 @@ class FakeTodoRepository @Inject constructor() : TodoRepository {
             description = description.orEmpty(),
             startsAt = startsAt,
             dueAt = dueAt,
+            dueDate = dueAt?.atZone(ZoneId.systemDefault())?.toLocalDate(),
             tags = tags,
+            priority = priority ?: TodoPriority.Normal,
+            parentId = parentId,
             createdAt = Instant.now(),
             updatedAt = Instant.now(),
         )
         rows = rows + created
+        // A new child changes its parent's rollup. The real gateway computes
+        // this; here it has to be maintained by hand or a parent row would keep
+        // saying "0 of 0" after a sub-task was added under it.
+        parentId?.let { recount(it) }
         return created
     }
+
+    override suspend fun children(parentId: Long): List<Todo> =
+        rows.filter { it.parentId == parentId }
+
+    /**
+     * Empty rather than fabricated.
+     *
+     * The trail is append-only history the gateway keeps; inventing plausible
+     * rows here would put fiction on a screen whose entire purpose is answering
+     * "what actually happened to this".
+     */
+    override suspend fun history(todoId: Long, page: Int): TodoEvents = TodoEvents()
 
     override suspend fun setStatus(todoId: Long, status: TodoStatus): Todo =
         update(todoId) {
@@ -125,7 +154,10 @@ class FakeTodoRepository @Inject constructor() : TodoRepository {
                 completedAt = if (status == TodoStatus.Done) Instant.now() else null,
                 cancelledAt = if (status == TodoStatus.Cancelled) Instant.now() else null,
             )
-        }
+        }.also { changed -> changed.parentId?.let { recount(it) } }
+
+    override suspend fun setPriority(todoId: Long, priority: TodoPriority): Todo =
+        update(todoId) { it.copy(priority = priority) }
 
     override suspend fun setTitle(todoId: Long, title: String): Todo =
         update(todoId) { it.copy(title = title) }
@@ -153,6 +185,21 @@ class FakeTodoRepository @Inject constructor() : TodoRepository {
                 dueDate = dueAt?.atZone(ZoneId.systemDefault())?.toLocalDate(),
             )
         }
+
+    /** Recomputes one parent's `child_count` / `child_done`, as the gateway does. */
+    private fun recount(parentId: Long) {
+        val kids = rows.filter { it.parentId == parentId }
+        rows = rows.map {
+            if (it.todoId != parentId) {
+                it
+            } else {
+                it.copy(
+                    childCount = kids.size,
+                    childDone = kids.count { kid -> kid.status == TodoStatus.Done },
+                )
+            }
+        }
+    }
 
     private fun update(todoId: Long, change: (Todo) -> Todo): Todo {
         val updated = change(rows.first { it.todoId == todoId }).copy(updatedAt = Instant.now())

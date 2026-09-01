@@ -1,5 +1,6 @@
 package com.ar13x.jarvis.core.network
 
+import com.ar13x.jarvis.core.model.TodoPriority
 import com.ar13x.jarvis.core.model.TodoStatus
 import kotlinx.serialization.json.JsonArray
 import kotlinx.serialization.json.JsonNull
@@ -60,6 +61,7 @@ fun todoPatchBody(
     dueAt: Patch<Instant?> = Patch.Unchanged,
     status: Patch<TodoStatus> = Patch.Unchanged,
     tags: Patch<List<String>> = Patch.Unchanged,
+    priority: Patch<TodoPriority> = Patch.Unchanged,
 ): JsonObject = buildMap {
     put("title", title) { JsonPrimitive(it) }
     put("description", description) { JsonPrimitive(it) }
@@ -67,6 +69,10 @@ fun todoPatchBody(
     put("due_at", dueAt) { instant -> instant?.let { JsonPrimitive(it.toString()) } ?: JsonNull }
     put("status", status) { JsonPrimitive(it.wireName()) }
     put("tags", tags) { list -> JsonArray(list.map(::JsonPrimitive)) }
+    // `Clear` would be a 422: the contract allows null here but the column is
+    // NOT NULL with a default, so "no priority" is not a state. Setting `normal`
+    // is how you say ordinary, and that is a value rather than an absence.
+    put("priority", priority) { JsonPrimitive(it.wireName()) }
 }.let(::JsonObject)
 
 /**
@@ -86,6 +92,22 @@ private inline fun <T> MutableMap<String, kotlinx.serialization.json.JsonElement
         Patch.Clear -> put(key, JsonNull)
         is Patch.Set -> put(key, encode(patch.value))
     }
+}
+
+/**
+ * The wire spelling. The enum's own names are Kotlin-cased.
+ *
+ * Written out rather than `name.lowercase()` on purpose: an exhaustive `when`
+ * fails to compile when a value is added, where `lowercase()` would silently
+ * produce a string the gateway may or may not recognise — and an enum the app
+ * spells differently fails SILENTLY here, because `coerceInputValues` turns an
+ * unrecognised value into the default rather than throwing.
+ */
+fun TodoPriority.wireName(): String = when (this) {
+    TodoPriority.Highest -> "highest"
+    TodoPriority.High -> "high"
+    TodoPriority.Normal -> "normal"
+    TodoPriority.Low -> "low"
 }
 
 /** The wire spelling. The enum's own names are Kotlin-cased. */

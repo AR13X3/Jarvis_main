@@ -51,6 +51,8 @@ import com.ar13x.jarvis.core.ui.LoadState
 import com.ar13x.jarvis.designsystem.component.CircleIconButton
 import com.ar13x.jarvis.designsystem.component.JarvisCard
 import com.ar13x.jarvis.designsystem.component.JarvisChip
+import com.ar13x.jarvis.designsystem.component.PriorityGlyph
+import com.ar13x.jarvis.designsystem.component.SectionHeader
 import com.ar13x.jarvis.designsystem.theme.Corner
 import com.ar13x.jarvis.designsystem.theme.JarvisTheme
 import com.ar13x.jarvis.designsystem.theme.Space
@@ -156,13 +158,37 @@ fun TodoListScreen(
                     )
                 }
             } else {
+                // Grouped by status, with a count per group (§9.4.4). It reads
+                // like a board without being one — Joy ruled out columns and
+                // dragging in v2 §5, and grouping buys most of the legibility a
+                // board would for none of the horizontal space this screen does
+                // not have.
+                //
+                // In lifecycle order rather than by size, so a group does not
+                // move when a row is ticked. Within a group the gateway's own
+                // ordering is untouched.
+                val grouped = TodoStatus.entries.mapNotNull { status ->
+                    content.data
+                        .filter { it.status == status }
+                        .takeIf { it.isNotEmpty() }
+                        ?.let { status to it }
+                }
+
                 LazyColumn(contentPadding = PaddingValues(bottom = Space.x12)) {
-                    items(content.data, key = { it.todoId }) { todo ->
-                        TodoRow(
-                            todo = todo,
-                            onOpen = { onOpenTodo(todo.todoId) },
-                            onAdvance = { viewModel.advance(todo) },
-                        )
+                    grouped.forEach { (status, rows) ->
+                        // Shown even when there is only one group. The count is
+                        // the point, and a header that appears and vanishes as
+                        // filters change is harder to read than one that stays.
+                        item(key = "group-" + status.name) {
+                            SectionHeader(status.label + " · " + rows.size)
+                        }
+                        items(rows, key = { it.todoId }) { todo ->
+                            TodoRow(
+                                todo = todo,
+                                onOpen = { onOpenTodo(todo.todoId) },
+                                onAdvance = { viewModel.advance(todo) },
+                            )
+                        }
                     }
                 }
             }
@@ -268,6 +294,10 @@ private fun TodoRow(todo: Todo, onOpen: () -> Unit, onAdvance: () -> Unit) {
                 )
                 Subtitle(todo)
             }
+            // After the title rather than before it, so a column of glyphs
+            // never pushes the titles out of alignment — most rows are `normal`
+            // and draw nothing here at all.
+            PriorityGlyph(todo.priority, modifier = Modifier.padding(start = Space.x2))
         }
     }
 }
@@ -280,6 +310,10 @@ private fun Subtitle(todo: Todo) {
         // actually names one — §3.2 for the first half, §9.1 for the second.
         DueDateFormat.forTodo(todo.dueDate, todo.dueAt)?.let { add("due " + it) }
         // The reminder count that used to sit here is gone with the link (§9.5).
+        // Sub-task progress, from the gateway's own rollup (§9.4.2). Said only
+        // when there are children: "0 of 0" on every ordinary to-do would be a
+        // column of noise claiming something is unfinished when nothing is.
+        if (todo.hasChildren) add(todo.childDone.toString() + " of " + todo.childCount)
         addAll(todo.tags)
     }
     if (parts.isEmpty()) return

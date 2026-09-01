@@ -60,6 +60,27 @@ data class Todo(
     val status: TodoStatus = TodoStatus.Open,
     val tags: List<String> = emptyList(),
 
+    /** How much it wants doing (§9.4.1). Never null — see [TodoPriority]. */
+    val priority: TodoPriority = TodoPriority.Normal,
+
+    /**
+     * The to-do this is a sub-task **of**, or `null` for a top-level one.
+     *
+     * One level only, and the gateway enforces it declaratively with a composite
+     * foreign key rather than a trigger — so a child cannot itself be a parent
+     * and the app never has to defend against a cycle it cannot see.
+     */
+    @SerialName("parent_id") val parentId: Long? = null,
+
+    /**
+     * Sub-task rollups, computed by the gateway. `3 of 5` on the parent's row.
+     *
+     * Counted server-side deliberately: doing it here would mean fetching every
+     * child of every row before the list could draw its first one.
+     */
+    @SerialName("child_count") val childCount: Int = 0,
+    @SerialName("child_done") val childDone: Int = 0,
+
     @Serializable(InstantSerializer::class)
     @SerialName("created_at") val createdAt: Instant,
     @Serializable(InstantSerializer::class)
@@ -74,6 +95,39 @@ data class Todo(
 
     /** Nothing more will happen to it. Mirrors [TaskStatus.isTerminal] in spirit. */
     val isResolved: Boolean get() = status == TodoStatus.Done || status == TodoStatus.Cancelled
+
+    /** Has sub-tasks, so the row shows `n of m`. */
+    val hasChildren: Boolean get() = childCount > 0
+
+    /** Is itself a sub-task. Top-level lists never contain these. */
+    val isSubTask: Boolean get() = parentId != null
+}
+
+/**
+ * How much a to-do wants doing (§9.4.1).
+ *
+ * **A real scale rather than the boolean star**, and the star is deliberately
+ * left alone on [Task]: a reminder is one thing at one time and starring it is
+ * genuinely a two-state question, while a backlog of forty to-dos cannot be
+ * ordered by a boolean. gw03 kept the asymmetry for the same reason.
+ *
+ * **Declaration order is the sort order**, matching the Postgres enum it
+ * mirrors, so "most important first" is `sortedBy { it.priority }` and needs no
+ * parallel integer column to be kept in step with the labels.
+ *
+ * Four levels, not five: Jira's five has two nobody can tell apart on a row
+ * forty pixels tall, and a glyph that does not read at a glance is decoration.
+ *
+ * **Not nullable, and defaulted to [Normal].** "Not set" and "normal" are the
+ * same thing on a screen, and making them different values would sort
+ * unpredictably in exactly the long-backlog case this exists for.
+ */
+@Serializable
+enum class TodoPriority {
+    @SerialName("highest") Highest,
+    @SerialName("high") High,
+    @SerialName("normal") Normal,
+    @SerialName("low") Low,
 }
 
 @Serializable

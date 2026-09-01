@@ -9,6 +9,7 @@ import com.ar13x.jarvis.core.model.SectionsResponse
 import com.ar13x.jarvis.core.model.Session
 import com.ar13x.jarvis.core.model.Todo
 import com.ar13x.jarvis.core.model.TodoEnvelope
+import com.ar13x.jarvis.core.model.TodoEvents
 import com.ar13x.jarvis.core.model.UpcomingOccurrences
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
@@ -95,8 +96,28 @@ interface JarvisApi {
         @Query("status") status: List<String>? = null,
         @Query("tag") tag: String? = null,
         @Query("undated_only") undatedOnly: Boolean = false,
+        @Query("priority") priority: List<String>? = null,
+        @Query("parent_id") parentId: Long? = null,
+        /**
+         * Sub-tasks are **excluded by default**, which is the server's default
+         * too and not a choice made here (§9.4.2). Including them would make
+         * every child appear as a peer of its parent, which is the opposite of
+         * what a sub-task is. `parentId` is how you ask for one to-do's children.
+         */
+        @Query("include_children") includeChildren: Boolean = false,
         @Query("page") page: Int = 1,
     ): PagedTodos
+
+    /**
+     * One to-do's activity trail (§9.4.3). Newest first, paged.
+     *
+     * The verbs come back as raw strings by design — see [TodoEvent].
+     */
+    @GET("todos/{id}/history")
+    suspend fun todoHistory(
+        @Path("id") id: Long,
+        @Query("page") page: Int = 1,
+    ): TodoEvents
 
     @GET("todos/{id}")
     suspend fun todo(@Path("id") id: Long): Todo
@@ -281,6 +302,10 @@ data class CreateTodoBody(
     @Serializable(com.ar13x.jarvis.core.model.InstantSerializer::class)
     @SerialName("due_at") val dueAt: java.time.Instant? = null,
     val tags: List<String>? = null,
+    /** Omitted takes the server's own default, which is `normal` (§9.4.1). */
+    val priority: com.ar13x.jarvis.core.model.TodoPriority? = null,
+    /** Set to create this as a sub-task of that to-do (§9.4.2). One level only. */
+    @SerialName("parent_id") val parentId: Long? = null,
 )
 
 // --- responses ----------------------------------------------------------------
