@@ -75,9 +75,28 @@ where two thirds of the columns are null for any given row.
 But their *completions* are identical, and completions are all the dashboard and
 the summaries ever read. So:
 
-- three domains write into **one append-only event stream**
-- the dashboard, the summaries and a task's history all read **only** that stream
+- three domains write into an append-only event record
+- the dashboard, the summaries and a to-do's history all read **only** that record
 - a fourth domain later changes nothing downstream
+
+**One table or one per domain — settled, and not the way this section first said.**
+gw03 built `tasks.occurrence_events`: task-scoped, typed columns, real foreign
+keys, a domain verb enum. The argument that won is that a single table cannot
+hold a foreign key across three domains, and putting `prev_scheduled_for`,
+`extensions_used`, `slot_id` and `clamped` into untyped `jsonb` reproduces the
+very two-thirds-null problem this section rejects for the domain tables —
+relocated into the stream, and worse for having lost the types.
+
+The load-bearing half: this section's benefit was for *downstream readers*, and
+§6 makes the gateway the only downstream reader there will ever be. An
+abstraction whose sole beneficiary prefers the other shape has no beneficiary.
+
+**The condition, and it is not optional.** A view unioning the per-domain tables
+into `(at, source, source_id, verb)` lands **with the second domain, not after
+it**. The moment two event tables exist and no view does, every reader grows a
+branch — which is the entire thing this section was written to prevent. It is
+cheapest to write when there are exactly two tables and dearer with each one.
+When it lands, the dashboard's internals change and the API does not.
 
 An event is roughly: `at`, `source` (task | routine | todo), `source_id`,
 `verb` (started, completed, missed, lapsed, created, rescheduled, ticked,
@@ -409,6 +428,31 @@ Four words, and they are not synonyms:
 
 The app renders; the gateway computes every number. No streaks, percentages or
 day-bucketing on the client — see §4.2 for why.
+
+**An empty drift list is not the same as nothing drifting, and rendering it as
+though it were would be a lie.** The response carries `provenance`, and it is not
+a footnote: `firings_without_history` counts firings the event stream cannot
+speak for because they predate it. Measured the day the route shipped, that was
+27 of them, and `drifting` was consequently empty.
+
+So: whenever `firings_without_history` is non-zero the drift section says **"not
+enough history yet — N firings predate the record"**, and an empty state is shown
+**only** when the stream can actually account for the period. This is a
+requirement, not a nicety. The failure mode is silent, it lasts about a week, and
+it errs in the direction that reassures.
+
+**Drift thresholds are derived, per domain, and live in `policy`.** For tasks
+gw03 derived `GRACE_MINUTES + EXTENSIONS_ALLOWED * AUTO_EXTEND_MINUTES` — the
+longest the gateway ever said it would wait, so anything later is later than its
+own declared tolerance. It self-adjusts when either constant is tuned, and all
+three inputs ride on the response so the derivation is checkable rather than a
+magic number that can only be repeated.
+
+Routines need their own: a gym slot started thirty minutes late is drift, and 135
+minutes would never fire on a ninety-minute slot. `SlotRow.drifted` currently
+hardcodes 15 minutes, which is the right *reasoning* — nobody taps at the second,
+and a routine crying wolf over four minutes gets ignored — and the wrong *place*.
+It moves into `policy` when the routine tables land, and the constant is deleted.
 
 Sequenced deliberately so it is useful early: a dashboard over **tasks only**
 is possible as soon as §3's history route exists, before routines or tasks are

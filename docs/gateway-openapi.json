@@ -478,6 +478,121 @@
         }
       }
     },
+    "/dashboard": {
+      "get": {
+        "summary": "Get Dashboard",
+        "description": "v2 plan §6, v1: over tasks alone.\n\n\"The app renders; the gateway computes every number. No streaks,\npercentages or day-bucketing on the client\" — so this returns finished\narithmetic. The window is in LOCAL DAYS and filters on `scheduled_date`, a\nstored column, because §3.2 forbids deriving a calendar day from a\ntimestamp anywhere.\n\nTwo of §6's four words are answerable over tasks. `missed` needs routines\nand `stale` needs to-dos; both are ABSENT rather than zero, because a zero\nreads as \"nothing missed\" and that would be a claim this cannot support.\n\nREAD `provenance` BEFORE PRESENTING ANY OF THIS AS MEASUREMENT. The event\nstream landed on 2026-09-01 and everything before it is one reconstructed\nrow per firing with no extension history, so `drifting` can only speak for\nfirings whose whole life was observed. `firings_without_history` counts what\nthat leaves out, so a short drift list cannot be mistaken for a clean one.\n\nDefaults to the last seven local days INCLUDING today, which is the window\nthe word \"lately\" means.",
+        "operationId": "get_dashboard_dashboard_get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "date_from",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "format": "date"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Date From"
+            }
+          },
+          {
+            "name": "date_to",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "format": "date"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Date To"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Dashboard"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/occurrences/{occurrence_id}": {
+      "get": {
+        "summary": "Get Occurrence",
+        "description": "Read ONE firing, in whatever state it is in (board items 83, 88).\n\nDeclared after `/occurrences/upcoming` and `/occurrences/history` on\npurpose: FastAPI matches in declaration order, and this path would\notherwise swallow both and 422 on the path-int conversion.\n\nUntil now every occurrence read on the API went through a window —\n`upcoming` looking forward, `history` looking back — so there was no way to\nask about one occurrence by id at all. `AlarmReceiver` builds its\nnotification at fire time from the mirror, and needs a way to check whether\nthe deadline it is about to announce has moved.\n\nTHIS IS A COMPLEMENT TO THE MIRROR, NOT A REPLACEMENT FOR IT. Fire time is\nexactly when the phone is most likely to be off the tailnet, so the client\nmust still fall back to its own row when this call fails — which is why the\nmirror had to be fixed first (`upcoming_occurrences`), and why this route\nalone would have patched the button and left the mirror wrong.\n\nNo window, no status filter: a resolved firing answers here too, and its\n`resolved_at` is the honest answer to \"has this already been dealt with\".",
+        "operationId": "get_occurrence_occurrences__occurrence_id__get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "occurrence_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Occurrence Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Occurrence"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/occurrences/{occurrence_id}/extend": {
       "post": {
         "summary": "Extend Occurrence",
@@ -1085,6 +1200,213 @@
         "type": "object",
         "title": "CreateSessionBody"
       },
+      "Dashboard": {
+        "properties": {
+          "period": {
+            "$ref": "#/components/schemas/DashboardPeriod"
+          },
+          "totals": {
+            "$ref": "#/components/schemas/DashboardTotals"
+          },
+          "failing": {
+            "items": {
+              "$ref": "#/components/schemas/FailingTask"
+            },
+            "type": "array",
+            "title": "Failing"
+          },
+          "drifting": {
+            "items": {
+              "$ref": "#/components/schemas/DriftingTask"
+            },
+            "type": "array",
+            "title": "Drifting"
+          },
+          "provenance": {
+            "$ref": "#/components/schemas/DashboardProvenance"
+          },
+          "policy": {
+            "$ref": "#/components/schemas/DashboardPolicy"
+          }
+        },
+        "type": "object",
+        "required": [
+          "period",
+          "totals",
+          "failing",
+          "drifting",
+          "provenance",
+          "policy"
+        ],
+        "title": "Dashboard",
+        "description": "v2 plan §6, v1: over tasks alone.\n\nTwo of §6's four words are answerable here. `missed` needs routines and\n`stale` needs to-dos, and both are deliberately absent rather than\nrepresented as zero — a zero would read as \"nothing missed\"."
+      },
+      "DashboardPeriod": {
+        "properties": {
+          "date_from": {
+            "type": "string",
+            "format": "date",
+            "title": "Date From"
+          },
+          "date_to": {
+            "type": "string",
+            "format": "date",
+            "title": "Date To"
+          },
+          "bucketed_by": {
+            "type": "string",
+            "const": "due",
+            "title": "Bucketed By",
+            "default": "due"
+          }
+        },
+        "type": "object",
+        "required": [
+          "date_from",
+          "date_to"
+        ],
+        "title": "DashboardPeriod",
+        "description": "The window, and which day it was bucketed on.\n\n`bucketed_by` is `due` and is stated rather than assumed: §3 settled that\n\"what did I miss\" is the day something was DUE and \"what did I get done\" is\nthe day it was ANSWERED. This screen is the first question, so it filters on\n`scheduled_date` — a stored local day, never derived from a timestamp."
+      },
+      "DashboardPolicy": {
+        "properties": {
+          "drift_threshold_minutes": {
+            "type": "integer",
+            "title": "Drift Threshold Minutes"
+          },
+          "drift_min_firings": {
+            "type": "integer",
+            "title": "Drift Min Firings"
+          },
+          "grace_minutes": {
+            "type": "integer",
+            "title": "Grace Minutes"
+          },
+          "extensions_allowed": {
+            "type": "integer",
+            "title": "Extensions Allowed"
+          },
+          "auto_extend_minutes": {
+            "type": "integer",
+            "title": "Auto Extend Minutes"
+          }
+        },
+        "type": "object",
+        "required": [
+          "drift_threshold_minutes",
+          "drift_min_firings",
+          "grace_minutes",
+          "extensions_allowed",
+          "auto_extend_minutes"
+        ],
+        "title": "DashboardPolicy",
+        "description": "The thresholds, on the wire, because a number the client cannot see is a\nnumber nobody can argue with.\n\n`drift_threshold_minutes` is DERIVED, not invented: grace plus everything\nthe extension allowance buys is the longest the system was ever willing to\nwait before giving up. A completion later than that is later than the\ngateway's own tolerance, which is a standard already agreed rather than a\nline drawn for this screen. §4.2 rejected a threshold \"nobody can justify\";\nthis one is justified by policy that already exists.\n\n`drift_min_firings` is 3 — the smallest number for which \"consistently\"\nmeans anything. Two late completions are an anecdote."
+      },
+      "DashboardProvenance": {
+        "properties": {
+          "observed_from": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Observed From"
+          },
+          "events_observed": {
+            "type": "integer",
+            "title": "Events Observed",
+            "default": 0
+          },
+          "events_reconstructed": {
+            "type": "integer",
+            "title": "Events Reconstructed",
+            "default": 0
+          },
+          "firings_without_history": {
+            "type": "integer",
+            "title": "Firings Without History",
+            "default": 0
+          }
+        },
+        "type": "object",
+        "title": "DashboardProvenance",
+        "description": "How much of this screen is observation and how much is reconstruction.\n\nNOT OPTIONAL AND NOT A FOOTNOTE. The event stream landed on 2026-09-01;\neverything before it is one backfilled row per firing with no extension\nhistory at all. A dashboard that presented reconstructed history as\nmeasurement would be exactly the failure `backfilled` was added to prevent,\nso the response carries its own provenance and the client cannot fail to\nhave been told."
+      },
+      "DashboardTotals": {
+        "properties": {
+          "firings": {
+            "type": "integer",
+            "title": "Firings",
+            "default": 0
+          },
+          "completed": {
+            "type": "integer",
+            "title": "Completed",
+            "default": 0
+          },
+          "failed": {
+            "type": "integer",
+            "title": "Failed",
+            "default": 0
+          },
+          "cancelled": {
+            "type": "integer",
+            "title": "Cancelled",
+            "default": 0
+          },
+          "unresolved": {
+            "type": "integer",
+            "title": "Unresolved",
+            "default": 0
+          }
+        },
+        "type": "object",
+        "title": "DashboardTotals",
+        "description": "Counts of FIRINGS, not of tasks. A daily reminder that lapsed six days\nrunning is six failures and one task, and the headline means the first."
+      },
+      "DriftingTask": {
+        "properties": {
+          "task_id": {
+            "type": "integer",
+            "title": "Task Id"
+          },
+          "title": {
+            "type": "string",
+            "title": "Title"
+          },
+          "is_priority": {
+            "type": "boolean",
+            "title": "Is Priority",
+            "default": false
+          },
+          "firings_measured": {
+            "type": "integer",
+            "title": "Firings Measured"
+          },
+          "median_slip_minutes": {
+            "type": "integer",
+            "title": "Median Slip Minutes"
+          },
+          "max_slip_minutes": {
+            "type": "integer",
+            "title": "Max Slip Minutes"
+          }
+        },
+        "type": "object",
+        "required": [
+          "task_id",
+          "title",
+          "firings_measured",
+          "median_slip_minutes",
+          "max_slip_minutes"
+        ],
+        "title": "DriftingTask",
+        "description": "§6 `drifting`: completed consistently, but not near the plan.\n\nCOMPLETED FIRINGS ONLY. A firing that lapsed is `failed`, and counting it\nhere would fold the two words together — its slip is the system's whole\ntolerance by construction, so it would dominate the median and say nothing.\n\nMEASURED AGAINST THE ORIGINAL DEADLINE, which is why this needed the event\nstream: `extend_occurrence` overwrites `scheduled_for`, so the projection\ncompares a completion against a deadline that was already moved to meet it."
+      },
       "ExtendOccurrenceBody": {
         "properties": {
           "minutes": {
@@ -1103,6 +1425,68 @@
         ],
         "title": "ExtendOccurrenceBody",
         "description": "A second chance, in minutes (07 §3.2).\n\nTyped as a literal so the choices appear in openapi.json and FastAPI rejects\nanything else with a 422 before it reaches a query — the same reasoning as\nthe `status` filter on GET /tasks. Kept in step with config.EXTENSION_MINUTES,\nwhich is what the app renders as buttons; a Literal cannot be built from a\nruntime value without losing the generated schema, so the two are asserted\nequal at import instead of one deriving from the other."
+      },
+      "FailingTask": {
+        "properties": {
+          "task_id": {
+            "type": "integer",
+            "title": "Task Id"
+          },
+          "title": {
+            "type": "string",
+            "title": "Title"
+          },
+          "is_priority": {
+            "type": "boolean",
+            "title": "Is Priority",
+            "default": false
+          },
+          "recurrence_text": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Recurrence Text"
+          },
+          "firings": {
+            "type": "integer",
+            "title": "Firings"
+          },
+          "failed": {
+            "type": "integer",
+            "title": "Failed"
+          },
+          "completed": {
+            "type": "integer",
+            "title": "Completed"
+          },
+          "last_failed_on": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Last Failed On"
+          }
+        },
+        "type": "object",
+        "required": [
+          "task_id",
+          "title",
+          "firings",
+          "failed",
+          "completed"
+        ],
+        "title": "FailingTask",
+        "description": "§6 `failed`, grouped by task so the repeat offenders are visible.\n\nEvery number here survives in the projection — `status` is stored per firing\nand nothing overwrites it — so this half of the dashboard is honest over the\nwhole history, unlike `drifting`."
       },
       "HTTPValidationError": {
         "properties": {
@@ -1367,6 +1751,18 @@
               }
             ],
             "title": "Resolved At"
+          },
+          "grace_minutes": {
+            "type": "integer",
+            "title": "Grace Minutes",
+            "default": 15
+          },
+          "extension_minutes": {
+            "items": {
+              "type": "integer"
+            },
+            "type": "array",
+            "title": "Extension Minutes"
           }
         },
         "type": "object",
@@ -2046,6 +2442,18 @@
             "type": "integer",
             "title": "Extensions Allowed",
             "default": 0
+          },
+          "grace_minutes": {
+            "type": "integer",
+            "title": "Grace Minutes",
+            "default": 15
+          },
+          "extension_minutes": {
+            "items": {
+              "type": "integer"
+            },
+            "type": "array",
+            "title": "Extension Minutes"
           }
         },
         "type": "object",
