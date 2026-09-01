@@ -96,6 +96,65 @@ class RoutineClockTest {
         assertEquals(friday.plusDays(1).atTime(8, 0), next.startsAt)
     }
 
+    // --- attribution in the gaps ----------------------------------------------
+    //
+    // 48 of the week's 168 hours belong to no logical day. A tap in one of those
+    // holes has to go somewhere, and dropping it loses the overrun signal that
+    // three consecutive Speedway nights exist to produce.
+
+    @Test
+    fun `a tap during a running day is not clamped`() {
+        val attribution = routine.attribute(friday.atTime(14, 0))
+
+        assertNotNull(attribution)
+        assertEquals(DayOfWeek.FRIDAY, attribution!!.day.day.weekday)
+        assertEquals(false, attribution.clamped)
+    }
+
+    /** The decision: 3am is a late finish of Friday, not an early Saturday. */
+    @Test
+    fun `a tap at three in the morning belongs to the day that just ended`() {
+        val attribution = routine.attribute(friday.plusDays(1).atTime(3, 0))
+
+        assertNotNull(attribution)
+        assertEquals(DayOfWeek.FRIDAY, attribution!!.day.day.weekday)
+        assertEquals(friday, attribution.day.date)
+        assertTrue("it should record that it was clamped", attribution.clamped)
+    }
+
+    /**
+     * No threshold, so the rule does not change at some hour nobody can justify
+     * — 07:59, one minute before Saturday wakes, is still Friday's late finish.
+     */
+    @Test
+    fun `the whole gap belongs to the day that just ended, with no cutoff`() {
+        for (hour in 3..7) {
+            val attribution = routine.attribute(friday.plusDays(1).atTime(hour, 0))!!
+            assertEquals("at " + hour + ":00", DayOfWeek.FRIDAY, attribution.day.day.weekday)
+            assertTrue(attribution.clamped)
+        }
+    }
+
+    @Test
+    fun `Wednesday's longer gap still resolves backwards`() {
+        // Wednesday ends 01:00 Thursday; Thursday does not wake until 10:00.
+        val wednesday = monday.plusDays(2)
+        assertEquals(DayOfWeek.WEDNESDAY, wednesday.dayOfWeek)
+
+        val attribution = routine.attribute(wednesday.plusDays(1).atTime(6, 0))!!
+
+        assertEquals(DayOfWeek.WEDNESDAY, attribution.day.day.weekday)
+        assertTrue(attribution.clamped)
+    }
+
+    @Test
+    fun `once the next day starts, attribution is no longer clamped`() {
+        val attribution = routine.attribute(friday.plusDays(1).atTime(8, 30))!!
+
+        assertEquals(DayOfWeek.SATURDAY, attribution.day.day.weekday)
+        assertEquals(false, attribution.clamped)
+    }
+
     // --- day length -----------------------------------------------------------
 
     @Test

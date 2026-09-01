@@ -24,9 +24,32 @@ import javax.inject.Singleton
  * date of [at]: a Speedway shift started on Friday is still Friday's at 00:05.
  */
 data class SlotStart(
+    /**
+     * The routine version this start was measured against.
+     *
+     * **Version first, and not optional.** The day boundary is declared *on* the
+     * version, so a start pinned only to a logical day silently re-buckets the
+     * moment a later version moves that day's wake time — rewriting exactly the
+     * history versioning exists to protect. gw03 caught this: the first shape
+     * carried only `(on, slotId, at)`.
+     *
+     * The gateway owns version identity. Until those routes exist the fake
+     * supplies the routine's `effectiveFrom`, which is a stand-in and not a
+     * proposed format.
+     */
+    val routineVersion: String,
     val on: LocalDate,
     val slotId: String,
     val at: LocalDateTime,
+    /**
+     * True when [at] fell in a gap between routine days and was attributed to
+     * the day that just ended.
+     *
+     * 48 hours a week belong to no logical day. A 3am tap is a late finish, not
+     * a new day — but a run of clamped starts *is* the overrun signal, so it is
+     * recorded rather than smoothed away.
+     */
+    val clamped: Boolean = false,
 )
 
 interface RoutineRepository {
@@ -35,7 +58,7 @@ interface RoutineRepository {
     fun starts(): Flow<List<SlotStart>>
 
     /** Records a start, replacing any earlier one for the same slot and day. */
-    suspend fun start(slotId: String, on: LocalDate, at: LocalDateTime)
+    suspend fun start(slotId: String, on: LocalDate, at: LocalDateTime, clamped: Boolean = false)
 
     /** Undoes a start — a mis-tap should not need a whole editing surface. */
     suspend fun clearStart(slotId: String, on: LocalDate)
@@ -61,9 +84,11 @@ class FakeRoutineRepository @Inject constructor() : RoutineRepository {
 
     override fun starts(): Flow<List<SlotStart>> = log.asStateFlow()
 
-    override suspend fun start(slotId: String, on: LocalDate, at: LocalDateTime) {
+    override suspend fun start(slotId: String, on: LocalDate, at: LocalDateTime, clamped: Boolean) {
+        val version = RoutineFixture.theWeek.effectiveFrom.toString()
         log.update { existing ->
-            existing.filterNot { it.slotId == slotId && it.on == on } + SlotStart(on, slotId, at)
+            existing.filterNot { it.slotId == slotId && it.on == on } +
+                SlotStart(version, on, slotId, at, clamped)
         }
     }
 

@@ -23,12 +23,13 @@ import java.time.LocalDateTime
 class DayViewTest {
 
     private val monday: LocalDate = LocalDate.of(2026, 9, 7)
+    private val VERSION = "2026-09-01"
     private val day = LogicalDay(monday, RoutineFixture.theWeek.day(DayOfWeek.MONDAY)!!)
 
     private fun at(hour: Int, minute: Int = 0) = monday.atTime(hour, minute)
 
     private fun started(slotId: String, hour: Int, minute: Int) =
-        SlotStart(monday, slotId, at(hour, minute))
+        SlotStart(VERSION, monday, slotId, at(hour, minute))
 
     private fun rowsAt(now: LocalDateTime, starts: List<SlotStart>) =
         dayView(day, starts, now, isToday = true)
@@ -126,7 +127,7 @@ class DayViewTest {
     @Test
     fun `starts recorded against another day are ignored`() {
         // Slot ids repeat every week, so the date is what separates them.
-        val lastWeek = SlotStart(monday.minusWeeks(1), "mon-gym", at(14, 20))
+        val lastWeek = SlotStart(VERSION, monday.minusWeeks(1), "mon-gym", at(14, 20))
 
         val view = rowsAt(at(16, 0), listOf(lastWeek))
 

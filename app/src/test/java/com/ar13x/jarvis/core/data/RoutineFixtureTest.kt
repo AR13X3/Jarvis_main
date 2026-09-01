@@ -127,6 +127,51 @@ class RoutineFixtureTest {
         }
     }
 
+    /**
+     * Buffer means the success condition inverts, and that is true of exactly
+     * two slots — the ones the footer names. It was on fourteen, which put an
+     * inverted condition on twelve slots that have no condition at all and
+     * diluted the one number that carries signal seven to one.
+     */
+    @Test
+    fun `only Wednesday's two slots are buffer`() {
+        val buffers = routine.days
+            .flatMap { it.slots }
+            .filter { it.kind == com.ar13x.jarvis.core.model.SlotKind.Buffer }
+
+        assertEquals(listOf("wed-buffer", "wed-free"), buffers.map { it.id })
+    }
+
+    @Test
+    fun `the week's kinds are 26 tracked, 27 scaffold, 2 buffer and 12 free`() {
+        val counts = routine.days
+            .flatMap { it.slots }
+            .groupingBy { it.kind }
+            .eachCount()
+
+        assertEquals(26, counts[com.ar13x.jarvis.core.model.SlotKind.Tracked])
+        assertEquals(27, counts[com.ar13x.jarvis.core.model.SlotKind.Scaffold])
+        assertEquals(2, counts[com.ar13x.jarvis.core.model.SlotKind.Buffer])
+        assertEquals(12, counts[com.ar13x.jarvis.core.model.SlotKind.Free])
+        assertEquals(67, routine.days.sumOf { it.slots.size })
+    }
+
+    /**
+     * Kind is per-slot data and must never be computed from the category. The
+     * fixture is the evidence: it breaks that rule fourteen times to be right.
+     */
+    @Test
+    fun `kind does not derive from category`() {
+        val slots = routine.days.flatMap { it.slots }
+        val byCategory = slots.groupBy { it.categoryId }
+
+        val life = byCategory.getValue("life").map { it.kind }.toSet()
+        val free = byCategory.getValue("free").map { it.kind }.toSet()
+
+        assertEquals("both cooks are tracked, the rest of life is scaffold", 2, life.size)
+        assertEquals("Wednesday's two invert, the other twelve do not", 2, free.size)
+    }
+
     @Test
     fun `Wednesday's protected buffer is a buffer slot, not a tracked one`() {
         val buffer = routine.day(DayOfWeek.WEDNESDAY)!!.slots.first { it.id == "wed-buffer" }

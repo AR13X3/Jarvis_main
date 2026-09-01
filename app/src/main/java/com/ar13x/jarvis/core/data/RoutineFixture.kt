@@ -23,11 +23,23 @@ import java.time.LocalTime
  * rather than an approximation: a mistyped time changes a total and the test
  * says which one.
  *
- * **The slot kinds are a considered guess and want a pass from Joy** (v2 plan
- * §9). The principle is confirmed; which specific slots are tracked is not.
- * Batch cook is the interesting one — it sits in the Life category with the
- * scaffold, but it is a real commitment that the week depends on, so it is
- * tracked.
+ * **The slot kinds have had their pass** (v2 plan §9) — gw03 counted them
+ * against this file and the source, and Joy settled the one that was genuinely
+ * a judgement call rather than a countable fact.
+ *
+ * Two are worth knowing. **Batch cook is Tracked** although it sits in the Life
+ * category with the scaffold: it is a real commitment that the rest of the
+ * week's eating depends on. And **Calls is Free**, not Tracked — Joy's own
+ * category is called "Free, buffer, calls", which is Joy classifying it, and an
+ * unmade call at 11pm on a Tuesday is not a failure.
+ *
+ * **Buffer is only ever Wednesday's two slots.** Buffer means the success
+ * condition inverts, and the footer names exactly those two: "Wednesday's
+ * 5:30–8:30 and 11–1 are buffer." It was on fourteen before they were counted.
+ *
+ * Kind does not derive from category and must not be made to. This file has to
+ * break that rule fourteen times to be right — twice for the cooks, twelve
+ * times for Free.
  */
 object RoutineFixture {
 
@@ -70,9 +82,9 @@ object RoutineFixture {
         slots = weekdayMorning("mon") + listOf(
             slot("mon-uni", "16:30", "20:00", "Uni, including travel", "uni", SlotKind.Tracked),
             slot("mon-dinner", "20:00", "20:30", "Dinner", "life", SlotKind.Scaffold),
-            slot("mon-breather", "20:30", "21:00", "Breather", "free", SlotKind.Buffer),
+            slot("mon-breather", "20:30", "21:00", "Breather", "free", SlotKind.Free),
             slot("mon-meet", "21:00", "23:00", "Reskill — meetings, daily report", "reskill", SlotKind.Tracked),
-            slot("mon-free", "23:00", "01:00", "Free", "free", SlotKind.Buffer),
+            slot("mon-free", "23:00", "01:00", "Free", "free", SlotKind.Free),
         ),
     )
 
@@ -83,9 +95,9 @@ object RoutineFixture {
         slots = weekdayMorning("tue") + listOf(
             slot("tue-uni", "16:30", "20:00", "Uni, including travel", "uni", SlotKind.Tracked),
             slot("tue-dinner", "20:00", "20:30", "Dinner", "life", SlotKind.Scaffold),
-            slot("tue-breather", "20:30", "21:00", "Breather", "free", SlotKind.Buffer),
+            slot("tue-breather", "20:30", "21:00", "Breather", "free", SlotKind.Free),
             slot("tue-meet", "21:00", "23:00", "Reskill — meetings, daily report", "reskill", SlotKind.Tracked),
-            slot("tue-calls", "23:00", "01:00", "Calls", "free", SlotKind.Buffer),
+            slot("tue-calls", "23:00", "01:00", "Calls", "free", SlotKind.Free),
         ),
     )
 
@@ -129,12 +141,12 @@ object RoutineFixture {
             slot("thu-wake", "10:00", "11:00", "Sleep in, wake slow, breakfast", "life", SlotKind.Scaffold),
             slot("thu-reskill", "11:00", "12:00", "Reskill — catch-up, prep for tonight", "reskill", SlotKind.Tracked),
             slot("thu-lunch", "12:00", "12:30", "Lunch", "life", SlotKind.Scaffold),
-            slot("thu-off", "12:30", "17:00", "Football, drawing, friends", "free", SlotKind.Buffer),
+            slot("thu-off", "12:30", "17:00", "Football, drawing, friends", "free", SlotKind.Free),
             slot("thu-cook", "17:00", "18:30", "Batch cook — covers Thu to Sun", "life", SlotKind.Tracked),
             slot("thu-dinner", "18:30", "19:30", "Dinner, shower", "life", SlotKind.Scaffold),
-            slot("thu-free", "19:30", "21:00", "Free", "free", SlotKind.Buffer),
+            slot("thu-free", "19:30", "21:00", "Free", "free", SlotKind.Free),
             slot("thu-meet", "21:00", "23:00", "Reskill — meetings, daily report", "reskill", SlotKind.Tracked),
-            slot("thu-calls", "23:00", "01:00", "Calls", "free", SlotKind.Buffer),
+            slot("thu-calls", "23:00", "01:00", "Calls", "free", SlotKind.Free),
         ),
     )
 
@@ -147,10 +159,10 @@ object RoutineFixture {
             slot("fri-reskill", "08:45", "10:45", "Reskill / CBAI — morning block", "reskill", SlotKind.Tracked),
             slot("fri-webdev", "10:45", "11:45", "Web dev", "webdev", SlotKind.Tracked),
             slot("fri-lunch", "11:45", "12:30", "Lunch", "life", SlotKind.Scaffold),
-            slot("fri-free", "12:30", "13:45", "Free", "free", SlotKind.Buffer),
+            slot("fri-free", "12:30", "13:45", "Free", "free", SlotKind.Free),
             slot("fri-speedway", "13:45", "00:15", "Speedway — leave 1:45, shift 2:30–12:00", "speedway", SlotKind.Tracked),
             slot("fri-late", "00:15", "01:00", "Shower, late food", "life", SlotKind.Scaffold),
-            slot("fri-wind", "01:00", "02:00", "Wind-down", "free", SlotKind.Buffer),
+            slot("fri-wind", "01:00", "02:00", "Wind-down", "free", SlotKind.Free),
         ),
     )
 
@@ -163,10 +175,10 @@ object RoutineFixture {
             slot("sat-gym", "08:30", "10:00", "Gym", "gym", SlotKind.Tracked),
             slot("sat-webdev", "10:00", "12:00", "Web dev", "webdev", SlotKind.Tracked),
             slot("sat-lunch", "12:00", "13:00", "Lunch", "life", SlotKind.Scaffold),
-            slot("sat-free", "13:00", "13:45", "Free", "free", SlotKind.Buffer),
+            slot("sat-free", "13:00", "13:45", "Free", "free", SlotKind.Free),
             slot("sat-speedway", "13:45", "00:15", "Speedway — leave 1:45, shift 2:30–12:00", "speedway", SlotKind.Tracked),
             slot("sat-late", "00:15", "01:00", "Shower, late food", "life", SlotKind.Scaffold),
-            slot("sat-wind", "01:00", "02:00", "Wind-down", "free", SlotKind.Buffer),
+            slot("sat-wind", "01:00", "02:00", "Wind-down", "free", SlotKind.Free),
         ),
     )
 
@@ -181,7 +193,7 @@ object RoutineFixture {
             slot("sun-lunch", "12:30", "13:45", "Lunch, get ready", "life", SlotKind.Scaffold),
             slot("sun-speedway", "13:45", "00:15", "Speedway — leave 1:45, shift 2:30–12:00", "speedway", SlotKind.Tracked),
             slot("sun-late", "00:15", "00:45", "Shower, late food", "life", SlotKind.Scaffold),
-            slot("sun-wind", "00:45", "02:00", "Wind-down", "free", SlotKind.Buffer),
+            slot("sun-wind", "00:45", "02:00", "Wind-down", "free", SlotKind.Free),
         ),
     )
 

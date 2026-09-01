@@ -37,23 +37,48 @@ in "what am I missing".
 
 ---
 
-## 2. Rename `task` → `reminder`, and do it first
+## 2. Rename `task` → `reminder` — early, but not first
 
 The gateway's `task` is a reminder: one `due_at`, a recurrence, an occurrence
 per firing, a follow-up loop with extensions. When real Tasks arrive there will
 be two things called task in the routes, the schemas, the database, the agent's
 tool names and the app's models.
 
-Do it now, while there is one client, one user and ten releases of history. The
-app is the only consumer and it has a serialisation layer, so its half is
-mechanical. After real Tasks exist this becomes a migration that has to
-disambiguate two meanings of the same word, and it never gets cheaper.
+Do it while there is one client, one user and ten releases of history. The app
+is the only consumer and it has a serialisation layer, so its half is mechanical.
+After real Tasks exist this becomes a migration that has to disambiguate two
+meanings of the same word, and it never gets cheaper.
+
+**But not literally first.** gw03 costed it — ~1090 identifiers, 5 routes, 10 wire
+models, a schema, a table, an enum, 4 indexes and a trigger — and the two cheap
+wins in §3 touch `occurrences`, which the rename leaves alone. Doing them first
+therefore costs the rename nothing and ships a working dashboard before the
+breaking change rather than after it. See §8.
 
 `GET /tasks` → `GET /reminders`, `Task` → `Reminder`, `PatchTaskBody` →
-`PatchReminderBody`, and the agent's `find_tasks` / `new_task` tools likewise.
-Occurrences keep their name; they are already correct.
+`PatchReminderBody`. Occurrences keep their name; they are already correct.
 
-**This is the one change that must happen before anything else in this document.**
+**Three things the first draft missed**, all from gw03's count:
+
+- **Only three of seven tool names carry the word.** `propose_create/update/
+  cancel/complete` are already neutral; `get_task`, `find_tasks` and
+  `suggest_new_task` rename. But history replays stored tool calls verbatim, so
+  sessions predating the rename replay names no longer offered. Bounded —
+  sessions are per task — and accepted; a name-map in history is worse than the
+  problem.
+- **The `tasks.task_status` enum must rename too**, and this is an argument *for*
+  the rename that the first draft did not make. It is shared by tasks and
+  occurrences and its values are the reminder lifecycle. Real Tasks get a
+  different set (§5.3). If it is not renamed now the new one is called something
+  awkward forever — and the two must not be shared, because `cancelled` is the
+  same word and not the same thing.
+- **The schema is also called `tasks`, and real Tasks want the name.** Decided:
+  keep the schema, rename the table inside it. The schema names the domain
+  family, not the table.
+
+**The real cost is the cutover, not the code.** There is a phone in the field and
+two repos, so `/tasks*` stays as a thin deprecated alias for one release. That
+turns a lockstep two-repo deploy into two independent ones.
 
 ---
 
@@ -74,17 +99,37 @@ An event is roughly: `at`, `source` (reminder | routine | task), `source_id`,
 `verb` (started, completed, missed, lapsed, created, rescheduled, ticked,
 cancelled), `category_or_tag`, and a small payload.
 
-**Most of this already exists and is invisible.** The occurrence table has
-carried per-instance `status` — `completed`, `incomplete`, `cancelled`,
-`awaiting` — since Phase E, and every reminder that has fired since has left a
-row. The only read route is `GET /occurrences/upcoming`. There is no way to read
-the past.
+**Corrected by gw03, and this is the one thing the first draft got wrong.**
 
-So the first real step after the rename is small: **expose history**. One route,
-plus `completed_at` on the occurrence — today it records *that* something was
-completed but not *when*, so completing yesterday's reminder this morning buckets
-into the wrong day. That alone is enough for a real dashboard over reminders,
-shipped before routines or tasks exist.
+The occurrence table is a **current-state projection, not an event stream**.
+Every transition is an `UPDATE` in place: extending *overwrites* `scheduled_for`
+so the original deadline is gone, a reschedule can revive a cancelled row, and
+`awaiting_since` is cleared on every extension. For a firing due 09:00, asked at
+09:02, auto-extended twice and completed at 11:40, the row afterwards says
+`scheduled_for 11:00, completed, resolved_at 11:40, extensions_used 2`. The
+outcome is readable. The deadline it missed, when it was asked, and when either
+extension happened are not.
+
+So "most of this already exists" is true of **completions** and false of
+**history** — and §6's *drifting*, which is planned versus actual, cannot be
+computed from it, because for a reminder the planned time is precisely the field
+extend overwrites. The stream is a genuinely new append-only table. Still cheap:
+seven sites mutate occurrence state, one `INSERT` beside each, no behaviour
+change. Backfilled rows are outcome-only and must be marked `backfilled`, so no
+dashboard presents a reconstruction as an observation.
+
+**`completed_at` already exists.** It is `tasks.occurrences.resolved_at`, since
+migration 0001, written on completion, cancellation, supersession and lapse. The
+first draft said the occurrence "records *that* something was completed but not
+*when*" — true of the API, false of the database, and inferred from the served
+OpenAPI rather than checked. Exposing it costs one field on the model, one line
+in the mapper and one read route. **No migration.** Do not rename it: it also
+stamps cancelled and incomplete, and `resolved_at` is the honest name.
+
+**Bucketing, decided.** `scheduled_date` is the day something was *due*;
+`local_day(resolved_at)` is the day it was *answered*. Both columns exist and
+they answer different questions, so the dashboard uses both deliberately:
+**"what did I get done" is answered-day, "what did I miss" is due-day.**
 
 Per-task history and the dashboard are the same feature. Build the stream once.
 
@@ -109,9 +154,29 @@ Friday's Speedway slot runs 1:45pm–12:15am, then shower 12:15–1:00, then
 wind-down 1:00–2:00. Bucket those by calendar date and three hours of Friday
 land on Saturday, and every weekend statistic is quietly wrong.
 
-Thursday runs 10:00–1:00; Friday to Sunday run 8:00–2:00. **A routine day is a
-logical day — wake to sleep — and its boundary differs per weekday.** It is
-declared on the routine, not derived.
+**All seven days cross midnight**, not only the ones that look unusual. Mon,
+Tue and Wed run 08:00–01:00; Thursday 10:00–01:00; Fri, Sat and Sun 08:00–02:00.
+Naming only Thursday and the weekend, as the first draft did, invites someone to
+implement "declare the boundary where it differs, default the rest to midnight"
+— which silently deletes Monday and Tuesday's 23:00–01:00 slot and one of
+Wednesday's two buffers. **Every day is declared. There is no default and no
+branch**, which is simpler than the first draft read, not harder.
+
+**48 hours a week belong to no logical day.** 120 waking hours out of 168; the
+gaps are 01:00→08:00 four times, 01:00→10:00 on Wednesday night, and
+02:00→08:00 three times. §4.1's partition is of *waking* hours, not of the
+clock, so resolving an instant to a day is a **partial** function.
+
+**Decided: a tap in a gap is attributed to the day that just ended, and recorded
+as clamped.** A 3am tap is a late finish, not a new day, and rejecting it loses
+the one honest signal about overrun — which is the entire reason for tracking
+three consecutive Speedway nights. No threshold: "within N hours of the end"
+needs an N nobody can justify, and it puts a discontinuity in the middle of the
+night, exactly where the interesting data lives.
+
+**Resolution rule**, so both sides agree: the logical day is the date `d` where
+`start(d) <= t < end(d)`; resolve by scanning **backwards** to the most recent
+declared start, never forwards from midnight.
 
 This is `jarvis-app-plan.md` §3.2 in a new costume: deriving a calendar day from
 a timestamp is the mistake, and the answer is the same — the server owns the
@@ -126,9 +191,37 @@ leave" daily is noise that buries the five that matter.
   Startable, counted, this is the adherence data. About five a day.
 - **scaffold** — wake, lunch, dinner, shower. Drawn so the day reads as
   continuous. Never startable, never counted.
-- **buffer** — Wednesday 5:30–8:30, "keep empty". **The success condition
-  inverts**: the win is having left it alone. Tracked like everything else,
-  every honest Wednesday would score as a failure.
+- **buffer** — **exactly two slots**, both on Wednesday, both named by the
+  footer: 17:30–20:30 and 23:00–01:00. **The success condition inverts** — the
+  win is having left them alone.
+- **free** — everything else that is neither a commitment nor scaffolding:
+  Breather, Free, Calls, Wind-down, Thursday's football. Not startable, not
+  counted, and **not scored either way**. Rest is neither an achievement nor a
+  failure.
+
+The fourth kind exists because the first draft had *buffer* doing two jobs.
+Counted against the fixture: buffer was on fourteen slots and only two of them
+invert. The other twelve are ordinary free time, so the dashboard would have
+congratulated Joy for keeping Friday's wind-down empty, and diluted the one
+number that carries signal by seven to one.
+
+**Speedway is tracked** — 31.5h, 26% of the week, the largest committed block by
+half again. It was missing from the first draft's list, which is the kind of
+omission that becomes load-bearing the day someone re-derives the list from this
+document.
+
+**Kind never derives from category.** The fixture is the evidence: it has to
+break that correspondence fourteen times to be right — twice for the cooks,
+twelve times for free. Kind is per-slot data on the routine version, set by the
+agent at import (§4.7) and hand-correctable.
+
+The week is **67 slots: 26 tracked, 27 scaffold, 2 buffer, 12 free** — a mean of
+3.7 tracked a day, not the "about five" and "roughly eighty a week" the first
+draft quoted from a guess.
+
+**Calls is free, not tracked.** The one genuine judgement call rather than a
+countable fact, and Joy's own category is named "Free, buffer, calls" — that is
+Joy classifying it. An unmade call at 11pm on a Tuesday is not a failure.
 
 ### 4.4 Start-only logging
 
@@ -143,6 +236,12 @@ One tap: *I am starting this*. There is no stop button.
   day end over unstarted tracked slots keeps the data honest.
 - **Day end closes the last open slot.** Without it, one missed tap at 11pm
   produces a fourteen-hour Reskill block.
+- **A start record pins the routine version it was measured against**, not only
+  the logical day. The day boundary is declared *on* the version (§4.6), so if a
+  later version moves Thursday's wake to 09:00, every stored Thursday start
+  silently re-buckets — rewriting exactly the history §4.6 exists to protect.
+  The log is `(routine_version_id, logical_day, slot_id, started_at, clamped)`,
+  version first.
 
 Variation therefore falls out for free: planned 2:15–3:45, actual 2:48–4:10, and
 out of sequence.
@@ -236,8 +335,23 @@ A task with no `due_at` is legal and ordinary. It cannot be overdue and it
 cannot fail. It needs its own place in the UI — a backlog — and its own word in
 the dashboard. **Stale**, on some threshold of untouched days, is the honest one.
 
-This is the single most likely thing to be got wrong, because every existing
-query in the gateway assumes a due date exists.
+**Cheaper than feared, and the guarantee is already structural.** gw03 counted
+the sites: two `NOT NULL`s to drop, one function to branch (`create_task`, which
+unconditionally inserts an occurrence), one explicit `ORDER BY ... NULLS LAST`,
+and one new check that a recurrence requires an anchor. The date filters need
+nothing — SQL `NULL` comparison excludes undated rows, which is the correct
+behaviour, for free. And `overdue_tasks` reads from **occurrences**, not from
+`due_at`: an undated task has no occurrence, so it can never be overdue and the
+scheduler needs no change at all. §5.2's "cannot fail" is not a rule anyone has
+to remember; it falls out of the indirection already shipped in 0001.
+
+**Stale, decided: untouched for 14 days, anchored on `updated_at`.** Not
+`created_at`, or a task you looked at yesterday and did not move is stale
+tomorrow. Fourteen rather than seven because the summaries are weekly (§7): a
+7-day threshold would flag everything the instant each weekly summary was
+written, restating "you did not do this last week" as though it were news.
+Fourteen means an item has survived **two** weekly reviews without moving, which
+is a signal rather than an echo.
 
 ### 5.3 Status
 
@@ -260,7 +374,11 @@ Four words, and they are not synonyms:
 
 - **failed** — had a deadline, extensions spent, not done. Reminders, dated tasks.
 - **missed** — a tracked routine slot never started.
-- **drifting** — a routine slot started consistently, but not near its plan.
+- **drifting** — started consistently, but not near its plan. Computable for
+  **routines** from the day they ship, because the plan lives on the routine
+  version and the start log is append-only. **Not computable for reminders**
+  until §3's event table exists, because extending a reminder overwrites the
+  planned time it would be compared against.
 - **stale** — an undated task untouched past a threshold. Cannot fail.
 
 The app renders; the gateway computes every number. No streaks, percentages or
@@ -287,13 +405,28 @@ A group is a tag with a summary subscription attached. One taxonomy, not two.
 
 ## 8. Order
 
-1. **Rename** `task` → `reminder`. Everything else is cheaper afterwards.
-2. **Expose occurrence history** + `completed_at`. One route.
-3. **Dashboard v1**, over reminders alone. Proves the spine, ships early.
-4. **Routines.** Template, versions, tracked slots, start-only logging, day view.
-5. **Tasks.** Tags, `starts_at`, nullable `due_at`, status, history.
-6. **Summaries.** Needs tags from 5 and the scheduler that already exists.
-7. **Attachments** — Phase G, returning to scope, last.
+1. **Expose `resolved_at`** + one history route. No migration, not breaking.
+2. **The event table** + seven inserts beside the existing mutations. Not
+   breaking, and it can land before the rename because it touches `occurrences`,
+   which the rename does not rename.
+3. **Rename** `task` → `reminder`. Breaking, and deploy-coupled across two
+   repos — so it goes *after* the two cheap wins rather than before them. Serve
+   `/tasks*` as deprecated aliases for one release so the phone and the gateway
+   deploy independently. The `tasks.task_status` enum renames with it: its values
+   are the reminder lifecycle, real Tasks get a different set (§5.3), and leaving
+   it means the new one is called something awkward forever. Keep the `tasks`
+   schema name and rename the table inside it.
+4. **Dashboard v1**, over reminders alone.
+5. **Routines.** Template, versions, tracked slots, start-only logging, day view.
+6. **Tasks.** Tags, `starts_at`, nullable `due_at`, status, history.
+7. **Summaries.** Needs tags from 6 and the scheduler that already exists.
+8. **Attachments** — Phase G, returning to scope, last.
+
+The first draft put the rename first on the grounds that everything is cheaper
+afterwards. gw03 costed it and the order is wrong: steps 1 and 2 touch
+`occurrences` and `models.Occurrence`, which the rename leaves alone, so doing
+them first costs the rename nothing and ships the cheapest large win *before*
+the risky change instead of after it.
 
 Steps 1, 2, 4, 5, 6 are overwhelmingly **gw03's**: the gateway owns state and the
 app renders. joy's share is navigation, the dashboard, the routine day view and

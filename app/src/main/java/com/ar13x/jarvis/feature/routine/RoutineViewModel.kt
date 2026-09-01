@@ -8,6 +8,7 @@ import com.ar13x.jarvis.core.model.LogicalDay
 import com.ar13x.jarvis.core.model.Routine
 import com.ar13x.jarvis.core.model.RoutineSlot
 import com.ar13x.jarvis.core.model.SlotKind
+import com.ar13x.jarvis.core.model.attribute
 import com.ar13x.jarvis.core.model.logicalDayAt
 import com.ar13x.jarvis.core.model.nextDayAfter
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -141,11 +142,19 @@ class RoutineViewModel @Inject constructor(
 
     fun start(row: SlotRow) {
         val day = _state.value.day ?: return
+        val routine = _state.value.routine
         viewModelScope.launch {
             if (row.started) {
                 repository.clearStart(row.slot.id, day.logical.date)
             } else {
-                repository.start(row.slot.id, day.logical.date, LocalDateTime.now())
+                val now = LocalDateTime.now()
+                // The day recorded against is the one on screen, never derived
+                // from the clock. `clamped` says only whether the moment of the
+                // tap itself fell in a gap between routine days -- a run of
+                // those is the overrun signal, so it is kept rather than
+                // smoothed away.
+                val clamped = routine?.attribute(now)?.clamped ?: false
+                repository.start(row.slot.id, day.logical.date, now, clamped)
             }
         }
     }
@@ -161,7 +170,13 @@ class RoutineViewModel @Inject constructor(
         // Until the user picks a day, follow whatever is actually running —
         // opening the tab at 00:30 on a Saturday should land on Friday, which is
         // the day still in progress, not on an empty Saturday.
-        val anchor = running ?: next
+        //
+        // In a gap, anchor on the day that just ENDED rather than the one about
+        // to start. A tap at 3am is a late finish, and anchoring forward would
+        // make recording one take a trip through the pager. The resting note
+        // still says when the next day begins, so the screen is not claiming
+        // the finished day is live.
+        val anchor = routine.attribute(at)?.day ?: next
 
         val selection = resolveSelection(
             picked = picked,

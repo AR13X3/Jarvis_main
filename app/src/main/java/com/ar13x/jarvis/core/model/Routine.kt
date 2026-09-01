@@ -91,6 +91,10 @@ data class RoutineSlot(
  * that buries the five that carry signal (§4.3).
  */
 enum class SlotKind {
+    // Four, not three. The first version had Buffer doing the work of Buffer
+    // and Free at once, which put an inverted success condition on twelve slots
+    // that have no success condition at all.
+
     /**
      * Startable and counted: the Reskill block, web dev, gym, uni, the evening
      * meetings. Roughly five a day, and the whole of the adherence data.
@@ -105,12 +109,29 @@ enum class SlotKind {
     Scaffold,
 
     /**
-     * Deliberately empty time, and **the success condition inverts**:
-     * Wednesday's 5:30–8:30 says "keep empty", so the win is having left it
-     * alone. Counting it like a tracked slot would score every honest
-     * Wednesday as a failure.
+     * Deliberately empty time, and **the success condition inverts**: the win
+     * is having left it alone.
+     *
+     * True of exactly two slots in Joy's week, both on Wednesday, and the
+     * footer names them: "Wednesday's 5:30–8:30 and 11–1 are buffer. Spend them
+     * on overruns, not new work."
+     *
+     * It was on fourteen slots before gw03 counted them. Twelve of those were
+     * ordinary free time, which meant the dashboard would have congratulated
+     * Joy for successfully keeping Friday's wind-down empty — and diluted the
+     * one buffer number that carries signal by seven to one.
      */
     Buffer,
+
+    /**
+     * Free time. Not startable, not counted, and **not scored either way**.
+     *
+     * The kind that was missing. "Breather", "Calls", "Wind-down", Thursday's
+     * football — none of these are commitments, none are scaffolding holding
+     * the budget together, and none invert. Rest is not an achievement and not
+     * a failure; it is what the other three kinds are arranged around.
+     */
+    Free,
 }
 
 /**

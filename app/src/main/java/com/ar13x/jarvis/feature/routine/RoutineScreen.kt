@@ -459,6 +459,11 @@ private fun RestingNote(startsAt: LocalDateTime) {
 private fun subtitle(row: SlotRow): String {
     val planned = row.plannedStart.format(TIME) + " – " + row.plannedEnd.format(TIME)
     return when {
+        // Only the two real buffers say this now. It was on every free slot
+        // once, which made it mean nothing — the copy was right and the
+        // classification was wrong.
+        row.slot.kind == SlotKind.Buffer -> planned + " · keep clear"
+
         row.actualStart != null && row.drifted ->
             planned + " · started " + row.actualStart.format(TIME)
         row.actualStart != null -> planned + " · started"

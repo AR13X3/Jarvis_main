@@ -82,6 +82,41 @@ fun Routine.logicalDayAt(now: LocalDateTime): LogicalDay? {
     return null
 }
 
+/**
+ * The logical day a moment should be *recorded against*, and whether reaching it
+ * required clamping.
+ *
+ * 48 hours a week belong to no logical day: the week is 120 waking hours out of
+ * 168, and the gaps are 01:00→08:00 four times, 01:00→10:00 on Wednesday night,
+ * and 02:00→08:00 three times. So [logicalDayAt] is a *partial* function and a
+ * tap at 3am on a Saturday lands in a hole.
+ *
+ * **A 3am tap is a late finish, not a new day.** It is attributed to the day
+ * that just ended, and [Attribution.clamped] records that it was — because
+ * dropping it would lose the one honest signal about overrun, which is the whole
+ * reason for tracking three consecutive Speedway nights in the first place.
+ *
+ * No threshold, deliberately. "Within N hours of the end" needs an N that nobody
+ * can justify, and it puts a discontinuity in the middle of the night, which is
+ * exactly where the interesting data lives.
+ */
+data class Attribution(val day: LogicalDay, val clamped: Boolean)
+
+fun Routine.attribute(now: LocalDateTime): Attribution? {
+    logicalDayAt(now)?.let { return Attribution(it, clamped = false) }
+
+    // Scan backwards to the most recently ended day. Backwards, never forwards
+    // from midnight: every day's end precedes the next day's start, so the
+    // interval is unambiguous wherever it is defined at all.
+    for (offset in 0..7L) {
+        val date = now.toLocalDate().minusDays(offset)
+        val day = day(date.dayOfWeek) ?: continue
+        val logical = LogicalDay(date, day)
+        if (!logical.endsAt.isAfter(now)) return Attribution(logical, clamped = true)
+    }
+    return null
+}
+
 /** The next logical day to begin after [now]. Used when nothing is running. */
 fun Routine.nextDayAfter(now: LocalDateTime): LogicalDay? {
     val today = now.toLocalDate()
