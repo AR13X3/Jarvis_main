@@ -103,7 +103,16 @@ printf '   versionName=%s versionCode=%s\n' "$APK_NAME" "$APK_CODE"
 # this; this is the thing itself, read back out of the artifact.
 step "Embedded commit"
 HEAD_SHA="$(git rev-parse --short HEAD)"
-if unzip -p "$APK" 'classes*.dex' | grep -aqF "$HEAD_SHA"; then
+# Extracted to a file rather than piped, and that is not fussiness. `grep -q`
+# exits the moment it matches, which closes the pipe; `unzip` then dies of
+# SIGPIPE with 141, and `set -o pipefail` propagates it. The check therefore
+# reported "not found" EXACTLY WHEN IT FOUND THE SHA, and passed only when unzip
+# ran to completion -- which is the case where the SHA is absent. It refused the
+# first real release it was asked to make.
+DEX="$(mktemp)"
+trap 'rm -f "$DEX"' EXIT
+unzip -p "$APK" 'classes*.dex' > "$DEX"
+if grep -aqF "$HEAD_SHA" "$DEX"; then
   printf '   %s -- the APK contains the commit it names\n' "$HEAD_SHA"
 else
   die "the APK does not embed HEAD ($HEAD_SHA) -- it was built from something else"
