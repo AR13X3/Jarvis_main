@@ -135,6 +135,13 @@ class ConversationViewModel @Inject constructor(
                 viewModelScope.launch { open(target) }
             }
 
+            ConversationEvent.Refresh -> _state.value.sessionId?.let { sessionId ->
+                // Quietly: the rows on screen are still valid, and a spinner
+                // over a conversation that has not changed is worse than the
+                // wait it replaces. A failure leaves what is there alone.
+                viewModelScope.launch { refreshHistory(sessionId, clearOptimistic = false) }
+            }
+
             is ConversationEvent.Confirm -> resolveProposal(event.proposalId, confirm = true)
             is ConversationEvent.Reject -> resolveProposal(event.proposalId, confirm = false)
 

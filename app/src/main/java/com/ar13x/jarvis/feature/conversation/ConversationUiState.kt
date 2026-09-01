@@ -199,6 +199,17 @@ sealed interface ConversationEvent {
     data object LoadOlder : ConversationEvent
     data object Retry : ConversationEvent
 
+    /**
+     * Reload history without disturbing what is on screen.
+     *
+     * Unlike [Retry], which reopens the session and shows a loading state. This
+     * is for coming back to a conversation the agent may have written to while
+     * the app was away — answering a nudge from the lock screen does exactly
+     * that, and until this existed the messages did not appear until the user
+     * pulled to refresh.
+     */
+    data object Refresh : ConversationEvent
+
     data class Confirm(val proposalId: String) : ConversationEvent
     data class Reject(val proposalId: String) : ConversationEvent
 

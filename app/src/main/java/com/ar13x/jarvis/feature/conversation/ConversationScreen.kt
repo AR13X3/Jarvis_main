@@ -59,6 +59,8 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.compose.LifecycleEventEffect
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
@@ -103,6 +105,16 @@ fun ConversationScreen(
         snackbars.showSnackbar(failure.message(), duration = SnackbarDuration.Short)
         onEvent(ConversationEvent.DismissFailure)
     }
+
+    // The agent writes to this session while the app is away — answering a
+    // nudge from the lock screen is the ordinary case, and it posts a message
+    // saying the reminder moved. Without this, coming back showed the
+    // conversation exactly as it was left and the reply only appeared once the
+    // user refreshed by hand.
+    //
+    // The task list has had this since Phase D; the conversation, which is the
+    // surface the agent actually writes to, never got it.
+    LifecycleEventEffect(Lifecycle.Event.ON_RESUME) { onEvent(ConversationEvent.Refresh) }
 
     LoadOlderEffect(state, listState, onEvent)
 

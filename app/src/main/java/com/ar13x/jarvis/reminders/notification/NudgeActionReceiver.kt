@@ -9,12 +9,15 @@ import com.ar13x.jarvis.core.data.AgentRepository
 import com.ar13x.jarvis.core.data.message
 import com.ar13x.jarvis.core.data.toFailureReason
 import com.ar13x.jarvis.core.model.FailureReason
+import com.ar13x.jarvis.core.model.Task
+import com.ar13x.jarvis.core.ui.DueDateFormat
 import com.ar13x.jarvis.reminders.OccurrenceMirror
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import java.time.ZoneId
 import javax.inject.Inject
 
 /**
@@ -65,17 +68,29 @@ class NudgeActionReceiver : BroadcastReceiver() {
                     when (action) {
                         ACTION_COMPLETE -> agent.completeOccurrence(occurrenceId)
                         ACTION_EXTEND -> agent.extendOccurrence(occurrenceId, minutes)
-                        else -> return@runCatching
+                        else -> return@launch
                     }
                 }
 
                 result
-                    .onSuccess {
+                    .onSuccess { task ->
                         // The deadline moved, so the mirror and its alarms are
                         // now wrong. Refreshing is what stops the next alarm
                         // firing against a time that no longer exists.
                         mirror.refresh()
                         poller.cancel(occurrenceId)
+
+                        // **Say that it worked.** Without this the only thing
+                        // this button could ever tell you was that it had
+                        // failed: the notification is dismissed the instant it
+                        // is tapped, and success was silent. Joy pushed a
+                        // reminder back three times because two silent
+                        // successes are indistinguishable from nothing
+                        // happening, and got feedback only when the third was
+                        // refused for having no extensions left.
+                        withContext(Dispatchers.Main) {
+                            context.confirm(action, minutes, task)
+                        }
                     }
                     .onFailure { error ->
                         withContext(Dispatchers.Main) {
@@ -89,6 +104,18 @@ class NudgeActionReceiver : BroadcastReceiver() {
                 pending.finish()
             }
         }
+    }
+
+    /**
+     * What just happened, and when the reminder now expects an answer.
+     *
+     * The new time rather than a bare acknowledgement: the reason to push a
+     * reminder back is to move it somewhere, and "pushed back" without saying
+     * where leaves you exactly as uncertain as saying nothing did.
+     */
+    private fun Context.confirm(action: String, minutes: Int, task: Task) {
+        val message = nudgeConfirmation(action, minutes, task) ?: return
+        Toast.makeText(this, message, Toast.LENGTH_LONG).show()
     }
 
     /**
@@ -109,4 +136,25 @@ class NudgeActionReceiver : BroadcastReceiver() {
         const val EXTRA_NOTIFICATION_ID = "notification_id"
         const val EXTRA_MINUTES = "minutes"
     }
+}
+
+/**
+ * What to say after a nudge action succeeds.
+ *
+ * A top-level function because the wording is the whole fix and `Toast` is not
+ * testable off-device. The branch that matters is the length: "60 minutes" is
+ * how a machine says an hour.
+ */
+fun nudgeConfirmation(
+    action: String,
+    minutes: Int,
+    task: Task,
+    zone: ZoneId = ZoneId.systemDefault(),
+): String? = when (action) {
+    NudgeActionReceiver.ACTION_COMPLETE -> "Marked done."
+    NudgeActionReceiver.ACTION_EXTEND -> {
+        val length = if (minutes < 60) minutes.toString() + " minutes" else "an hour"
+        "Pushed back " + length + " — now " + DueDateFormat.forRow(task, zone) + "."
+    }
+    else -> null
 }
