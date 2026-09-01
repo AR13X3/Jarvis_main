@@ -7,8 +7,20 @@ system, the session model, the release channel, phases A–I. This document
 extends it, the way §14 did, and where the two conflict **this one is newer and
 wins**. `BUILD_NOTES.md` stays the *how*.
 
-**Status: agreed in shape, not yet built.** Nothing here is on the tracker as
-work until gw03 has read it, because almost all of it is theirs.
+**Status, 2026-09-01 09:13 UTC: six of §8's seven steps are BUILT and deployed.**
+Only step 7 (attachments) is unstarted. The gateway half of steps 1–6 is live
+behind `https://gw03.tail9662e3.ts.net/api`; the app half — the dashboard, the
+to-do screens, summaries — is not. The tracker is the state; this file is the
+reasoning.
+
+**This document goes stale, and it has now pointed at a breaking change twice.**
+Both times the reasoning was sound and the premise had expired: §5.2's cost
+count (see the correction there), and this banner, which still said "not yet
+built" after six steps had shipped. Older sections lose to newer ones, and both
+lose to the served `openapi.json` and the code. **Re-derive any costed claim
+against the real DTOs before building on it.** Where a paragraph is superseded it
+is marked in place rather than deleted — a deleted paragraph is one somebody
+re-derives from scratch, and the trap with it.
 
 ---
 
@@ -379,15 +391,36 @@ A to-do with no `due_at` is legal and ordinary. It cannot be overdue and it
 cannot fail. It needs its own place in the UI — a backlog — and its own word in
 the dashboard. **Stale**, on some threshold of untouched days, is the honest one.
 
-**Cheaper than feared, and the guarantee is already structural.** gw03 counted
-the sites: two `NOT NULL`s to drop, one function to branch (`create_task`, which
-unconditionally inserts an occurrence), one explicit `ORDER BY ... NULLS LAST`,
-and one new check that a recurrence requires an anchor. The date filters need
-nothing — SQL `NULL` comparison excludes undated rows, which is the correct
-behaviour, for free. And `overdue_tasks` reads from **occurrences**, not from
-`due_at`: an undated task has no occurrence, so it can never be overdue and the
-scheduler needs no change at all. §5.2's "cannot fail" is not a rule anyone has
-to remember; it falls out of the indirection already shipped in 0001.
+> **SUPERSEDED 2026-09-01 — and following it would have broken the app.**
+> The paragraph that stood here counted the cost of making **`tasks.due_at`
+> nullable**: two `NOT NULL`s to drop, `create_task` to branch, one explicit
+> `ORDER BY ... NULLS LAST`, one recurrence-needs-an-anchor check. That count was
+> gw03's and it was *correct when written* — back when to-dos and tasks were
+> going to be the same table behind the rename. **§2 cancelled the rename and
+> §5.1 makes a to-do the _owner_ of tasks rather than a kind of one, so none of
+> it applies.** The paragraph survived the edit.
+>
+> It matters rather than being untidy because it describes a **breaking** change
+> dressed as a cheap one. The app's `Task` DTO declares `due_at` and `due_date`
+> **non-null** (`core/model/Task.kt`). The first undated task the gateway served
+> would have failed to deserialise and taken the whole task list down with it —
+> while §8 says "nothing here is breaking, nothing is deploy-coupled". True of
+> what was built; not true of what this paragraph described. gw03 read the DTO
+> rather than assuming, which is why it was caught before it was built.
+
+**What is actually true, as built (migration 0009, 2026-09-01).**
+`todos.due_at` is nullable **from birth**. `tasks.due_at` is not touched and
+stays `NOT NULL`; the app's `Task` DTO needs no change and there is no deploy
+coupling. To-dos live in their own `todos` schema, and `todos.todo_tasks` holds
+the link — there is deliberately **no `todo_id` column on `tasks.tasks`**, so the
+domain that works does not depend on the domain that is new.
+
+The one durable half of the old paragraph is worth keeping, because it is the
+reason "cannot fail" needs no enforcement: `overdue_tasks` reads from
+**occurrences**, not from `due_at`. A to-do has no occurrences of its own — only
+the tasks linked to it do, and those chase their own deadlines. So §5.2's "cannot
+fail" is not a rule anyone has to remember; it falls out of the indirection
+already shipped in 0001.
 
 **Stale, decided: untouched for 14 days, anchored on `updated_at`.** Not
 `created_at`, or a task you looked at yesterday and did not move is stale
@@ -397,17 +430,42 @@ written, restating "you did not do this last week" as though it were news.
 Fourteen means an item has survived **two** weekly reviews without moving, which
 is a signal rather than an echo.
 
+**`stale` deliberately ignores `date_from`/`date_to`, and the app must say so.**
+"Untouched for fourteen days" is a fact about *now*, not about the window being
+looked at; windowing it would make last month's dashboard claim things went stale
+in a month that had not happened yet. The consequence is a UI requirement, not a
+note: **when the dashboard window ends before today, the stale section is the one
+section that is still current, and it carries a caption saying so.** Without the
+caption it reads as a bug — a "historical" list that keeps changing. When the
+window ends today the caption is omitted, because then it is saying nothing.
+
 ### 5.3 Status
 
 Fixed set, not user-defined columns — there is no board to put columns on, and a
 fixed set is what lets the dashboard say anything across to-dos.
 
-Proposed: `open` → `doing` → `done`, plus `blocked` and `cancelled`. Deliberately
-*not* the task lifecycle (`active`/`awaiting`/`incomplete`), which is about firing
-and chasing and means nothing here — and `open` rather than `todo`, because `todo`
-now names the domain and `todo.status = todo` reads as a mistake.
+**Decided: `open` → `doing` → `done`, plus `cancelled`. Four, shipped in 0009.**
+Deliberately *not* the task lifecycle (`active`/`awaiting`/`incomplete`), which is
+about firing and chasing and means nothing here — and `open` rather than `todo`,
+because `todo` now names the domain and `todo.status = todo` reads as a mistake.
 
-**Open** — whether `blocked` earns its place, or is a tag.
+**`blocked` is NOT a status — ruled 2026-09-01, closing §9's open question.**
+gw03's argument is the cheap one and it holds: adding an enum value later is one
+statement, removing one means rewriting every row that used it, so shipping an
+undecided value is the expensive direction. But the deciding argument is about
+meaning rather than cost.
+
+The other four all answer **where the item is**. `blocked` answers **why it is not
+moving**, which is a different question, and putting the answer in the same field
+destroys the first one: a to-do that goes `doing` → `blocked` → unblocked cannot
+say whether to return to `doing` or to `open`. It also cannot carry the only part
+anyone actually needs — *what* is blocking — because a status has no room for a
+referent. "Blocked" without "on what" is a feeling, not a state.
+
+So if it earns its place later it arrives **orthogonal to status**: a nullable
+`blocked_on` — free text, or a link to the to-do or task doing the blocking —
+which composes with `doing` instead of overwriting it. That shape survives; the
+enum value would have had to be migrated away from.
 
 ---
 
@@ -441,6 +499,42 @@ enough history yet — N firings predate the record"**, and an empty state is sh
 requirement, not a nicety. The failure mode is silent, it lasts about a week, and
 it errs in the direction that reassures.
 
+**The same trap is in `missed`, and it is worse there.** Before anyone taps
+anything, every tracked slot of every finished day has no start — so a naive
+`missed` reports the whole week as missed, which is indistinguishable from "the
+routine tab has not been used yet". gw03 built the counting half correctly:
+**missed is counted only within days that carry at least one start**, and a day
+with no starts is excluded as no evidence either way. `routine_provenance`
+reports `days_elapsed` against `days_measured` so the gap is visible.
+
+That leaves the rendering half, and it is joy's. **Three rules, all required:**
+
+1. `routine_provenance.days_measured == 0` renders as **"not measured yet"** and
+   never as a clean week. An empty `missed` with nothing measured is the mirror
+   image of an empty `drifting` with no history — it is the screen congratulating
+   Joy for a week nobody recorded.
+2. Whenever `days_elapsed > days_measured` the section shows **"measured on N of
+   M days"** — always, not only when the gap is large. A caveat that appears only
+   above some threshold teaches the reader that its absence means zero.
+3. Every `missed` row shows its own denominator: **"missed 3 of 5 measured
+   days"**, never a bare "3". `MissedSlot.days_measured` is on the wire per row
+   precisely so the row can say it, and a bare count invites reading it against
+   `days_elapsed`, which is the wrong number.
+
+**Accepted failures are shown, not hidden — ruled 2026-09-01.** "Charge my watch"
+has failed 9 of 12 and Joy has already decided the reminder is right and the time
+is one she does not answer (tracker 40). Left alone it sits at the top of
+`failing` every day forever, and a dashboard that leads with something you chose
+to live with teaches you to skip the top row.
+
+Excluding it from `failing` entirely was the other option and it is **wrong for
+the reason this whole section exists**: an absent row and a row that stopped
+failing read identically. If "Charge my watch" ever *did* start succeeding,
+nothing on the screen would change. So the flag is carried, not filtered — and
+because gw03 computes and the app renders, **the ranking is the app's job**:
+accepted rows sort below unaccepted ones, under their own quiet heading, with the
+real numbers still on them. Nothing is hidden and nothing is shouted about.
+
 **Drift thresholds are derived, per domain, and live in `policy`.** For tasks
 gw03 derived `GRACE_MINUTES + EXTENSIONS_ALLOWED * AUTO_EXTEND_MINUTES` — the
 longest the gateway ever said it would wait, so anything later is later than its
@@ -453,6 +547,33 @@ minutes would never fire on a ninety-minute slot. `SlotRow.drifted` currently
 hardcodes 15 minutes, which is the right *reasoning* — nobody taps at the second,
 and a routine crying wolf over four minutes gets ignored — and the wrong *place*.
 It moves into `policy` when the routine tables land, and the constant is deleted.
+
+**Built 2026-09-01 as `policy.routine_drift_threshold_minutes`, derived from
+`GRACE_MINUTES` alone** — this system's already-declared unit of "a delay that
+does not count for anything". It lands on 15 with a reason instead of a guess,
+gw03 pins it with a test, and it is absolute, so an early start counts, matching
+`SlotRow.drifted`'s `|actual − planned|`. Accepted as-is.
+
+> **But `policy` alone cannot carry it, and this is the app half of the same
+> mistake gw03 caught in `grace_minutes`.** `policy` rides on `/dashboard`, which
+> is authenticated and network-only. §4.2 requires the **routine tab to render
+> off the tailnet** from the cached `Routine`, and `Routine` carries no threshold
+> (verified against the served contract, sha `e398ff18e4aa6b33`: it is on
+> `DashboardPolicy` and nowhere else). Deleting the constant with the number
+> reachable only through `/dashboard` means the routine tab either keeps a
+> client-side 15 under another name, or cannot answer offline at all.
+>
+> **The fix is one additive optional field: carry
+> `drift_threshold_minutes` on `Routine` too** — the fetch-once-and-keep object
+> the app is already told to cache. Then the number arrives with the thing it
+> describes and is cached by the same code path.
+>
+> **Until it does, the app does not guess.** `SlotRow.drifted` becomes
+> *unknown* rather than *false* when no threshold has been received, and the row
+> renders with no drift verdict. That is §6's own provenance rule — never render
+> "nothing is wrong" when the honest answer is "nothing was measured" — applied
+> to the threshold instead of the history. A fallback 15 would be a client
+> constant wearing a server's name, which is what this paragraph exists to end.
 
 Sequenced deliberately so it is useful early: a dashboard over **tasks only**
 is possible as soon as §3's history route exists, before routines or tasks are
@@ -476,13 +597,23 @@ A group is a tag with a summary subscription attached. One taxonomy, not two.
 ## 8. Order
 
 1. **Expose `resolved_at`** + one history route. No migration, not breaking.
-2. **The event table** + seven inserts beside the existing mutations. Not
-   breaking, and nothing to coordinate with the app.
-3. **Dashboard v1**, over tasks alone.
+   — **DONE** (gateway).
+2. **The event table** + inserts beside the existing mutations. Not breaking, and
+   nothing to coordinate with the app. — **DONE** (gateway), migration 0006–0008.
+   *The count here said "seven inserts". It was **ten** — three `INSERT`s were
+   missed in the original survey. gw03 recounted against the code before
+   building. A miscount in a plan is a miscount you build to.*
+3. **Dashboard v1**, over tasks alone. — gateway **DONE** (`GET /dashboard`);
+   **app half is joy's and is the current work**.
 4. **Routines.** Template, versions, tracked slots, start-only logging, day view.
-5. **To-dos.** Tags, `starts_at`, nullable `due_at`, status, history.
-6. **Summaries.** Needs tags from 5 and the scheduler that already exists.
-7. **Attachments** — Phase G, returning to scope, last.
+   — gateway **DONE**; app day view and week view built.
+5. **To-dos.** Tags, `starts_at`, nullable `due_at`, status, history. — gateway
+   **DONE**, migration 0009. *"Nullable `due_at`" means **`todos.due_at`** — see
+   the correction in §5.2. `tasks.due_at` is untouched and stays `NOT NULL`.*
+   **App screens not built.**
+6. **Summaries.** Needs tags from 5 and the scheduler that already exists. —
+   gateway **DONE**, migrations 0010–0011. **App screen not built.**
+7. **Attachments** — Phase G, returning to scope, last. — **NOT STARTED.**
 
 The first draft had a rename at the front, then at position three. §2 removed it
 altogether, which is why this list is shorter than the discussion that produced
@@ -501,8 +632,16 @@ is already built and running on a fixture.
 - **Navigation.** The app is two tabs. This is four surfaces — Reminders, Tasks,
   Routine, Dashboard — plus Chat. That is a design-system decision, not a
   routing one, and `jarvis-app-plan.md` §6 is the authority.
-- **`blocked` as a status, or a tag.** §5.3.
+- ~~**`blocked` as a status, or a tag.**~~ **Closed 2026-09-01: not a status.**
+  See §5.3 — it is orthogonal to status, so if it arrives it arrives as
+  `blocked_on`, not as a fifth enum value.
 - **Per-week routine overrides.** Agreed as wanted, not yet specified. §4.6.
+  Still unbuilt, and *deliberately* — §9 called it agreed and never said what it
+  was, so there is nothing to build to. It needs a spec before it needs code.
+- **Agent tools for to-dos and summaries.** Not built, deliberately: the model
+  can read them but cannot create a to-do, only the app can. Adding tools changes
+  the agreed tool-scope table *and* the live conversational surface, so it is a
+  joint decision rather than gw03's alone. §2.3.
 - **The tracked/scaffold split for every slot in the current routine.** The kinds
   in §4.3 are confirmed in principle and guessed per slot; the guess wants a pass.
 - **What the day-end prompt looks like** for unstarted tracked slots. §4.4.
