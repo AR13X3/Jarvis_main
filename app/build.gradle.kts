@@ -136,6 +136,20 @@ android {
     testOptions {
         unitTests {
             isIncludeAndroidResources = true
+
+            // Forward `-Djarvis.live.dir=...` into the forked test JVM.
+            //
+            // Gradle does NOT pass command-line system properties through to the
+            // test process, so `LiveContractTest` silently SKIPPED and the run
+            // still reported BUILD SUCCESSFUL -- a green suite that had verified
+            // nothing. Without this line the only signal is the skip count,
+            // which nobody reads.
+            all { test ->
+                test.systemProperty(
+                    "jarvis.live.dir",
+                    System.getProperty("jarvis.live.dir") ?: "",
+                )
+            }
         }
     }
 

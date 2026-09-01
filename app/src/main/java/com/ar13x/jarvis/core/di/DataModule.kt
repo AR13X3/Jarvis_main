@@ -2,12 +2,12 @@ package com.ar13x.jarvis.core.di
 
 import com.ar13x.jarvis.core.data.AgentRepository
 import com.ar13x.jarvis.core.data.DashboardRepository
-import com.ar13x.jarvis.core.data.FakeRoutineRepository
 import com.ar13x.jarvis.core.data.RoutineRepository
 import com.ar13x.jarvis.core.data.TaskRepository
 import com.ar13x.jarvis.core.data.TodoRepository
 import com.ar13x.jarvis.core.network.RemoteAgentRepository
 import com.ar13x.jarvis.core.network.RemoteDashboardRepository
+import com.ar13x.jarvis.core.network.RemoteRoutineRepository
 import com.ar13x.jarvis.core.network.RemoteTaskRepository
 import com.ar13x.jarvis.core.network.RemoteTodoRepository
 import dagger.Binds
@@ -61,31 +61,29 @@ abstract class DataModule {
     abstract fun bindTodoRepository(impl: RemoteTodoRepository): TodoRepository
 
     /**
-     * **Still the fake, and now that is a choice rather than a lack.**
+     * **Real, as of 2026-09-02.** The routine tab now reads Joy's actual routine
+     * and start log instead of a fixture.
      *
-     * The routes exist — `GET /routine`, `/routine/now`, `/routine/starts` —
-     * and [com.ar13x.jarvis.core.network.RemoteRoutineRepository] is written and
-     * tested against payloads built from the served schema. Flipping this line
-     * is the whole swap.
+     * Both reasons this was held back are resolved, and by measurement rather
+     * than by deciding to risk it:
      *
-     * It is not flipped yet, and the reason is not caution in general but two
-     * specific things:
+     *  1. **The weekday base is 1-based.** `GET /routine` returns `1..7`, and
+     *     `GET /routine/now` independently says `weekday=2` for a `logical_day`
+     *     of 2026-09-01, which is a Tuesday. `RoutineDto.toDomain` derives this
+     *     from the payload and lands on the same answer. Tracker 117 still asks
+     *     for the range in the schema, so the derivation can become a constant.
+     *  2. **The real response decodes.** `LiveContractTest` ran against a
+     *     production body: seven days, every `category_key` resolving, every
+     *     slot kind known.
      *
-     *  1. **The weekday encoding is not in the contract.** `RoutineDay.weekday`
-     *     is a bare integer, Python has both 0-based and 1-based conventions,
-     *     and getting it wrong shifts the entire week by a day while leaving
-     *     every slot and time correct — so it reads as bad data, not as a client
-     *     bug. `RoutineDto.toDomain` decides it from the payload rather than
-     *     guessing, but that has never met a real response. Tracker 117.
-     *  2. **Nothing here has been run against the live gateway.** There is no
-     *     bearer token on the build machine, so every routine payload this code
-     *     has seen was written from the schema. On this project the bugs that
-     *     matter have consistently been found by using the app on the phone.
-     *
-     * Flipping it unverified risks a blank routine tab — a working feature
-     * traded for an unrun one. So: one live read first, then this line.
+     * **What is still unverified: the WRITE path.** `routine/starts` currently
+     * holds zero rows, so no real `SlotStart` has ever been decoded and no
+     * `POST` has ever been made. The body mirrors the schema field for field,
+     * and the first tap on a slot is the test. It is still the better binding:
+     * a failed write surfaces as an error, whereas the fake accepted every tap
+     * and lost them all on process death.
      */
     @Binds
     @Singleton
-    abstract fun bindRoutineRepository(impl: FakeRoutineRepository): RoutineRepository
+    abstract fun bindRoutineRepository(impl: RemoteRoutineRepository): RoutineRepository
 }
