@@ -245,6 +245,30 @@ private fun Content(
             items(state.children, key = { "child-" + it.todoId }) { child ->
                 ChildRow(child = child, onAdvance = { viewModel.advanceChild(child) })
             }
+
+            // THE HEADING AND THE ROWS COME FROM TWO DIFFERENT FETCHES. The
+            // count above is the gateway's rollup, carried on the to-do itself;
+            // the rows are a second call, and `loadChildren` swallows its
+            // failure so that a broken sub-task read cannot take the whole
+            // screen down. Without this line the two disagree silently and
+            // "3 of 5" sits above nothing at all, which reads as the sub-tasks
+            // having been deleted.
+            if (todo.hasChildren && state.children.isEmpty() && !state.childrenLoading) {
+                item {
+                    Text(
+                        text = todo.childCount.toString() + " sub-task" +
+                            (if (todo.childCount == 1) "" else "s") +
+                            " could not be loaded.",
+                        style = JarvisTheme.typography.bodySmall,
+                        color = colors.status.incomplete,
+                        modifier = Modifier.padding(
+                            horizontal = Space.Gutter,
+                            vertical = Space.x1,
+                        ),
+                    )
+                }
+            }
+
             item { AddChild(onAdd = viewModel::addChild) }
         }
 
