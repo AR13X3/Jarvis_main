@@ -7,16 +7,20 @@ system, the session model, the release channel, phases A–I. This document
 extends it, the way §14 did, and where the two conflict **this one is newer and
 wins**. `BUILD_NOTES.md` stays the *how*.
 
-**Status, 2026-09-01 09:13 UTC: six of §8's seven steps are BUILT and deployed.**
-Only step 7 (attachments) is unstarted. The gateway half of steps 1–6 is live
-behind `https://gw03.tail9662e3.ts.net/api`; the app half — the dashboard, the
-to-do screens, summaries — is not. The tracker is the state; this file is the
-reasoning.
+**Status, 2026-09-02 late: six of §8's seven steps are built on BOTH sides.**
+Only step 7 (attachments) is unstarted, and it has no gateway contract yet
+either. The gateway half of steps 1–6 is live behind
+`https://gw03.tail9662e3.ts.net/api` (25 paths, 71 schemas, sha
+`383d102ebc0df899`); **the app half of steps 3, 4, 5 and 6 is now built too** —
+dashboard, routine, to-dos and summaries. The tracker is the state; this file is
+the reasoning.
 
-**This document goes stale, and it has now pointed at a breaking change twice.**
-Both times the reasoning was sound and the premise had expired: §5.2's cost
-count (see the correction there), and this banner, which still said "not yet
-built" after six steps had shipped. Older sections lose to newer ones, and both
+**This document goes stale, and it has now pointed at a breaking change twice
+and been wrong about its own status twice.** Each time the reasoning was sound
+and the premise had expired: §5.2's cost count (see the correction there); this
+banner saying "not yet built" after six steps had shipped; and then this banner
+again, saying the app half "is not" live on the day four of its screens landed.
+It is the *status* lines that rot, not the arguments. Older sections lose to newer ones, and both
 lose to the served `openapi.json` and the code. **Re-derive any costed claim
 against the real DTOs before building on it.** Where a paragraph is superseded it
 is marked in place rather than deleted — a deleted paragraph is one somebody
@@ -635,16 +639,29 @@ A group is a tag with a summary subscription attached. One taxonomy, not two.
    missed in the original survey. gw03 recounted against the code before
    building. A miscount in a plan is a miscount you build to.*
 3. **Dashboard v1**, over tasks alone. — gateway **DONE** (`GET /dashboard`);
-   **app half is joy's and is the current work**.
+   **app half DONE**, and its own tab as of §9.2.
 4. **Routines.** Template, versions, tracked slots, start-only logging, day view.
    — gateway **DONE**; app day view and week view built.
 5. **To-dos.** Tags, `starts_at`, nullable `due_at`, status, history. — gateway
    **DONE**, migration 0009. *"Nullable `due_at`" means **`todos.due_at`** — see
    the correction in §5.2. `tasks.due_at` is untouched and stays `NOT NULL`.*
-   **App screens not built.**
+   **App screens DONE**, and extended well past this line: a deadline can now be
+   *set* (§9.1 of the handoff — it could only ever be cleared before), plus
+   priority, one level of sub-tasks, an activity trail and status grouping. The
+   to-do → task link this step assumed has since been **deleted** — see §5.1.
 6. **Summaries.** Needs tags from 5 and the scheduler that already exists. —
-   gateway **DONE**, migrations 0010–0011. **App screen not built.**
-7. **Attachments** — Phase G, returning to scope, last. — **NOT STARTED.**
+   gateway **DONE**, migrations 0010–0011. **App screen DONE 2026-09-02**, a
+   screen inside the Dashboard tab rather than a sixth tab.
+   *It was held back for one specific reason and that reason is gone:*
+   `SummaryFacts` carries verb-keyed maps whose legal keys were in no schema, and
+   a key is **absent rather than zero**, so a misspelled lookup and a quiet day
+   were the same answer. Tracker 110 published `SummaryReminderVerb` and
+   `SummaryTodoVerb`; the app's spellings are now asserted against the served
+   contract rather than typed from memory.*
+7. **Attachments** — Phase G, returning to scope, last. — **NOT STARTED**, and
+   it is the only step that is not. There is no gateway contract for it yet
+   either, so it needs a shape agreed on the tracker before it needs code, the
+   same way §9.3's labels do.
 
 The first draft had a rename at the front, then at position three. §2 removed it
 altogether, which is why this list is shorter than the discussion that produced

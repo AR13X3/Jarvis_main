@@ -27,7 +27,7 @@ Rewritten 2026-09-01. Paste §0 into a new session; it points at everything else
 >
 > As of 2026-09-02 (late): `v0.1.12` is still the published release and
 > **nothing newer has been published**. §9 is built except §9.3, which is
-> blocked on a gateway schema. 335 tests green, tree clean. **Verify that rather
+> blocked on a gateway schema. 346 tests green, tree clean. **Verify that rather
 > than believing it** — sessions overlap here and this line goes stale within
 > the hour.
 >
@@ -235,7 +235,7 @@ before `gh release create` on purpose. Do not add a `--publish` flag.
 
 ### Built and unreleased — which is now most of a release
 
-**335 tests, tree clean.** The plan through Phase F, plus voice, the Overdue
+**346 tests, tree clean.** The plan through Phase F, plus voice, the Overdue
 section, the follow-up loop with lock-screen answers, checklists, unfinished-task
 recovery, the routine (day and week views, against the live gateway), the
 dashboard, and to-dos.
@@ -249,6 +249,12 @@ dashboard, and to-dos.
 | §9.4 | all four Jira features — priority, sub-tasks, the activity trail, status grouping |
 | §9.5 | the to-do → reminder link deleted, and v2 plan §5.1 updated rather than left contradicting the code |
 | §9.6 | routine notifications — exact alarms on tracked slots, answerable from the lock screen |
+
+**Summaries are built** (v2 §8 step 6, `c00c66a`) — a screen inside the
+Dashboard tab, not a sixth tab. They had been held back because
+`SummaryFacts`'s verb-keyed maps had no published vocabulary; tracker 110
+resolved that, and the app's spellings are asserted against the served contract
+rather than typed from memory.
 
 **§9.3 (first-class labels) is the one not built, and deliberately.** It needs a
 gateway contract that does not exist yet. The shape is proposed on tracker 134
@@ -272,11 +278,10 @@ than restating them, so it cannot agree with a mistake by repeating it.
 
 ### What is genuinely not built
 
-- **Summaries (v2 §8 step 6, app half).** It was blocked on tracker 110, and
-  **110 is resolved** — `SummaryReminderVerb` and `SummaryTodoVerb` are named
-  enums in the contract and the key vocabulary is no longer a guess. This is the
-  largest unbuilt app half and is now unblocked.
-- **Attachments** (v2 §8 step 7). Called last, still unstarted.
+- **Attachments** (v2 §8 step 7). Called last, still unstarted, and now the
+  **only** step of §8 that is. There is no gateway contract for it either, so it
+  needs a shape agreed on the tracker before it needs code — the same position
+  §9.3's labels are in.
 - **Per-week routine overrides.** §9 of the v2 plan calls them agreed and never
   specified them, so there is nothing to build to. It needs a spec before code.
 - **Routine import by agent** (v2 §4.7).
