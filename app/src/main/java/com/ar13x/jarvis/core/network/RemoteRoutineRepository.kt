@@ -48,9 +48,36 @@ class RemoteRoutineRepository @Inject constructor(
     private val zone: ZoneId get() = ZoneId.systemDefault()
 
     override fun routine(): Flow<Routine> = cached
-        .onStart { refreshRoutine() }
+        .onStart {
+            // A FAILED REFRESH MUST NOT TAKE AWAY A ROUTINE WE ALREADY HAVE.
+            //
+            // §4.2 requires the routine tab to render off the tailnet, and
+            // `cached` is what it renders from — but `onStart` throwing cancels
+            // the flow with that exception, so before this the tab broke the
+            // moment the gateway was unreachable, cache or no cache. The
+            // KDoc above already claimed otherwise.
+            //
+            // §9.6 made it matter more: the slot alarms re-arm through this
+            // flow, and they re-arm from a broadcast receiver on a phone that
+            // has been idle — which is exactly when a network call is least
+            // likely to succeed and a stale routine is most obviously better
+            // than none.
+            //
+            // With nothing cached there is nothing to fall back to, so the
+            // error stands. That is the honest answer rather than an empty
+            // screen with no explanation.
+            if (cached.value == null) refreshRoutine() else runCatching { refreshRoutine() }
+        }
         .filterNotNull()
 
+    /**
+     * **Deliberately NOT given the same tolerance as [routine].**
+     *
+     * A stale routine is still a true statement about the plan. A stale start
+     * log is a claim about what was done today, and its empty state reads as
+     * "nothing started" — which, shown after a failed refresh, is a lie rather
+     * than staleness. Failing loudly is the right answer for this one.
+     */
     override fun starts(): Flow<List<SlotStart>> = log
         .onStart { refreshStarts() }
 
