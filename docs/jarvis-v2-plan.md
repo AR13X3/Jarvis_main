@@ -178,9 +178,26 @@ night, exactly where the interesting data lives.
 `start(d) <= t < end(d)`; resolve by scanning **backwards** to the most recent
 declared start, never forwards from midnight.
 
-This is `jarvis-app-plan.md` §3.2 in a new costume: deriving a calendar day from
-a timestamp is the mistake, and the answer is the same — the server owns the
-boundary and the app never computes it.
+This is `jarvis-app-plan.md` §3.2 in a new costume, but **the two are not the
+same rule and the difference matters.**
+
+§3.2 forbids deriving a calendar day from a timestamp, because the answer
+depends on a timezone the phone and the server disagree about. Resolving an
+instant against boundaries the **server declared** and the app has already
+fetched is arithmetic on server-owned data — nothing is invented, `starts_at`
+and `ends_at` came from the routine version.
+
+**The app must resolve it locally**, because the routine tab has to render off
+the tailnet. The whole reminders subsystem is built on a local mirror for that
+reason: alarms fire on a plane. A tab that needed a round trip to know what day
+it is would be blank exactly when someone is checking whether they did the gym.
+
+An earlier draft of this section said "the server owns the boundary and the app
+never computes it", which is too strong — and gw03 read it literally and designed
+a `/routine/now` route as the only source of truth. That route is worth having as
+a **cross-check**, and as the answer before a version has been fetched. It is not
+the only source. If the two ever disagree, that is a bug worth finding, and it is
+only findable because both exist.
 
 ### 4.3 Slots have a kind, and most are not tickable
 
@@ -272,6 +289,26 @@ tomorrow; days already measured keep the plan they were measured against.
 That covers the permanent case. The temporary one — *this week only, uni
 assessment eats Wednesday's buffer* — is a **per-week override** layered on top
 of a version. Worth having, second to build.
+
+**An override may change times. It may never change slot kinds.** "This week is
+different" is not "this week I measure different things": if a week could change
+what is tracked, adherence stops being comparable week to week, which is the
+entire point of the dashboard. Changing a kind is a change of intent, and that is
+an edit — a new version, with an effective date.
+
+**Category identity is not category classification, and only one of them is
+versioned.** A category's `key` and `label` live on the *routine*, because that
+is what a cross-version rollup joins on and "20h on Reskill this week versus
+last" has to survive an edit. Its `cls` — committed, upkeep or free — lives on
+the **version**, because that is what moves the headline split and is therefore a
+property of the plan. Put `cls` on the routine and reclassifying Reskill silently
+restates last month's totals, which is the one thing this section exists to
+prevent.
+
+**The start log is a projection; the events are the history.** Recording a start
+upserts by `(version, slot, logical_day)` — a mis-tap corrects in place. The
+append-only record is a `started` / `cleared` event in §3's stream. One table
+doing both is the mistake `occurrences` already made.
 
 ### 4.7 Getting a routine in
 
