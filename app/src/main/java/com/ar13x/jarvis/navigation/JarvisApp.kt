@@ -44,6 +44,7 @@ import com.ar13x.jarvis.feature.onboarding.TokenScreen
 import com.ar13x.jarvis.core.update.UpdateStatus
 import com.ar13x.jarvis.feature.about.AboutScreen
 import com.ar13x.jarvis.feature.chat.ChatScreen
+import com.ar13x.jarvis.feature.dashboard.DashboardScreen
 import com.ar13x.jarvis.feature.routine.RoutineScreen
 import com.ar13x.jarvis.feature.routine.RoutineWeekScreen
 import com.ar13x.jarvis.feature.tasks.list.TaskListScreen
@@ -243,10 +244,16 @@ private fun JarvisNavHost(
 
                 navigation<RoutineGraph>(startDestination = RoutineDayView) {
                     composable<RoutineDayView> {
-                        RoutineScreen(onOpenWeek = { navController.navigate(RoutineWeek) })
+                        RoutineScreen(
+                            onOpenWeek = { navController.navigate(RoutineWeek) },
+                            onOpenDashboard = { navController.navigate(DashboardRoute) },
+                        )
                     }
                     composable<RoutineWeek> {
                         RoutineWeekScreen(onBack = { navController.popBackStack() })
+                    }
+                    composable<DashboardRoute> {
+                        DashboardScreen(onBack = { navController.popBackStack() })
                     }
                 }
 

@@ -1,6 +1,7 @@
 package com.ar13x.jarvis.core.network
 
 import com.ar13x.jarvis.core.model.AgentResponse
+import com.ar13x.jarvis.core.model.Dashboard
 import com.ar13x.jarvis.core.model.PagedMessages
 import com.ar13x.jarvis.core.model.PagedTasks
 import com.ar13x.jarvis.core.model.SectionsResponse
@@ -55,6 +56,21 @@ interface JarvisApi {
 
     @GET("occurrences/upcoming")
     suspend fun upcomingOccurrences(@Query("within_hours") withinHours: Int): UpcomingOccurrences
+
+    /**
+     * v2 plan §6. The gateway computes every number; this returns finished
+     * arithmetic and the app does no bucketing, streaks or percentages of its own.
+     *
+     * Both dates are optional, and omitting them takes the **gateway's** default
+     * window. An app-side default would be the client deciding what "this
+     * period" means, which is the same class of mistake as an app-side drift
+     * threshold.
+     */
+    @GET("dashboard")
+    suspend fun dashboard(
+        @Query("date_from") dateFrom: String? = null,
+        @Query("date_to") dateTo: String? = null,
+    ): Dashboard
 
     @POST("sessions")
     suspend fun createSession(@Body body: CreateSessionBody): Session

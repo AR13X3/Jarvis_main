@@ -1,10 +1,12 @@
 package com.ar13x.jarvis.core.di
 
 import com.ar13x.jarvis.core.data.AgentRepository
+import com.ar13x.jarvis.core.data.DashboardRepository
 import com.ar13x.jarvis.core.data.FakeRoutineRepository
 import com.ar13x.jarvis.core.data.RoutineRepository
 import com.ar13x.jarvis.core.data.TaskRepository
 import com.ar13x.jarvis.core.network.RemoteAgentRepository
+import com.ar13x.jarvis.core.network.RemoteDashboardRepository
 import com.ar13x.jarvis.core.network.RemoteTaskRepository
 import dagger.Binds
 import dagger.Module
@@ -35,6 +37,16 @@ abstract class DataModule {
     @Binds
     @Singleton
     abstract fun bindAgentRepository(impl: RemoteAgentRepository): AgentRepository
+
+    /**
+     * Real from the day the screen was written — unlike the routine, the whole
+     * dashboard already exists on the gateway (`GET /dashboard`, contract
+     * `e398ff18e4aa6b33`). `FakeDashboardRepository` stays for tests and for
+     * working off the tailnet; swap this line to reach for it.
+     */
+    @Binds
+    @Singleton
+    abstract fun bindDashboardRepository(impl: RemoteDashboardRepository): DashboardRepository
 
     /**
      * Still a fake, and visibly so.

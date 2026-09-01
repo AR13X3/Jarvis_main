@@ -29,6 +29,21 @@ sealed interface Route
 /** The week's shape and totals — "where the hours go" (v2 plan §4.1). */
 @Serializable data object RoutineWeek : Route
 
+/**
+ * The dashboard — "how it is going" (v2 plan §6).
+ *
+ * **Placed here provisionally, and the placement is not mine to settle.** §9
+ * lists navigation as open: four surfaces plus Chat is a design-system decision
+ * and `jarvis-app-plan.md` §6 is the authority. So this does *not* add a fourth
+ * bottom-bar tab — it sits in the Routine graph beside [RoutineWeek], reached
+ * the same way, because "how it is going" is the same question as "where the
+ * hours go" asked over a longer window.
+ *
+ * That is a placement, not a claim. Moving it to its own tab is one entry here
+ * and one in `JarvisBottomBar`; the screen itself does not care.
+ */
+@Serializable data object DashboardRoute : Route
+
 @Serializable data object TaskList : Route
 
 /** Tapping a row opens *that task's* persistent session (plan §5.3). */
