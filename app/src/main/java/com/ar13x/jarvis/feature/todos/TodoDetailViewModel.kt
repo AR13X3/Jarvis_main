@@ -170,6 +170,14 @@ class TodoDetailViewModel @Inject constructor(
                 // The parent's `n of m` moved, so the parent is re-read too.
                 apply(todos.todo(todoId))
                 loadChildren()
+                // Reloaded, even though the event most likely landed on the
+                // CHILD rather than on this to-do. Whether ticking a sub-task
+                // also writes a row against its parent is gw03's business and
+                // has not been checked here -- and skipping the fetch on that
+                // basis would be exactly the unverified premise §6 is about. One
+                // GET is cheaper than being quietly wrong about it.
+                loadHistory()
+
             } catch (e: Exception) {
                 _state.update { it.copy(transientFailure = e.toFailureReason()) }
             }
@@ -212,6 +220,7 @@ class TodoDetailViewModel @Inject constructor(
                     )
                 }
                 apply(updated)
+                loadHistory()
             } catch (e: Exception) {
                 _state.update { it.copy(transientFailure = e.toFailureReason()) }
             }
@@ -235,6 +244,12 @@ class TodoDetailViewModel @Inject constructor(
         viewModelScope.launch {
             try {
                 apply(block())
+                // Every edit here writes an event, so the trail below the fold
+                // is out of date the instant one lands. Without this the
+                // Activity section silently disagrees with the screen above it
+                // -- which is a worse failure than it sounds on the one surface
+                // whose whole job is saying what happened to this to-do.
+                loadHistory()
             } catch (e: Exception) {
                 // The screen keeps showing what the server last said. No
                 // optimistic update means nothing to roll back, and a value

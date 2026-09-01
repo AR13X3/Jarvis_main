@@ -34,6 +34,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -293,7 +294,12 @@ private fun DeadlineSection(
 ) {
     val colors = JarvisTheme.colors
     val zone = remember { ZoneId.systemDefault() }
-    var picking by remember { mutableStateOf(false) }
+    // `rememberSaveable`, not `remember`. This composable lives inside a
+    // `LazyColumn` item, and a lazy item's plain `remember` is discarded the
+    // moment the item scrolls out of view. `LazyColumn` wraps each item in a
+    // `SaveableStateProvider`, so the saveable version survives that — and a
+    // rotation, which plain `remember` also loses.
+    var picking by rememberSaveable { mutableStateOf(false) }
 
     // The day is the server's and the time is read off the instant — and the
     // time is shown only when the deadline actually names one (§9.1: most
@@ -446,7 +452,13 @@ private fun ChildRow(child: Todo, onAdvance: () -> Unit) {
 @Composable
 private fun AddChild(onAdd: (String) -> Unit) {
     val colors = JarvisTheme.colors
-    var text by remember { mutableStateOf("") }
+    // `rememberSaveable`, and here it is a real bug rather than tidiness: this
+    // row sits below the sub-task list inside a `LazyColumn`, so on a to-do with
+    // a description, a few sub-tasks and an activity trail it scrolls off screen
+    // easily. With plain `remember` a half-typed sub-task title is discarded
+    // when the item is disposed — the text simply vanishes on scrolling back,
+    // with nothing to suggest why.
+    var text by rememberSaveable { mutableStateOf("") }
 
     fun submit() {
         if (text.isBlank()) return
