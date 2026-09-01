@@ -18,7 +18,18 @@ import java.time.LocalTime
  * [RoutineDay.endsAt] and `RoutineClock`.
  */
 data class Routine(
-    val id: String,
+    /** Identity across versions. A rollup joins on this, not on [versionId]. */
+    val routineId: Long,
+    /**
+     * **The version, and it is not optional anywhere a start is recorded.**
+     *
+     * The day boundary is declared *on the version*, so a start pinned only to
+     * a logical day silently re-buckets the moment a later version moves that
+     * day's wake time — rewriting exactly the history that versioning exists to
+     * protect. gw03 caught this when the first `SlotStart` shape carried only
+     * `(on, slotId, at)`.
+     */
+    val versionId: Long,
     val name: String,
     /**
      * The date this version starts applying.

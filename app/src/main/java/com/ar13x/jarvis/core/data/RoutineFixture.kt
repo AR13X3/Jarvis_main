@@ -54,7 +54,12 @@ object RoutineFixture {
     )
 
     val theWeek: Routine = Routine(
-        id = "the-week",
+        routineId = 1,
+        // A fixture value. The gateway issues real version ids on
+        // `Routine.version_id`; this stands in until the app binds the remote
+        // repository, and it exists so a start recorded here still carries a
+        // version rather than a null.
+        versionId = 1,
         name = "The week",
         effectiveFrom = LocalDate.of(2026, 9, 1),
         categories = categories,

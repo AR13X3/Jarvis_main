@@ -49,12 +49,29 @@ abstract class DataModule {
     abstract fun bindDashboardRepository(impl: RemoteDashboardRepository): DashboardRepository
 
     /**
-     * Still a fake, and visibly so.
+     * **Still the fake, and now that is a choice rather than a lack.**
      *
-     * The routine template, its versions and the start log are all gateway state
-     * in the v2 plan, and none of those routes exist yet. This binding is the
-     * one place that changes when they do — the same seam the two above went
-     * through in phase D.
+     * The routes exist — `GET /routine`, `/routine/now`, `/routine/starts` —
+     * and [com.ar13x.jarvis.core.network.RemoteRoutineRepository] is written and
+     * tested against payloads built from the served schema. Flipping this line
+     * is the whole swap.
+     *
+     * It is not flipped yet, and the reason is not caution in general but two
+     * specific things:
+     *
+     *  1. **The weekday encoding is not in the contract.** `RoutineDay.weekday`
+     *     is a bare integer, Python has both 0-based and 1-based conventions,
+     *     and getting it wrong shifts the entire week by a day while leaving
+     *     every slot and time correct — so it reads as bad data, not as a client
+     *     bug. `RoutineDto.toDomain` decides it from the payload rather than
+     *     guessing, but that has never met a real response. Tracker 118.
+     *  2. **Nothing here has been run against the live gateway.** There is no
+     *     bearer token on the build machine, so every routine payload this code
+     *     has seen was written from the schema. On this project the bugs that
+     *     matter have consistently been found by using the app on the phone.
+     *
+     * Flipping it unverified risks a blank routine tab — a working feature
+     * traded for an unrun one. So: one live read first, then this line.
      */
     @Binds
     @Singleton

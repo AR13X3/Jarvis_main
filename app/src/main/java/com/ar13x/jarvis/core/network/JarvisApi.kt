@@ -11,6 +11,7 @@ import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.JsonObject
 import retrofit2.http.Body
+import retrofit2.http.DELETE
 import retrofit2.http.GET
 import retrofit2.http.PATCH
 import retrofit2.http.POST
@@ -71,6 +72,50 @@ interface JarvisApi {
         @Query("date_from") dateFrom: String? = null,
         @Query("date_to") dateTo: String? = null,
     ): Dashboard
+
+    // --- routine (v2 plan §4) --------------------------------------------------
+    //
+    // `GET routine` is a fetch-once-and-keep object, not a per-view read: §4.2
+    // requires the routine tab to render off the tailnet.
+
+    @GET("routine")
+    suspend fun routine(
+        @Query("on") on: String? = null,
+        @Query("version_id") versionId: Long? = null,
+    ): RoutineDto
+
+    /**
+     * A cross-check, deliberately **not** load-bearing (§4.2, tracker 84). The
+     * app resolves the logical day locally from the boundaries this same server
+     * declared; this exists so the two answers can be compared, and a
+     * disagreement is a bug that is only findable because both exist.
+     */
+    @GET("routine/now")
+    suspend fun routineNow(): RoutineNowDto
+
+    /** Both dates required: a default window here would have to pick between
+     *  "this routine week" and "the last seven days", and those differ by which
+     *  week Sunday belongs to. */
+    @GET("routine/starts")
+    suspend fun routineStarts(
+        @Query("date_from") dateFrom: String,
+        @Query("date_to") dateTo: String,
+        @Query("version_id") versionId: Long? = null,
+    ): SlotStartsDto
+
+    @POST("routine/starts")
+    suspend fun recordStart(@Body body: RecordStartBody): SlotStartDto
+
+    /**
+     * Answers `ok` whether or not there was a start to clear — clearing an
+     * already-clear slot is the state the caller asked for.
+     */
+    @DELETE("routine/starts")
+    suspend fun clearStart(
+        @Query("version_id") versionId: Long,
+        @Query("slot_key") slotKey: String,
+        @Query("on") on: String,
+    ): JsonObject
 
     @POST("sessions")
     suspend fun createSession(@Body body: CreateSessionBody): Session

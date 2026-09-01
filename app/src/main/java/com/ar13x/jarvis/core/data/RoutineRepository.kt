@@ -33,13 +33,24 @@ data class SlotStart(
      * history versioning exists to protect. gw03 caught this: the first shape
      * carried only `(on, slotId, at)`.
      *
-     * The gateway owns version identity. Until those routes exist the fake
-     * supplies the routine's `effectiveFrom`, which is a stand-in and not a
-     * proposed format.
+     * The gateway owns version identity, and now issues it: `Routine.version_id`
+     * on the wire. It was a `String` stand-in while the routine lived only in a
+     * fixture.
      */
-    val routineVersion: String,
+    val versionId: Long,
     val on: LocalDate,
     val slotId: String,
+    /**
+     * **Wall-clock, not an instant.** The gateway stores `started_at` as an
+     * instant; the day view compares it against planned times, which are
+     * declared wall-clock with no zone. That conversion happens once, in
+     * `RemoteRoutineRepository`, where the zone can be named — not here, and not
+     * inside a serializer.
+     *
+     * This is *not* §3.2's forbidden derivation. The **day** is [on] and arrives
+     * separately from the server. What is read off the instant is a time of day,
+     * which is the only thing an instant can honestly answer.
+     */
     val at: LocalDateTime,
     /**
      * True when [at] fell in a gap between routine days and was attributed to
@@ -85,7 +96,7 @@ class FakeRoutineRepository @Inject constructor() : RoutineRepository {
     override fun starts(): Flow<List<SlotStart>> = log.asStateFlow()
 
     override suspend fun start(slotId: String, on: LocalDate, at: LocalDateTime, clamped: Boolean) {
-        val version = RoutineFixture.theWeek.effectiveFrom.toString()
+        val version = RoutineFixture.theWeek.versionId
         log.update { existing ->
             existing.filterNot { it.slotId == slotId && it.on == on } +
                 SlotStart(version, on, slotId, at, clamped)

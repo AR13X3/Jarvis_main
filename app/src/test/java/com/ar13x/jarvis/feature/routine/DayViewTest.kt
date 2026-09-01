@@ -22,7 +22,7 @@ import java.time.LocalDateTime
 class DayViewTest {
 
     private val monday: LocalDate = LocalDate.of(2026, 9, 7)
-    private val VERSION = "2026-09-01"
+    private val VERSION = 1L
     private val day = LogicalDay(monday, RoutineFixture.theWeek.day(DayOfWeek.MONDAY)!!)
 
     private fun at(hour: Int, minute: Int = 0) = monday.atTime(hour, minute)
