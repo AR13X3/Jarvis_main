@@ -19,8 +19,8 @@ Rewritten 2026-09-01. Paste §0 into a new session; it points at everything else
 > curl -s https://gw03.tail9662e3.ts.net/tracker/api/items
 > ```
 >
-> Everything is committed and pushed, 253 tests green, `v0.1.10` published —
-> and **several fixes, the whole routine feature and the dashboard are
+> Everything is committed and pushed, 276 tests green, `v0.1.10` published —
+> and **several fixes, the routine feature, the dashboard and to-dos are
 > unreleased**, so what is on the phone is well behind the repo.
 > **Never publish a release without asking me first.**
 >
@@ -153,6 +153,13 @@ If a claim rests on something you did not check, say so.
   inline-only.
 - **Writing a Kotlin `"\n"` through a shell heredoc or Python silently becomes a
   real newline** and breaks the build. Use the Edit tool for string literals.
+- **`JarvisJson` sets `explicitNulls = false`, so a Kotlin `null` is OMITTED,
+  not sent.** Right for every body except `PATCH /todos/{id}`, which reads with
+  `exclude_unset`: there, an omitted key means "leave alone" and an explicit
+  `null` means "clear". A nullable data-class field could only ever send the
+  first, so clearing a deadline would silently do nothing. `todoPatchBody` builds
+  a `JsonObject` from a `Patch<T>` tri-state instead — do not "simplify" it back
+  into a data class; `TodoPatchTest` is what will catch you.
 - **Python on this machine opens files as cp1252, not UTF-8.** `json.load(open(p))`
   on the served `openapi.json` mangles every `§` and `—` into two characters, and
   a diff against gw03's copy then reports ~56 differing values that do not exist.
@@ -183,8 +190,8 @@ installing in place on one key. Phone on `0.1.10`, verified with `adb`.
 
 **Complete:** the plan through Phase F, plus voice, the Overdue section, the
 follow-up loop with lock-screen answers, checklists, unfinished-task recovery,
-the **routine** — day view and week view, against a fixture — and the
-**dashboard**. 253 tests.
+the **routine** — day view and week view, against a fixture — the
+**dashboard**, and **to-dos** (list, backlog, detail, capture). 276 tests.
 
 **Unreleased, and it is now a lot.** `0.1.10` predates the routine tab, the
 dashboard, and four fixes, three of which are the `PendingIntent` identity bugs
@@ -218,6 +225,16 @@ the dashboard can say; whether the 12-hour times in the routine want an am/pm
 marker; **where the dashboard lives** (tracker 116 — it is parked in the Routine
 graph, and a fourth tab is hers to call); and the four decisions in tracker 103,
 including off-machine backups.
+
+**The one real gap in to-dos:** you can *unlink* a reminder from a to-do but not
+*link* one. That is a gap rather than a decision — it needs a task picker, and
+the sensible entry point is probably from the **task** side ("this reminder is
+about…") rather than a search inside the to-do. Nothing blocks it.
+
+**Summaries are deliberately unstarted**, blocked on tracker 110: `SummaryFacts`
+carries verb-keyed maps whose key vocabulary is in no schema. Writing the parser
+against guessed strings would surface as a zero on screen, which reads exactly
+like a true zero.
 
 **Not built, and each for a stated reason:** attachments (step 7, called last);
 per-week routine overrides (§9 calls them agreed and never specified them, so
