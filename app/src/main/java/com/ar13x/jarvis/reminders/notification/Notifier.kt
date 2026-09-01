@@ -13,7 +13,10 @@ import androidx.core.content.ContextCompat
 import com.ar13x.jarvis.MainActivity
 import com.ar13x.jarvis.R
 import com.ar13x.jarvis.reminders.alarm.AlarmScheduler
+import com.ar13x.jarvis.core.model.SlotAlarm
 import com.ar13x.jarvis.reminders.data.OccurrenceEntity
+import com.ar13x.jarvis.reminders.routine.RoutineAlarmScheduler
+import com.ar13x.jarvis.reminders.routine.SlotStartReceiver
 import dagger.hilt.android.qualifiers.ApplicationContext
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -204,9 +207,107 @@ class Notifier @Inject constructor(
         else -> "Due now"
     }
 
+    // --- routine slots (§9.6) -----------------------------------------------
+
+    /**
+     * A separate channel from reminders, and that is the important part.
+     *
+     * It means Joy can silence or downgrade routine prompts in system settings
+     * **without touching reminders**, which is the escape hatch that stops this
+     * feature being switched off wholesale. §9.6's own warning is that too many
+     * interruptions get the lot disabled; a channel is how the user disagrees
+     * with a judgement call at a finer grain than "uninstall".
+     *
+     * `IMPORTANCE_DEFAULT`, not `HIGH`. A reminder is a moment Joy explicitly
+     * asked to be interrupted at, so it heads-up and lights the screen. A slot
+     * boundary is a *prompt* to log something — there are about 3.7 a day — and
+     * a heads-up banner that often would be the thing that makes it intolerable.
+     */
+    fun ensureSlotChannel() {
+        val channel = NotificationChannel(
+            SLOT_CHANNEL_ID,
+            "Routine",
+            NotificationManager.IMPORTANCE_DEFAULT,
+        ).apply {
+            description = "When a tracked part of your day begins"
+            enableVibration(false)
+        }
+        context.getSystemService(NotificationManager::class.java)
+            .createNotificationChannel(channel)
+    }
+
+    /**
+     * A tracked slot has begun. One tap records the start.
+     *
+     * **No full-screen intent, deliberately**, where a reminder has one. Taking
+     * over the lock screen is right for a deadline somebody chose; doing it
+     * several times a day for "gym starts now" is how an app gets muted.
+     */
+    fun showSlot(alarm: SlotAlarm) {
+        if (!canPost()) return
+        ensureSlotChannel()
+
+        val id = RoutineAlarmScheduler.notificationId(alarm.on, alarm.slotId)
+
+        val start = PendingIntent.getBroadcast(
+            context,
+            id,
+            Intent(context, SlotStartReceiver::class.java).apply {
+                action = SlotStartReceiver.ACTION_START
+                // Identity in the data URI (BUILD_NOTES §14). The action button
+                // and the alarm share a key but target different components, so
+                // they cannot collapse into one another.
+                data = android.net.Uri.parse(
+                    RoutineAlarmScheduler.key(alarm.on, alarm.slotId) + "/start",
+                )
+                putExtra(RoutineAlarmScheduler.EXTRA_ON, alarm.on.toString())
+                putExtra(RoutineAlarmScheduler.EXTRA_SLOT_ID, alarm.slotId)
+                putExtra(RoutineAlarmScheduler.EXTRA_LABEL, alarm.label)
+                putExtra(RoutineAlarmScheduler.EXTRA_AT, alarm.at.toString())
+                putExtra(RoutineAlarmScheduler.EXTRA_ENDS_AT, alarm.endsAt.toString())
+                putExtra(RoutineAlarmScheduler.EXTRA_DAY_ENDS_AT, alarm.dayEndsAt.toString())
+            },
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
+        )
+
+        val open = PendingIntent.getActivity(
+            context,
+            id,
+            Intent(context, MainActivity::class.java).apply {
+                flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
+            },
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
+        )
+
+        val notification = NotificationCompat.Builder(context, SLOT_CHANNEL_ID)
+            .setSmallIcon(R.drawable.ic_notification)
+            .setContentTitle(alarm.label)
+            .setContentText(alarm.window())
+            .setCategory(NotificationCompat.CATEGORY_EVENT)
+            .setPriority(NotificationCompat.PRIORITY_DEFAULT)
+            .setAutoCancel(true)
+            .setContentIntent(open)
+            // Not "Done". Starting is the only thing the routine records — the
+            // next slot's start is what ends this one (v2 §4.4) — and a button
+            // promising to finish something would be promising a write that has
+            // no route behind it.
+            .addAction(0, "Start", start)
+            .build()
+
+        NotificationManagerCompat.from(context).notify(id, notification)
+    }
+
+    /** "08:00 – 09:30", the plan this slot is being measured against. */
+    private fun SlotAlarm.window(): String =
+        SLOT_TIME.format(at) + " – " + SLOT_TIME.format(endsAt)
+
     companion object {
         const val CHANNEL_ID = "jarvis.reminders"
+        const val SLOT_CHANNEL_ID = "jarvis.routine"
         const val EXTRA_TASK_ID = "task_id"
+
+        private val SLOT_TIME: java.time.format.DateTimeFormatter =
+            java.time.format.DateTimeFormatter.ofPattern("h:mm a", java.util.Locale.getDefault())
     }
 }
 

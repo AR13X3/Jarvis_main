@@ -91,6 +91,19 @@
             android:name=".reminders.notification.NudgeCatchUpReceiver"
             android:exported="false" />
 
+        <!-- Routine slot alarms (section 9.6). Separate receivers from the
+             reminder ones on purpose: a slot alarm and an occurrence alarm must
+             never be able to collapse into one PendingIntent, and different
+             components are the strongest form of that guarantee, stronger even
+             than the differing data URIs that BUILD_NOTES section 14 requires. -->
+        <receiver
+            android:name=".reminders.routine.SlotAlarmReceiver"
+            android:exported="false" />
+
+        <receiver
+            android:name=".reminders.routine.SlotStartReceiver"
+            android:exported="false" />
+
         <receiver
             android:name=".reminders.alarm.BootReceiver"
             android:exported="true"

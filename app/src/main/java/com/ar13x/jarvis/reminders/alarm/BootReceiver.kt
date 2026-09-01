@@ -4,6 +4,7 @@ import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
 import com.ar13x.jarvis.reminders.OccurrenceMirror
+import com.ar13x.jarvis.reminders.routine.RoutineAlarmRefresher
 import com.ar13x.jarvis.reminders.work.OccurrenceRefreshWorker
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.CoroutineScope
@@ -24,6 +25,8 @@ class BootReceiver : BroadcastReceiver() {
 
     @Inject lateinit var mirror: OccurrenceMirror
 
+    @Inject lateinit var routineAlarms: RoutineAlarmRefresher
+
     override fun onReceive(context: Context, intent: Intent) {
         when (intent.action) {
             Intent.ACTION_BOOT_COMPLETED,
@@ -38,6 +41,13 @@ class BootReceiver : BroadcastReceiver() {
                 // From the mirror, not the network: the phone may boot with no
                 // connectivity, and the last known window is better than nothing.
                 mirror.rearmFromMirror()
+                // The routine has no on-disk mirror to re-arm from, so this one
+                // does need the network and may do nothing. That is a real gap
+                // and it closes on the next daily refresh; a boot with no
+                // connectivity costs the routine prompts until then, and the
+                // alternative is a second cache for a thing the gateway calls a
+                // fetch-once-and-keep object.
+                routineAlarms.refresh()
                 // Then ask the server, in case the window moved while it was off.
                 OccurrenceRefreshWorker.enqueueNow(context)
                 OccurrenceRefreshWorker.enqueueDaily(context)
