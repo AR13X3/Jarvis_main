@@ -48,6 +48,8 @@ import com.ar13x.jarvis.feature.dashboard.DashboardScreen
 import com.ar13x.jarvis.feature.routine.RoutineScreen
 import com.ar13x.jarvis.feature.routine.RoutineWeekScreen
 import com.ar13x.jarvis.feature.tasks.list.TaskListScreen
+import com.ar13x.jarvis.feature.todos.TodoDetailScreen
+import com.ar13x.jarvis.feature.todos.TodoListScreen
 import com.ar13x.jarvis.feature.tasks.session.SessionScreen
 import com.ar13x.jarvis.feature.update.UpdateRequiredScreen
 import com.ar13x.jarvis.feature.update.UpdateViewModel
@@ -212,6 +214,27 @@ private fun JarvisNavHost(
                                 onNewSession = { navController.navigate(NewSession()) },
                                 onOpenDraft = { id -> navController.navigate(NewSession(sessionId = id)) },
                                 onAbout = { navController.navigate(About) },
+                                onTodos = { navController.navigate(TodoList) },
+                            )
+                        }
+                    }
+                    composable<TodoList> {
+                        WithNavScope {
+                            TodoListScreen(
+                                onBack = navController::popBackStack,
+                                onOpenTodo = { id -> navController.navigate(TodoDetail(id)) },
+                            )
+                        }
+                    }
+                    composable<TodoDetail> {
+                        WithNavScope {
+                            TodoDetailScreen(
+                                onBack = navController::popBackStack,
+                                // Cross-domain, into the reminder's own session
+                                // -- the to-do owns the link, but the task is
+                                // still a task and its screen is the one that
+                                // can cancel, extend or talk about it.
+                                onOpenTask = { id -> navController.navigate(TaskSession(id)) },
                             )
                         }
                     }

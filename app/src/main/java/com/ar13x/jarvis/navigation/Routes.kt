@@ -46,6 +46,24 @@ sealed interface Route
 
 @Serializable data object TaskList : Route
 
+/**
+ * To-dos (v2 plan §5) — the things reminders are *about*.
+ *
+ * In the Tasks graph, and provisionally so for the same reason as
+ * [DashboardRoute]: §9 leaves navigation to Joy. The v2 plan's full shape names
+ * *Reminders* and *Tasks* as separate surfaces, where this app's "Tasks" tab is
+ * the former and this screen is the latter — so these two probably do end up as
+ * siblings. Deciding that is not this file's job.
+ *
+ * Living in the Tasks graph does mean backing out of a to-do returns to the
+ * reminder list with its scroll intact, which is the right behaviour whatever
+ * the eventual placement.
+ */
+@Serializable data object TodoList : Route
+
+/** One to-do, its reminders, and the deadline that can be taken away again. */
+@Serializable data class TodoDetail(val todoId: Long) : Route
+
 /** Tapping a row opens *that task's* persistent session (plan §5.3). */
 @Serializable data class TaskSession(val taskId: Long) : Route
 

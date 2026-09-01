@@ -26,6 +26,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.Add
+import androidx.compose.material.icons.rounded.ChecklistRtl
 import androidx.compose.material.icons.rounded.Info
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.CircularProgressIndicator
@@ -99,6 +100,7 @@ fun TaskListScreen(
     onNewSession: () -> Unit,
     onOpenDraft: (String) -> Unit,
     onAbout: () -> Unit,
+    onTodos: () -> Unit,
     modifier: Modifier = Modifier,
     viewModel: TaskListViewModel = hiltViewModel(),
 ) {
@@ -110,6 +112,7 @@ fun TaskListScreen(
         onNewSession = onNewSession,
         onOpenDraft = onOpenDraft,
         onAbout = onAbout,
+        onTodos = onTodos,
         modifier = modifier,
     )
 }
@@ -123,6 +126,7 @@ fun TaskListScreen(
     onNewSession: () -> Unit,
     onOpenDraft: (String) -> Unit,
     onAbout: () -> Unit,
+    onTodos: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val colors = JarvisTheme.colors
@@ -188,6 +192,7 @@ fun TaskListScreen(
                     drafts = state.drafts,
                     onOpenDrafts = { showDrafts = true },
                     onAbout = onAbout,
+                    onTodos = onTodos,
                 )
             }
         }
@@ -230,6 +235,7 @@ private fun TaskList(
     drafts: List<SessionSummary>,
     onOpenDrafts: () -> Unit,
     onAbout: () -> Unit,
+    onTodos: () -> Unit,
 ) {
     val showSections = content.showsSections(state.filters)
 
@@ -253,6 +259,7 @@ private fun TaskList(
                 onNewSession = onNewSession,
                 onOpenDrafts = onOpenDrafts,
                 onAbout = onAbout,
+                onTodos = onTodos,
             )
         }
 
@@ -388,6 +395,7 @@ private fun TasksHeader(
     onNewSession: () -> Unit,
     onOpenDrafts: () -> Unit,
     onAbout: () -> Unit,
+    onTodos: () -> Unit,
 ) {
     val colors = JarvisTheme.colors
     // Counted from the server's `due_today`, never derived from an instant.
@@ -448,16 +456,33 @@ private fun TasksHeader(
               }
             },
             trailing = {
-                // A ghost circle, not a second saturated one: the + is the only
+                // Ghost circles, never a second saturated one: the + is the only
                 // saturated element in the list so the eye lands on it (§6.7),
-                // and a build-identity screen must never compete with it.
-                CircleIconButton(onClick = onAbout, diameter = 40.dp) {
-                    Icon(
-                        Icons.Rounded.Info,
-                        contentDescription = "About this build",
-                        tint = colors.inkMuted,
-                        modifier = Modifier.size(20.dp),
-                    )
+                // and neither of these may compete with it.
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(Space.x2),
+                ) {
+                    // To-dos are the things reminders are ABOUT (v2 plan §5.1),
+                    // which is why the way in is from here rather than from a
+                    // fourth tab. The placement is provisional: §9 leaves
+                    // navigation to Joy, and it is asked as tracker 116.
+                    CircleIconButton(onClick = onTodos, diameter = 40.dp) {
+                        Icon(
+                            Icons.Rounded.ChecklistRtl,
+                            contentDescription = "To-dos",
+                            tint = colors.inkMuted,
+                            modifier = Modifier.size(20.dp),
+                        )
+                    }
+                    CircleIconButton(onClick = onAbout, diameter = 40.dp) {
+                        Icon(
+                            Icons.Rounded.Info,
+                            contentDescription = "About this build",
+                            tint = colors.inkMuted,
+                            modifier = Modifier.size(20.dp),
+                        )
+                    }
                 }
             },
         )
