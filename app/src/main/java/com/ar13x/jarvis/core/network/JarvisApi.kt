@@ -4,8 +4,11 @@ import com.ar13x.jarvis.core.model.AgentResponse
 import com.ar13x.jarvis.core.model.Dashboard
 import com.ar13x.jarvis.core.model.PagedMessages
 import com.ar13x.jarvis.core.model.PagedTasks
+import com.ar13x.jarvis.core.model.PagedTodos
 import com.ar13x.jarvis.core.model.SectionsResponse
 import com.ar13x.jarvis.core.model.Session
+import com.ar13x.jarvis.core.model.Todo
+import com.ar13x.jarvis.core.model.TodoEnvelope
 import com.ar13x.jarvis.core.model.UpcomingOccurrences
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
@@ -72,6 +75,58 @@ interface JarvisApi {
         @Query("date_from") dateFrom: String? = null,
         @Query("date_to") dateTo: String? = null,
     ): Dashboard
+
+    // --- to-dos (v2 plan §5) ---------------------------------------------------
+
+    /**
+     * The list. **The backlog is `undated_only=true`, not a second route** —
+     * §5.2 gives undated to-dos their own place in the UI, and that is a filter
+     * over one ordering rather than a different collection.
+     *
+     * Note `status` is a **list** here, unlike `GET /tasks` where it is a single
+     * value (BUILD_NOTES §3.5). Retrofit repeats the key per element, which is
+     * what FastAPI reads back into a list.
+     */
+    @GET("todos")
+    suspend fun todos(
+        @Query("status") status: List<String>? = null,
+        @Query("tag") tag: String? = null,
+        @Query("undated_only") undatedOnly: Boolean = false,
+        @Query("page") page: Int = 1,
+    ): PagedTodos
+
+    @GET("todos/{id}")
+    suspend fun todo(@Path("id") id: Long): Todo
+
+    @POST("todos")
+    suspend fun createTodo(@Body body: CreateTodoBody): TodoEnvelope
+
+    /**
+     * Takes a raw [JsonObject] rather than a data class, and that is load-bearing
+     * — see [todoPatchBody]. An omitted key means "leave alone" and an explicit
+     * `null` means "clear"; `JarvisJson` omits Kotlin nulls, so a data class
+     * could only ever send the first of those.
+     */
+    @PATCH("todos/{id}")
+    suspend fun patchTodo(@Path("id") id: Long, @Body body: JsonObject): TodoEnvelope
+
+    /** Attach an existing reminder. Idempotent; 409 if it belongs to another to-do. */
+    @POST("todos/{todoId}/tasks/{taskId}")
+    suspend fun linkTask(
+        @Path("todoId") todoId: Long,
+        @Path("taskId") taskId: Long,
+    ): TodoEnvelope
+
+    /**
+     * Detach a reminder. **The task survives** — it keeps firing and its own
+     * routes still resolve it. "This reminder is not about that to-do" is not
+     * "stop reminding me".
+     */
+    @DELETE("todos/{todoId}/tasks/{taskId}")
+    suspend fun unlinkTask(
+        @Path("todoId") todoId: Long,
+        @Path("taskId") taskId: Long,
+    ): TodoEnvelope
 
     // --- routine (v2 plan §4) --------------------------------------------------
     //
@@ -205,6 +260,29 @@ data class CreateSessionBody(
 
 @Serializable
 data class SendMessageBody(val text: String)
+
+/**
+ * Direct creation, **no proposal**.
+ *
+ * A task is proposed-and-confirmed because the model parses "next Thursday" and
+ * can misread it. A to-do typed into a form cannot be misparsed — the same
+ * reasoning that lets a priority toggle write directly (plan §5.4).
+ *
+ * Every field but `title` is optional here, and `explicitNulls = false` means an
+ * unset one is omitted rather than sent as null. That is correct for a POST:
+ * there is nothing yet to clear. The distinction only bites on PATCH, which is
+ * why that body is built by hand — see `todoPatchBody`.
+ */
+@Serializable
+data class CreateTodoBody(
+    val title: String,
+    val description: String? = null,
+    @Serializable(com.ar13x.jarvis.core.model.InstantSerializer::class)
+    @SerialName("starts_at") val startsAt: java.time.Instant? = null,
+    @Serializable(com.ar13x.jarvis.core.model.InstantSerializer::class)
+    @SerialName("due_at") val dueAt: java.time.Instant? = null,
+    val tags: List<String>? = null,
+)
 
 // --- responses ----------------------------------------------------------------
 

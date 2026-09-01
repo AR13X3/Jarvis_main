@@ -5,9 +5,11 @@ import com.ar13x.jarvis.core.data.DashboardRepository
 import com.ar13x.jarvis.core.data.FakeRoutineRepository
 import com.ar13x.jarvis.core.data.RoutineRepository
 import com.ar13x.jarvis.core.data.TaskRepository
+import com.ar13x.jarvis.core.data.TodoRepository
 import com.ar13x.jarvis.core.network.RemoteAgentRepository
 import com.ar13x.jarvis.core.network.RemoteDashboardRepository
 import com.ar13x.jarvis.core.network.RemoteTaskRepository
+import com.ar13x.jarvis.core.network.RemoteTodoRepository
 import dagger.Binds
 import dagger.Module
 import dagger.hilt.InstallIn
@@ -47,6 +49,16 @@ abstract class DataModule {
     @Binds
     @Singleton
     abstract fun bindDashboardRepository(impl: RemoteDashboardRepository): DashboardRepository
+
+    /**
+     * Real from the start, like the dashboard and unlike the routine: the whole
+     * to-do domain is gateway state, every route is live, and there is no
+     * ambiguity in the contract to resolve first. `FakeTodoRepository` stays for
+     * tests and for working off the tailnet.
+     */
+    @Binds
+    @Singleton
+    abstract fun bindTodoRepository(impl: RemoteTodoRepository): TodoRepository
 
     /**
      * **Still the fake, and now that is a choice rather than a lack.**
