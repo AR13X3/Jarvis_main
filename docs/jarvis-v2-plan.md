@@ -15,17 +15,18 @@ work until gw03 has read it, because almost all of it is theirs.
 ## 1. What is actually changing
 
 Today the app does one thing well: you say something in natural language, it
-proposes a reminder, you confirm, it fires on time and chases you if you ignore
-it. That is a **reminder** app, and the object at the centre of it is called a
-task, which is the source of most of the confusion below.
+proposes a task, you confirm, it fires on time and chases you if you ignore it.
+That is a **reminder** app whose central object is called a task — slightly the
+wrong word, and the one already in the API, the database, the agent's tools and
+Joy's head.
 
-v2 adds three things and renames one:
+v2 adds three things and renames nothing:
 
 | | what it is | fails when |
 |---|---|---|
-| **Reminders** | today's `task`, renamed. A point in time that fires and chases. | past due, extensions spent, not done |
+| **Tasks** | unchanged. A point in time that fires and chases. | past due, extensions spent, not done |
 | **Routines** | a repeating weekly plan that partitions the day. Time tracking, not nagging. | a tracked slot is never started |
-| **Tasks** | *new*. Start and deadline as separate things, tags, status, checklists, attachments, history. Optionally undated. | dated: as reminders. **undated: cannot fail** |
+| **To-dos** | *new*. Start and deadline as separate things, tags, status, checklists, attachments, history. Optionally undated. | dated: as tasks. **undated: cannot fail** |
 | **Dashboard** | what got done, what is slipping, what is being avoided | — |
 | **Summaries** | daily and weekly, overall and per group, written by the agent | — |
 
@@ -37,48 +38,31 @@ in "what am I missing".
 
 ---
 
-## 2. Rename `task` → `reminder` — early, but not first
+## 2. No rename. The new domain is **to-dos**
 
-The gateway's `task` is a reminder: one `due_at`, a recurrence, an occurrence
-per firing, a follow-up loop with extensions. When real Tasks arrive there will
-be two things called task in the routes, the schemas, the database, the agent's
-tool names and the app's models.
+An earlier draft opened with a rename: `task` → `reminder`, freeing the word for
+the new domain. gw03 costed it — ~1090 identifiers, 5 routes, 10 wire models, the
+schema, the `task_status` enum, 4 indexes, a trigger, and a cutover coupling two
+repos with a phone in the field.
 
-Do it while there is one client, one user and ten releases of history. The app
-is the only consumer and it has a serialisation layer, so its half is mechanical.
-After real Tasks exist this becomes a migration that has to disambiguate two
-meanings of the same word, and it never gets cheaper.
+**Decided: don't.** The existing thing stays **Tasks**, everywhere — wire,
+database, tools, tab. The new domain is **To-dos**.
 
-**But not literally first.** gw03 costed it — ~1090 identifiers, 5 routes, 10 wire
-models, a schema, a table, an enum, 4 indexes and a trigger — and the two cheap
-wins in §3 touch `occurrences`, which the rename leaves alone. Doing them first
-therefore costs the rename nothing and ships a working dashboard before the
-breaking change rather than after it. See §8.
+That deletes the single largest item in the plan and every risk attached to it.
+Nothing is deploy-coupled, no aliases are needed, and the phone and the gateway
+stay independent.
 
-`GET /tasks` → `GET /reminders`, `Task` → `Reminder`, `PatchTaskBody` →
-`PatchReminderBody`. Occurrences keep their name; they are already correct.
+**What it costs, stated rather than glossed.** "Task" for a timed nudge that
+chases you is still slightly the wrong word, and gw03 made a real argument the
+first draft had missed: `tasks.task_status` is shared by tasks and occurrences,
+and its values are the reminder lifecycle — so the new domain's statuses (§5.3)
+need a separate enum with a less obvious name. That is a database-internal name.
+It never reaches the app, the API's consumers, or Joy. It is gw03's ugliness to
+live with, and it is far cheaper than the rename.
 
-**Three things the first draft missed**, all from gw03's count:
-
-- **Only three of seven tool names carry the word.** `propose_create/update/
-  cancel/complete` are already neutral; `get_task`, `find_tasks` and
-  `suggest_new_task` rename. But history replays stored tool calls verbatim, so
-  sessions predating the rename replay names no longer offered. Bounded —
-  sessions are per task — and accepted; a name-map in history is worse than the
-  problem.
-- **The `tasks.task_status` enum must rename too**, and this is an argument *for*
-  the rename that the first draft did not make. It is shared by tasks and
-  occurrences and its values are the reminder lifecycle. Real Tasks get a
-  different set (§5.3). If it is not renamed now the new one is called something
-  awkward forever — and the two must not be shared, because `cancelled` is the
-  same word and not the same thing.
-- **The schema is also called `tasks`, and real Tasks want the name.** Decided:
-  keep the schema, rename the table inside it. The schema names the domain
-  family, not the table.
-
-**The real cost is the cutover, not the code.** There is a phone in the field and
-two repos, so `/tasks*` stays as a thin deprecated alias for one release. That
-turns a lockstep two-repo deploy into two independent ones.
+**Naming, so both sides write it the same way.** "To-do" and "to-dos" in prose
+and on screen; `todo` and `todos` in identifiers, routes, tables and tool names.
+No collision with `tasks` anywhere.
 
 ---
 
@@ -95,7 +79,7 @@ the summaries ever read. So:
 - the dashboard, the summaries and a task's history all read **only** that stream
 - a fourth domain later changes nothing downstream
 
-An event is roughly: `at`, `source` (reminder | routine | task), `source_id`,
+An event is roughly: `at`, `source` (task | routine | todo), `source_id`,
 `verb` (started, completed, missed, lapsed, created, rescheduled, ticked,
 cancelled), `category_or_tag`, and a small payload.
 
@@ -112,7 +96,7 @@ extension happened are not.
 
 So "most of this already exists" is true of **completions** and false of
 **history** — and §6's *drifting*, which is planned versus actual, cannot be
-computed from it, because for a reminder the planned time is precisely the field
+computed from it, because for a task the planned time is precisely the field
 extend overwrites. The stream is a genuinely new append-only table. Still cheap:
 seven sites mutate occurrence state, one `INSERT` beside each, no behaviour
 change. Backfilled rows are outcome-only and must be marked `backfilled`, so no
@@ -339,7 +323,7 @@ time, not one long scroll**; **tickable**.
 
 ---
 
-## 5. Tasks
+## 5. To-dos
 
 The one genuinely new domain. Trello-like in *capability*, not in interface —
 Joy was explicit: **no dragging, no board columns**.
@@ -353,22 +337,26 @@ Joy was explicit: **no dragging, no board columns**.
 | `status` | see below |
 | `checklists` | already built and shipping |
 | `attachments` | this is Phase G, which returns to scope |
-| `reminders` | a task **has** reminders; it is not one |
+| `tasks` | a to-do **has** tasks; it is not one |
 | `history` | the event stream, §3 |
 
-### 5.1 A task has reminders
+### 5.1 A to-do has tasks
 
 Joy: *"yes, tasks can have reminders, but we can create tasks without any due
 time or date as well."*
 
-So the relationship is one task to many reminders, and a reminder stays the
-object that already works — it fires, it chases, it extends, it lapses. A task
-does not acquire its own nagging machinery; if two systems chase the same
-deadline the user gets buzzed twice for one thing.
+So the relationship is **one to-do to many tasks**, and a task stays the object
+that already works — it fires, it chases, it extends, it lapses. A to-do does not
+acquire its own nagging machinery; if two systems chase the same deadline the
+user gets buzzed twice for one thing.
 
-### 5.2 Undated tasks
+The wording is a little unlovely — a to-do *has tasks* — and that is the price of
+§2. It is also only ever written here and in gw03's schema: on screen a to-do
+simply has reminders set on it, which is what a person would call them.
 
-A task with no `due_at` is legal and ordinary. It cannot be overdue and it
+### 5.2 Undated to-dos
+
+A to-do with no `due_at` is legal and ordinary. It cannot be overdue and it
 cannot fail. It needs its own place in the UI — a backlog — and its own word in
 the dashboard. **Stale**, on some threshold of untouched days, is the honest one.
 
@@ -393,11 +381,12 @@ is a signal rather than an echo.
 ### 5.3 Status
 
 Fixed set, not user-defined columns — there is no board to put columns on, and a
-fixed set is what lets the dashboard say anything across tasks.
+fixed set is what lets the dashboard say anything across to-dos.
 
-Proposed: `todo` → `doing` → `done`, plus `blocked` and `cancelled`. Deliberately
-*not* the reminder lifecycle (`active`/`awaiting`/`incomplete`), which is about
-firing and chasing and means nothing here.
+Proposed: `open` → `doing` → `done`, plus `blocked` and `cancelled`. Deliberately
+*not* the task lifecycle (`active`/`awaiting`/`incomplete`), which is about firing
+and chasing and means nothing here — and `open` rather than `todo`, because `todo`
+now names the domain and `todo.status = todo` reads as a mistake.
 
 **Open** — whether `blocked` earns its place, or is a tag.
 
@@ -409,19 +398,19 @@ Reads the event stream and nothing else.
 
 Four words, and they are not synonyms:
 
-- **failed** — had a deadline, extensions spent, not done. Reminders, dated tasks.
+- **failed** — had a deadline, extensions spent, not done. Tasks, and dated to-dos.
 - **missed** — a tracked routine slot never started.
 - **drifting** — started consistently, but not near its plan. Computable for
   **routines** from the day they ship, because the plan lives on the routine
-  version and the start log is append-only. **Not computable for reminders**
-  until §3's event table exists, because extending a reminder overwrites the
-  planned time it would be compared against.
-- **stale** — an undated task untouched past a threshold. Cannot fail.
+  version and the start log is append-only. **Not computable for tasks** until
+  §3's event table exists, because extending a task overwrites the planned time
+  it would be compared against.
+- **stale** — an undated to-do untouched past a threshold. Cannot fail.
 
 The app renders; the gateway computes every number. No streaks, percentages or
 day-bucketing on the client — see §4.2 for why.
 
-Sequenced deliberately so it is useful early: a dashboard over **reminders only**
+Sequenced deliberately so it is useful early: a dashboard over **tasks only**
 is possible as soon as §3's history route exists, before routines or tasks are
 built. Each domain then lights up more of the same screen.
 
@@ -444,30 +433,22 @@ A group is a tag with a summary subscription attached. One taxonomy, not two.
 
 1. **Expose `resolved_at`** + one history route. No migration, not breaking.
 2. **The event table** + seven inserts beside the existing mutations. Not
-   breaking, and it can land before the rename because it touches `occurrences`,
-   which the rename does not rename.
-3. **Rename** `task` → `reminder`. Breaking, and deploy-coupled across two
-   repos — so it goes *after* the two cheap wins rather than before them. Serve
-   `/tasks*` as deprecated aliases for one release so the phone and the gateway
-   deploy independently. The `tasks.task_status` enum renames with it: its values
-   are the reminder lifecycle, real Tasks get a different set (§5.3), and leaving
-   it means the new one is called something awkward forever. Keep the `tasks`
-   schema name and rename the table inside it.
-4. **Dashboard v1**, over reminders alone.
-5. **Routines.** Template, versions, tracked slots, start-only logging, day view.
-6. **Tasks.** Tags, `starts_at`, nullable `due_at`, status, history.
-7. **Summaries.** Needs tags from 6 and the scheduler that already exists.
-8. **Attachments** — Phase G, returning to scope, last.
+   breaking, and nothing to coordinate with the app.
+3. **Dashboard v1**, over tasks alone.
+4. **Routines.** Template, versions, tracked slots, start-only logging, day view.
+5. **To-dos.** Tags, `starts_at`, nullable `due_at`, status, history.
+6. **Summaries.** Needs tags from 5 and the scheduler that already exists.
+7. **Attachments** — Phase G, returning to scope, last.
 
-The first draft put the rename first on the grounds that everything is cheaper
-afterwards. gw03 costed it and the order is wrong: steps 1 and 2 touch
-`occurrences` and `models.Occurrence`, which the rename leaves alone, so doing
-them first costs the rename nothing and ships the cheapest large win *before*
-the risky change instead of after it.
+The first draft had a rename at the front, then at position three. §2 removed it
+altogether, which is why this list is shorter than the discussion that produced
+it. Nothing here is breaking, nothing is deploy-coupled, and steps 1 and 2 can
+ship the moment gw03 next restarts for a reason of its own.
 
 Steps 1, 2, 4, 5, 6 are overwhelmingly **gw03's**: the gateway owns state and the
 app renders. joy's share is navigation, the dashboard, the routine day view and
-the task detail screen. Real work, but the smaller half.
+the to-do detail screen. Real work, but the smaller half — and the routine half
+is already built and running on a fixture.
 
 ---
 
