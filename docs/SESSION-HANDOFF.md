@@ -25,11 +25,11 @@ Rewritten 2026-09-01. Paste §0 into a new session; it points at everything else
 > out to be wrong. §9.1 first: a to-do cannot currently be given a deadline at
 > all, which is a bug and not a feature.
 >
-> As of 2026-09-02 (late): `v0.1.12` is still the published release and
-> **nothing newer has been published**. §9 is built except §9.3, which is
-> blocked on a gateway schema. 346 tests green, tree clean. **Verify that rather
-> than believing it** — sessions overlap here and this line goes stale within
-> the hour.
+> As of 2026-09-02 (late): **`v0.1.13` is published**, on Joy's explicit
+> instruction, carrying §9 except §9.3 plus summaries. §9.3 is blocked on a
+> gateway schema that does not exist yet. 347 tests green, tree clean. **Verify
+> that rather than believing it** — sessions overlap here and this line goes
+> stale within the hour.
 >
 > **Never publish a release without asking me first.** Building, tagging and
 > verifying unprompted is fine; `gh release create` is not. Use
@@ -219,13 +219,20 @@ happening, so **re-derive anything here that a decision depends on.**
 
 ### Released
 
-Eleven releases — `0.1.1`–`0.1.12`, `0.1.4` deliberately skipped — all installing
-in place on one key. **`v0.1.12` is the current release**, built from `4a149cb`
-and tagged. **Nothing since has been published**, deliberately: §9 is a large
-change and publishing is Joy's call.
+Twelve releases — `0.1.1`–`0.1.13`, `0.1.4` deliberately skipped — all installing
+in place on one key. **`v0.1.13` is the current release**, built from `2dc3e19`
+and tagged. Joy asked for it directly after being shown what was in it.
 
-Whether the phone has taken `0.1.12` is still unchecked — no device has been
-attached to `adb` in either of the last two sessions.
+**Verified after publishing, not just before**: the asset fetched anonymously
+from `api.github.com` — which is how Obtainium sees it, token-free — is
+byte-identical to the APK that passed `release.sh`'s signature, versionCode and
+embedded-commit checks (sha256 `98d9d074c2ad2fb7`). Cert matches every release
+since `0.1.1`, so it installs in place.
+
+**Whether the phone has taken it is unchecked**, and so is everything in it. No
+device has been attached to `adb` for three sessions. If Obtainium ever asks to
+*uninstall* first, stop — that means the signing cert changed, and uninstalling
+takes the paired token and the alarm mirror with it.
 
 `tools/release.sh` does the whole thing except publishing: it refuses a dirty
 tree, checks the versionCode beats what is published, builds, verifies the
@@ -235,12 +242,13 @@ before `gh release create` on purpose. Do not add a `--publish` flag.
 
 ### Built and unreleased — which is now most of a release
 
-**346 tests, tree clean.** The plan through Phase F, plus voice, the Overdue
+**347 tests, tree clean.** The plan through Phase F, plus voice, the Overdue
 section, the follow-up loop with lock-screen answers, checklists, unfinished-task
 recovery, the routine (day and week views, against the live gateway), the
 dashboard, and to-dos.
 
-**Five of §9's six items are built** (see §9 for what each one decided):
+**Five of §9's six items are built and shipped in `v0.1.13`** (see §9 for what
+each one decided):
 
 | | what landed |
 |---|---|
@@ -340,7 +348,7 @@ questions. Build it as written; raise something only if it turns out to be wrong
 > | §9.4 Jira features | **built** — `d9893bd`. gw03 shipped the contract for all four the same night (tracker 135, 136). |
 > | §9.5 delete the link | **built** — `b4d0486`. gw03 may retire `todos.todo_tasks` whenever it likes; nothing reads it. |
 > | §9.6 routine notifications | **built** — `c4452d6` |
-> | §9.7 test on the phone | **not done — no device was attached to `adb`.** Said plainly rather than quietly skipped: §9.7 is the item this project's own history rates most highly, and it is the one still outstanding. |
+> | §9.7 test on the phone | **STILL not done — no device was attached to `adb`, and `v0.1.13` is now published carrying all of it.** Said plainly rather than quietly skipped: §9.7 is the item this project's own history rates most highly, and it is the one still outstanding. |
 >
 > The brief below is left exactly as Joy wrote it. What each item actually
 > decided in the building is in the commit messages, which are long on purpose.
